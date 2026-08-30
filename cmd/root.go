@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"os"
-	"seesaw/pkg/services"
+	"seesaw/pkg"
 
 	"github.com/spf13/cobra"
 )
@@ -11,7 +11,7 @@ var rootCmd = &cobra.Command{
 	Use:   "seesaw",
 	Short: "Seesaw: An investment portfolio rebalancing engine",
 	Run: func(cmd *cobra.Command, args []string) {
-		_ = services.LoadEnv()
+		pkg.Rebalance()
 	},
 }
 
