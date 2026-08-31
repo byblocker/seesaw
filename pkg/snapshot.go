@@ -8,8 +8,6 @@ import (
 	"seesaw/internal/utils"
 )
 
-const DefaultTransactionWindowDays = 31
-
 type PortfolioSnapshot struct {
 	Id               string
 	Portfolio        *etrade.Portfolio
@@ -19,7 +17,10 @@ type PortfolioSnapshot struct {
 func SnapshotPortfolio(plan *config.PortfolioPlan, daysBack int) (*PortfolioSnapshot, error) {
 	ctx := context.Background()
 
-	env := config.LoadEnv()
+	env, err := config.LoadEnv()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load .env: %v", err)
+	}
 
 	etrade, err := etrade.NewClient(
 		ctx,
@@ -42,7 +43,7 @@ func SnapshotPortfolio(plan *config.PortfolioPlan, daysBack int) (*PortfolioSnap
 	}
 
 	if daysBack <= 0 {
-		daysBack = DefaultTransactionWindowDays
+		daysBack = config.DefaultTransactionWindowDays
 	}
 
 	recentTxByTicker, err := etrade.GetRecentTransactions(ctx, plan.AccountId, accountKey, daysBack)
