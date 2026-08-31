@@ -1,7 +1,8 @@
-package services
+package internal
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -47,4 +48,32 @@ func SendHTTPRequest(
 	default:
 		return body, nil
 	}
+}
+
+func SendJSONRequest[T any](
+	ctx context.Context,
+	client *http.Client,
+	method, endpoint string,
+	headers http.Header,
+	query url.Values,
+) (T, error) {
+	var response T
+
+	if headers == nil {
+		headers = http.Header{}
+	}
+	headers.Add("Accept", "application/json")
+
+	body, err := SendHTTPRequest(ctx, client, method, endpoint, headers, query)
+	if err != nil {
+		return response, err
+	}
+	if len(body) == 0 {
+		return response, nil
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return response, fmt.Errorf("error unmarshaling JSON: %w", err)
+	}
+	return response, nil
 }

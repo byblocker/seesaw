@@ -1,0 +1,10 @@
+accountId: "146621793"
+
+assets:
+  - primary_ticker: VOO
+    alternate_ticker: SCHX
+    target_allocation: 0.75
+
+  - primary_ticker: VXUS
+    alternate_ticker: IXUS
+    target_allocation: 0.25

@@ -1,0 +1,13 @@
+accountId: "451189878"
+
+assets:
+  - primary_ticker: SGOV
+    target_allocation: 0.20
+
+  - primary_ticker: STIP
+    alternate_ticker: VTIP
+    target_allocation: 0.30
+
+  - primary_ticker: VTI
+    alternate_ticker: ITOT
+    target_allocation: 0.50

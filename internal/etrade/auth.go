@@ -6,8 +6,9 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"seesaw/pkg/services"
-	"seesaw/pkg/utils"
+	"seesaw/internal"
+	"seesaw/internal/utils"
+
 	"time"
 
 	"github.com/dghubble/oauth1"
@@ -40,7 +41,7 @@ type Client struct {
 	APIBaseUrl string       `yaml:"api_base_url"`
 }
 
-func NewClient(key, secret, baseURL string) (*Client, error) {
+func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error) {
 	oauth := &oauth1.Config{
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
@@ -52,7 +53,7 @@ func NewClient(key, secret, baseURL string) (*Client, error) {
 		},
 	}
 
-	client, err := refreshETradeClient(oauth)
+	client, err := refreshETradeClient(ctx, oauth)
 	if err != nil {
 		log.Printf("Could not renew ETrade client: %v", err)
 
@@ -71,18 +72,17 @@ func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
 		return err
 	}
 
-	return services.KeyringSet(keyringService, accessTokenKey, oauthCache{
+	return internal.KeyringSet(keyringService, accessTokenKey, oauthCache{
 		Token:     token,
 		LastUsed:  lastUsed,
 		ExpiresAt: expiresAt,
 	})
 }
 
-func refreshETradeClient(oauth *oauth1.Config) (*http.Client, error) {
+func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Client, error) {
 	log.Print("Attempting to renew ETrade credentials...")
-	ctx := context.Background()
 
-	access, err := services.KeyringGet[oauthCache](keyringService, accessTokenKey)
+	access, err := internal.KeyringGet[oauthCache](keyringService, accessTokenKey)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func refreshETradeClient(oauth *oauth1.Config) (*http.Client, error) {
 
 	if time.Since(access.LastUsed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
-		if _, err := services.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil, nil); err != nil {
+		if _, err := internal.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil, nil); err != nil {
 			return nil, fmt.Errorf("failed to renew token: %w", err)
 		}
 

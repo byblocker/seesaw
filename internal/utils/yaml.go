@@ -15,3 +15,12 @@ func DebugYAML(v any) {
 
 	fmt.Println(string(out))
 }
+
+func YAMLToStruct[T any](data []byte) (*T, error) {
+	var output T
+	if err := yaml.Unmarshal(data, &output); err != nil {
+		return nil, err
+	}
+
+	return &output, nil
+}
