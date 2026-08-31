@@ -28,12 +28,12 @@ func GetPortfolio(plan *config.PortfolioPlan) (any, error) {
 		return nil, fmt.Errorf("failed to retrieve account key: %v", err)
 	}
 
-	balance, err := etrade.GetAccountBalance(ctx, accountKey)
+	portfolio, err := etrade.GetPortfolio(ctx, accountKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retreiev account balance: %v", err)
+		return nil, fmt.Errorf("failed to retrieve portfolio positions")
 	}
 
-	utils.DebugYAML(balance)
+	utils.DebugYAML(portfolio)
 
 	return nil, nil
 }
