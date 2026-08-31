@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+const (
+	YYYY_MM_DD = "2006-01-02"
+	MMDDYYYY   = "01022006"
+)
+
 func EndOfDay(date time.Time, timezone string) (time.Time, error) {
 	location, err := time.LoadLocation(timezone)
 	if err != nil {

@@ -128,9 +128,13 @@ func (client Client) fetchLotsForPosition(
 	lots := response.PositionLotsResponse.PositionLots
 
 	for i := range lots {
-		// ETrade encodes time as a Unix timestamp in milliseconds
-		lots[i].TimeAcquired = time.Unix(int64(lots[i].DateAcquired/1000), 0)
+		lots[i].TimeAcquired = convertUnixToTime(lots[i].DateAcquired)
 	}
 
 	return response.PositionLotsResponse.PositionLots, nil
+}
+
+func convertUnixToTime(timestamp int) time.Time {
+	// ETrade encodes time as a Unix timestamp in milliseconds
+	return time.Unix(int64(timestamp/1000), 0)
 }

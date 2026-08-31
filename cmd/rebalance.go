@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log"
 	"seesaw/pkg"
 
 	"github.com/spf13/cobra"
@@ -17,11 +18,12 @@ func init() {
 }
 
 func rebalance(cmd *cobra.Command, args []string) error {
-	portfolio, err := pkg.GetPortfolio(portfolioPlan)
+	log.Print("Starting rebalance . . .")
+	snapshot, err := pkg.SnapshotPortfolio(portfolioPlan, 0)
 	if err != nil {
 		return err
 	}
 
-	_ = portfolio
+	_ = snapshot
 	return nil
 }
