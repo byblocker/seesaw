@@ -33,7 +33,7 @@ func (client Client) GetAccountKey(ctx context.Context, targetAccountId string) 
 
 	endpoint := fmt.Sprintf("%s/accounts/list", client.APIBaseUrl)
 	response, err := internal.SendJSONRequest[listAccountsAPIResponse](
-		ctx, client.Client, http.MethodGet, endpoint, nil, nil,
+		ctx, client.httpClient, http.MethodGet, endpoint, nil, nil,
 	)
 	if err != nil {
 		return "", fmt.Errorf("could not load accounts: %w", err)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"seesaw/internal/config"
 	"seesaw/internal/etrade"
+	"seesaw/internal/utils"
 )
 
 func GetPortfolio(plan *config.PortfolioPlan) (any, error) {
@@ -26,7 +27,13 @@ func GetPortfolio(plan *config.PortfolioPlan) (any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account key: %v", err)
 	}
-	_ = accountKey
+
+	balance, err := etrade.GetAccountBalance(ctx, accountKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retreiev account balance: %v", err)
+	}
+
+	utils.DebugYAML(balance)
 
 	return nil, nil
 }

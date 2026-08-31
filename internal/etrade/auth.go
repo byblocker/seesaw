@@ -37,7 +37,7 @@ type oauthCache struct {
 }
 
 type Client struct {
-	Client     *http.Client `yaml:"-"`
+	httpClient *http.Client `yaml:"-"`
 	APIBaseUrl string       `yaml:"api_base_url"`
 }
 
@@ -63,7 +63,7 @@ func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error
 		}
 	}
 
-	return &Client{Client: client, APIBaseUrl: baseURL}, nil
+	return &Client{httpClient: client, APIBaseUrl: baseURL}, nil
 }
 
 func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
