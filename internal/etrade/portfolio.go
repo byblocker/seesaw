@@ -56,13 +56,13 @@ type PositionLot struct {
 	PLPct        udecimal.Decimal `json:"totalCostForGainPct"`
 }
 
-func (client Client) GetPortfolio(ctx context.Context, accountKey string) (*Portfolio, error) {
+func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) (*Portfolio, error) {
 	log.Print("Fetching portfolio . . .")
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio",
 		client.APIBaseUrl,
-		accountKey,
+		account.Key,
 	)
 
 	response, err := internal.SendJSONRequest[viewPortfolioResponse](
@@ -81,14 +81,14 @@ func (client Client) GetPortfolio(ctx context.Context, accountKey string) (*Port
 
 	portfolios := response.PortfolioResponse.Portfolios
 	if len(portfolios) == 0 {
-		return nil, fmt.Errorf("no portfolio returned for account %s", accountKey)
+		return nil, fmt.Errorf("no portfolio returned for account %s", account.Id)
 	}
 
 	positions := portfolios[0].Positions
 
 	for i := range positions {
 		log.Printf("Fetching lots for %s . . .", positions[i].Ticker)
-		lots, err := client.fetchLotsForPosition(ctx, accountKey, positions[i].Id)
+		lots, err := client.fetchLotsForPosition(ctx, account.Key, positions[i].Id)
 		if err != nil {
 			return nil, err
 		}

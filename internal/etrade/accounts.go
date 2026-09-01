@@ -13,46 +13,46 @@ const (
 	BrokerageAccountType = "BROKERAGE"
 )
 
-type etradeAccountDTO struct {
-	Id              string `json:"accountId"`
-	Key             string `json:"accountIdKey"`
-	InstitutionType string `json:"institutionType"`
-	Status          string `json:"accountStatus"`
+type AccountDetails struct {
+	Id     string `json:"accountId"`
+	Key    string `json:"accountIdKey"`
+	Type   string `json:"institutionType"`
+	Status string `json:"accountStatus"`
 }
 
 type listAccountsAPIResponse struct {
 	AccountListResponse struct {
 		Accounts struct {
-			AccountList []etradeAccountDTO `json:"Account"`
+			AccountList []AccountDetails `json:"Account"`
 		} `json:"Accounts"`
 	} `json:"AccountListResponse"`
 }
 
-func (client Client) GetAccountKey(ctx context.Context, targetAccountId string) (string, error) {
-	log.Printf("Finding brokerage account with ID: %v", targetAccountId)
+func (client Client) GetAccountDetails(ctx context.Context, accountId string) (*AccountDetails, error) {
+	log.Printf("Finding brokerage account with ID: %v", accountId)
 
 	endpoint := fmt.Sprintf("%s/accounts/list", client.APIBaseUrl)
 	response, err := internal.SendJSONRequest[listAccountsAPIResponse](
 		ctx, client.httpClient, http.MethodGet, endpoint, nil, nil,
 	)
 	if err != nil {
-		return "", fmt.Errorf("could not load accounts: %w", err)
+		return nil, fmt.Errorf("could not load accounts: %w", err)
 	}
 	accounts := response.AccountListResponse.Accounts.AccountList
 
 	for i := range accounts {
 		account := &accounts[i]
 
-		isBrokerage := account.InstitutionType == BrokerageAccountType
+		isBrokerage := account.Type == BrokerageAccountType
 		isActive := account.Status == ActiveAccountStatus
-		isTargetAccount := account.Id == targetAccountId
+		isTargetAccount := account.Id == accountId
 		validAccountKey := account.Key != ""
 
 		if isBrokerage && isActive && isTargetAccount && validAccountKey {
 			log.Print("Found target brokerage account key!")
-			return account.Key, nil
+			return account, nil
 		}
 	}
 
-	return "", fmt.Errorf("could not find brokerage account")
+	return nil, fmt.Errorf("could not find brokerage account")
 }

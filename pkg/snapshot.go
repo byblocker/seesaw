@@ -32,12 +32,12 @@ func SnapshotPortfolio(plan *config.PortfolioPlan, daysBack int) (*PortfolioSnap
 		return nil, fmt.Errorf("failed to connect to ETrade: %v", err)
 	}
 
-	accountKey, err := etrade.GetAccountKey(ctx, plan.AccountId)
+	account, err := etrade.GetAccountDetails(ctx, plan.AccountId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account key: %v", err)
 	}
 
-	portfolio, err := etrade.GetPortfolio(ctx, accountKey)
+	portfolio, err := etrade.GetPortfolio(ctx, account)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve portfolio positions")
 	}
@@ -46,7 +46,7 @@ func SnapshotPortfolio(plan *config.PortfolioPlan, daysBack int) (*PortfolioSnap
 		daysBack = config.DefaultTransactionWindowDays
 	}
 
-	recentTxByTicker, err := etrade.GetRecentTransactions(ctx, plan.AccountId, accountKey, daysBack)
+	recentTxByTicker, err := etrade.GetRecentTransactions(ctx, account, daysBack)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account transactions")
 	}

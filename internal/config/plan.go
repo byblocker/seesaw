@@ -59,5 +59,4 @@ func validateAsset(asset *Asset) error {
 	}
 
 	return nil
-
 }

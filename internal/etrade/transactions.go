@@ -38,7 +38,7 @@ type getTransactionResponse struct {
 
 func (client Client) GetRecentTransactions(
 	ctx context.Context,
-	accountId, accountKey string,
+	account *AccountDetails,
 	daysBack int,
 ) (RecentTxByTicker, error) {
 	recentTxByTicker := make(RecentTxByTicker)
@@ -52,7 +52,7 @@ func (client Client) GetRecentTransactions(
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
-		client.APIBaseUrl, accountKey,
+		client.APIBaseUrl, account.Key,
 	)
 
 	query := url.Values{
@@ -69,7 +69,7 @@ func (client Client) GetRecentTransactions(
 		}
 
 		for _, tx := range response.TransactionListResponse.TransactionList {
-			wrongAccount := tx.AccountID != accountId
+			wrongAccount := tx.AccountID != account.Id
 			invalidTicker := tx.Product.Ticker == "" || tx.Product.Ticker == " "
 
 			if wrongAccount || invalidTicker {
