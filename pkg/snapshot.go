@@ -6,15 +6,27 @@ import (
 	"seesaw/internal/config"
 	"seesaw/internal/etrade"
 	"seesaw/internal/utils"
+	"time"
+
+	"github.com/quagmt/udecimal"
 )
 
-type PortfolioSnapshot struct {
-	Id               string
-	Portfolio        *etrade.Portfolio
-	RecentTxByTicker etrade.RecentTxByTicker
+type Asset struct {
+	Plan      AssetPlan
+	Positions []etrade.Position
+
+	Allocation udecimal.Decimal
 }
 
-func SnapshotPortfolio(plan *config.PortfolioPlan, daysBack int) (*PortfolioSnapshot, error) {
+type AccountSnapshot struct {
+	Id               string
+	CreatedAt        time.Time
+	BuyingPower      udecimal.Decimal
+	Assets           []Asset
+	RecentTxByTicker map[string]etrade.Transactions
+}
+
+func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, error) {
 	ctx := context.Background()
 
 	env, err := config.LoadEnv()
@@ -43,21 +55,52 @@ func SnapshotPortfolio(plan *config.PortfolioPlan, daysBack int) (*PortfolioSnap
 	}
 
 	if daysBack <= 0 {
-		daysBack = config.DefaultTransactionWindowDays
+		daysBack = config.WashSaleWindowDays
 	}
 
-	recentTxByTicker, err := etrade.GetRecentTransactions(ctx, account, daysBack)
+	recentTxByTicker, err := etrade.GetRecentTransactionsByTicker(ctx, account, daysBack)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account transactions")
 	}
 
-	snapshot := PortfolioSnapshot{
+	snapshot := AccountSnapshot{
 		Id:               plan.AccountId,
-		Portfolio:        portfolio,
+		CreatedAt:        time.Now(),
+		Assets:           assignToAssets(plan, portfolio.PositionByTicker),
 		RecentTxByTicker: recentTxByTicker,
 	}
 
 	utils.DebugYAML(snapshot)
 
 	return &snapshot, nil
+}
+
+func assignToAssets(
+	plan *PortfolioPlan,
+	posByTicker map[string]etrade.Position,
+) []Asset {
+	var assets []Asset
+
+	for _, assetPlan := range plan.Assets {
+		var positions []etrade.Position
+		var allocation udecimal.Decimal
+
+		appendIfExists := func(ticker string) {
+			if pos, exists := posByTicker[ticker]; exists {
+				positions = append(positions, pos)
+				allocation = allocation.Add(pos.Allocation)
+			}
+		}
+
+		appendIfExists(assetPlan.PrimaryTicker)
+		appendIfExists(assetPlan.AltTicker)
+
+		assets = append(assets, Asset{
+			Plan:       assetPlan,
+			Positions:  positions,
+			Allocation: allocation,
+		})
+	}
+
+	return assets
 }

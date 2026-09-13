@@ -1,4 +1,4 @@
-package config
+package pkg
 
 import (
 	"fmt"
@@ -9,11 +9,11 @@ import (
 )
 
 type PortfolioPlan struct {
-	AccountId string  `yaml:"accountId"`
-	Assets    []Asset `yaml:"assets"`
+	AccountId string      `yaml:"accountId"`
+	Assets    []AssetPlan `yaml:"assets"`
 }
 
-type Asset struct {
+type AssetPlan struct {
 	PrimaryTicker    string           `yaml:"primary_ticker"`
 	AltTicker        string           `yaml:"alternate_ticker"`
 	TargetAllocation udecimal.Decimal `yaml:"target_allocation"`
@@ -43,7 +43,7 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 	return plan, nil
 }
 
-func validateAsset(asset *Asset) error {
+func validateAsset(asset *AssetPlan) error {
 	if asset.PrimaryTicker == "" {
 		return fmt.Errorf("missing required primary_ticker")
 	}

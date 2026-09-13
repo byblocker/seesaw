@@ -8,7 +8,10 @@ import (
 	"net/url"
 	"seesaw/internal"
 	"seesaw/internal/utils"
+	"strings"
 	"time"
+
+	"github.com/quagmt/udecimal"
 )
 
 const (
@@ -16,32 +19,30 @@ const (
 	TxSell = "Sold"
 )
 
-type RecentTxByTicker map[string]RecentTx
-
-type RecentTx struct {
-	BoughtWithinWindow bool
-	SoldWithinWindow   bool
+type Transaction struct {
+	Ticker   string           `json:"displaySymbol"`
+	Quantity udecimal.Decimal `json:"quantity"`
+	Price    udecimal.Decimal `json:"price"`
 }
+type Transactions []Transaction
 
 type getTransactionResponse struct {
 	TransactionListResponse struct {
 		TransactionList []struct {
-			AccountID string `json:"accountId"`
-			Type      string `json:"transactionType"`
-			Product   struct {
-				Ticker string `json:"displaySymbol"`
-			} `json:"brokerage"`
+			AccountID   string      `json:"accountId"`
+			Type        string      `json:"transactionType"`
+			Transaction Transaction `json:"brokerage"`
 		} `json:"Transaction"`
 		NextPage string `json:"next"`
 	} `json:"TransactionListResponse"`
 }
 
-func (client Client) GetRecentTransactions(
+func (client Client) GetRecentTransactionsByTicker(
 	ctx context.Context,
 	account *AccountDetails,
 	daysBack int,
-) (RecentTxByTicker, error) {
-	recentTxByTicker := make(RecentTxByTicker)
+) (map[string]Transactions, error) {
+	byTicker := make(map[string]Transactions)
 
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -daysBack)
@@ -69,22 +70,15 @@ func (client Client) GetRecentTransactions(
 		}
 
 		for _, tx := range response.TransactionListResponse.TransactionList {
-			wrongAccount := tx.AccountID != account.Id
-			invalidTicker := tx.Product.Ticker == "" || tx.Product.Ticker == " "
+			ticker := strings.TrimSpace(tx.Transaction.Ticker)
 
+			wrongAccount := tx.AccountID != account.Id
+			invalidTicker := ticker == ""
 			if wrongAccount || invalidTicker {
 				continue
 			}
 
-			recentTx := recentTxByTicker[tx.Product.Ticker]
-			switch tx.Type {
-			case TxBuy:
-				recentTx.BoughtWithinWindow = true
-			case TxSell:
-				recentTx.SoldWithinWindow = true
-			}
-
-			recentTxByTicker[tx.Product.Ticker] = recentTx
+			byTicker[ticker] = append(byTicker[ticker], tx.Transaction)
 		}
 
 		nextPage := response.TransactionListResponse.NextPage
@@ -96,5 +90,5 @@ func (client Client) GetRecentTransactions(
 		query = nil
 	}
 
-	return recentTxByTicker, nil
+	return byTicker, nil
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"seesaw/internal/config"
+	"seesaw/pkg"
 
 	"github.com/spf13/cobra"
 )
@@ -13,7 +13,7 @@ const portfolioDir = "./data/portfolios"
 
 var (
 	portfolioPlanName string
-	portfolioPlan     *config.PortfolioPlan
+	portfolioPlan     *pkg.PortfolioPlan
 )
 
 var rootCmd = &cobra.Command{
@@ -27,7 +27,7 @@ var rootCmd = &cobra.Command{
 		}
 		defer file.Close()
 
-		p, err := config.ParsePortfolioPlan(file)
+		p, err := pkg.ParsePortfolioPlan(file)
 		if err != nil {
 			return fmt.Errorf("loading config: %w", err)
 		}

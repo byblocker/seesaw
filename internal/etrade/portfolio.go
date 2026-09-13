@@ -13,8 +13,8 @@ import (
 )
 
 type Portfolio struct {
-	BuyingPower udecimal.Decimal
-	Positions   []Position
+	BuyingPower      udecimal.Decimal
+	PositionByTicker map[string]Position
 }
 
 type viewPortfolioResponse struct {
@@ -79,26 +79,28 @@ func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) 
 		return nil, fmt.Errorf("failed to fetch positions: %w", err)
 	}
 
-	portfolios := response.PortfolioResponse.Portfolios
-	if len(portfolios) == 0 {
+	if len(response.PortfolioResponse.Portfolios) == 0 {
 		return nil, fmt.Errorf("no portfolio returned for account %s", account.Id)
 	}
 
-	positions := portfolios[0].Positions
+	byTicker := make(map[string]Position)
 
-	for i := range positions {
-		log.Printf("Fetching lots for %s . . .", positions[i].Ticker)
-		lots, err := client.fetchLotsForPosition(ctx, account.Key, positions[i].Id)
+	positions := response.PortfolioResponse.Portfolios[0].Positions
+	for _, pos := range positions {
+		log.Printf("Fetching lots for %s...", pos.Ticker)
+
+		lots, err := client.fetchLotsForPosition(ctx, account.Key, pos.Id)
 		if err != nil {
 			return nil, err
 		}
 
-		positions[i].Lots = lots
+		pos.Lots = lots
+		byTicker[pos.Ticker] = pos
 	}
 
 	return &Portfolio{
-		BuyingPower: response.PortfolioResponse.Totals.Balance,
-		Positions:   positions,
+		BuyingPower:      response.PortfolioResponse.Totals.Balance,
+		PositionByTicker: byTicker,
 	}, nil
 }
 
