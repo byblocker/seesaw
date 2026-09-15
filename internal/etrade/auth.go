@@ -96,7 +96,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 	if time.Since(access.LastUsed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
 		if _, err := internal.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil, nil); err != nil {
-			return nil, fmt.Errorf("failed to renew token: %w", err)
+			return nil, fmt.Errorf("failed to renew token: %v", err)
 		}
 
 		if err := cacheOAuthToken(access.Token, time.Now()); err != nil {
@@ -113,7 +113,7 @@ func authNewETradeClient(oauth *oauth1.Config) (*http.Client, error) {
 
 	requestToken, requestSecret, err := oauth.RequestToken()
 	if err != nil {
-		return nil, fmt.Errorf("failed to obtain request token: %w", err)
+		return nil, fmt.Errorf("failed to obtain request token: %v", err)
 	}
 
 	authURL := fmt.Sprintf("%s?%s", oauth.Endpoint.AuthorizeURL, url.Values{
@@ -126,18 +126,18 @@ func authNewETradeClient(oauth *oauth1.Config) (*http.Client, error) {
 
 	verificationCode, err := utils.AskForInput("Enter verification code: ")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read verification code: %w", err)
+		return nil, fmt.Errorf("failed to read verification code: %v", err)
 	}
 
 	log.Print("Received verification code. Creating new access token...")
 	accessToken, accessSecret, err := oauth.AccessToken(requestToken, requestSecret, verificationCode)
 	if err != nil {
-		return nil, fmt.Errorf("failed to obtain access token: %w", err)
+		return nil, fmt.Errorf("failed to obtain access token: %v", err)
 	}
 
 	token := oauth1.NewToken(accessToken, accessSecret)
 	if err := cacheOAuthToken(token, time.Now()); err != nil {
-		return nil, fmt.Errorf("failed to cache new access token: %w", err)
+		return nil, fmt.Errorf("failed to cache new access token: %v", err)
 	}
 
 	return oauth.Client(context.Background(), token), nil

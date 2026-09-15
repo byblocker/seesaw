@@ -17,6 +17,18 @@ type Portfolio struct {
 	PositionByTicker map[string]Position
 }
 
+type Position struct {
+	Id       int64
+	Ticker   string
+	Quantity float64
+
+	Ask        udecimal.Decimal
+	Bid        udecimal.Decimal
+	Allocation udecimal.Decimal
+
+	Lots []PositionLot
+}
+
 type viewPortfolioResponse struct {
 	PortfolioResponse struct {
 		Totals struct {
@@ -31,21 +43,12 @@ type viewPortfolioResponse struct {
 
 				Allocation udecimal.Decimal `json:"pctOfPortfolio"`
 				Complete   struct {
-					Price udecimal.Decimal `json:"price"`
+					Ask udecimal.Decimal `json:"ask"`
+					Bid udecimal.Decimal `json:"bid"`
 				} `json:"Complete"`
 			} `json:"Position"`
 		} `json:"AccountPortfolio"`
 	} `json:"PortfolioResponse"`
-}
-
-type Position struct {
-	Id          int64
-	Ticker      string
-	Quantity    float64
-	MarketPrice udecimal.Decimal
-	Allocation  udecimal.Decimal
-
-	Lots []PositionLot
 }
 
 type getPositionLotResponse struct {
@@ -106,12 +109,13 @@ func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) 
 		}
 
 		byTicker[pos.Ticker] = Position{
-			Id:          pos.Id,
-			Ticker:      pos.Ticker,
-			Quantity:    pos.Quantity,
-			MarketPrice: pos.Complete.Price,
-			Allocation:  pos.Allocation,
-			Lots:        lots,
+			Id:         pos.Id,
+			Ticker:     pos.Ticker,
+			Quantity:   pos.Quantity,
+			Ask:        pos.Complete.Ask,
+			Bid:        pos.Complete.Bid,
+			Allocation: pos.Allocation,
+			Lots:       lots,
 		}
 	}
 
