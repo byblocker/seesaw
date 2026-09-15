@@ -23,17 +23,27 @@ type viewPortfolioResponse struct {
 			Balance udecimal.Decimal `json:"cashBalance"`
 		} `json:"totals"`
 		Portfolios []struct {
-			AccountId string     `json:"accountId"`
-			Positions []Position `json:"Position"`
+			AccountId string `json:"accountId"`
+			Positions []struct {
+				Id       int64   `json:"positionId"`
+				Ticker   string  `json:"symbolDescription"`
+				Quantity float64 `json:"quantity"`
+
+				Allocation udecimal.Decimal `json:"pctOfPortfolio"`
+				Complete   struct {
+					Price udecimal.Decimal `json:"price"`
+				} `json:"Complete"`
+			} `json:"Position"`
 		} `json:"AccountPortfolio"`
 	} `json:"PortfolioResponse"`
 }
 
 type Position struct {
-	Id         int64            `json:"positionId"`
-	Ticker     string           `json:"symbolDescription"`
-	Quantity   float64          `json:"quantity"`
-	Allocation udecimal.Decimal `json:"pctOfPortfolio"`
+	Id          int64
+	Ticker      string
+	Quantity    float64
+	MarketPrice udecimal.Decimal
+	Allocation  udecimal.Decimal
 
 	Lots []PositionLot
 }
@@ -73,6 +83,7 @@ func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) 
 		nil,
 		url.Values{
 			"totalsRequired": {"true"},
+			"view":           {"COMPLETE"},
 		},
 	)
 	if err != nil {
@@ -94,8 +105,14 @@ func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) 
 			return nil, err
 		}
 
-		pos.Lots = lots
-		byTicker[pos.Ticker] = pos
+		byTicker[pos.Ticker] = Position{
+			Id:          pos.Id,
+			Ticker:      pos.Ticker,
+			Quantity:    pos.Quantity,
+			MarketPrice: pos.Complete.Price,
+			Allocation:  pos.Allocation,
+			Lots:        lots,
+		}
 	}
 
 	return &Portfolio{

@@ -14,35 +14,41 @@ import (
 	"github.com/quagmt/udecimal"
 )
 
+type TransactionType string
+
 const (
-	TxBuy  = "Bought"
-	TxSell = "Sold"
+	TxBuy  TransactionType = "Bought"
+	TxSell TransactionType = "Sold"
 )
 
 type Transaction struct {
-	Ticker   string           `json:"displaySymbol"`
-	Quantity udecimal.Decimal `json:"quantity"`
-	Price    udecimal.Decimal `json:"price"`
+	Ticker   string
+	Type     TransactionType
+	Quantity udecimal.Decimal
+	Price    udecimal.Decimal
 }
-type Transactions []Transaction
 
 type getTransactionResponse struct {
-	TransactionListResponse struct {
-		TransactionList []struct {
-			AccountID   string      `json:"accountId"`
-			Type        string      `json:"transactionType"`
-			Transaction Transaction `json:"brokerage"`
+	Page struct {
+		Transactions []struct {
+			AccountID string          `json:"accountId"`
+			Type      TransactionType `json:"transactionType"`
+			Brokerage struct {
+				Ticker   string           `json:"displaySymbol"`
+				Quantity udecimal.Decimal `json:"quantity"`
+				Price    udecimal.Decimal `json:"price"`
+			} `json:"brokerage"`
 		} `json:"Transaction"`
 		NextPage string `json:"next"`
 	} `json:"TransactionListResponse"`
 }
 
-func (client Client) GetRecentTransactionsByTicker(
+func (client Client) GetRecentTransactions(
 	ctx context.Context,
 	account *AccountDetails,
 	daysBack int,
-) (map[string]Transactions, error) {
-	byTicker := make(map[string]Transactions)
+) ([]Transaction, error) {
+	var transactions []Transaction
 
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -daysBack)
@@ -69,19 +75,26 @@ func (client Client) GetRecentTransactionsByTicker(
 			return nil, fmt.Errorf("failed to fetch transactions: %w", err)
 		}
 
-		for _, tx := range response.TransactionListResponse.TransactionList {
-			ticker := strings.TrimSpace(tx.Transaction.Ticker)
+		for _, tx := range response.Page.Transactions {
+			ticker := strings.TrimSpace(tx.Brokerage.Ticker)
 
+			noTicker := ticker == ""
 			wrongAccount := tx.AccountID != account.Id
-			invalidTicker := ticker == ""
-			if wrongAccount || invalidTicker {
+			ignoreTx := tx.Type != TxBuy && tx.Type != TxSell
+
+			if noTicker || wrongAccount || ignoreTx {
 				continue
 			}
 
-			byTicker[ticker] = append(byTicker[ticker], tx.Transaction)
+			transactions = append(transactions, Transaction{
+				Ticker:   ticker,
+				Type:     tx.Type,
+				Price:    tx.Brokerage.Price,
+				Quantity: tx.Brokerage.Quantity,
+			})
 		}
 
-		nextPage := response.TransactionListResponse.NextPage
+		nextPage := response.Page.NextPage
 		if nextPage == "" {
 			break
 		}
@@ -90,5 +103,5 @@ func (client Client) GetRecentTransactionsByTicker(
 		query = nil
 	}
 
-	return byTicker, nil
+	return transactions, nil
 }

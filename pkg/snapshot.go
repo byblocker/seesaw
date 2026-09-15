@@ -12,18 +12,19 @@ import (
 )
 
 type Asset struct {
-	Plan      AssetPlan
+	Plan      *AssetPlan
 	Positions []etrade.Position
 
 	Allocation udecimal.Decimal
+	AllocDrift udecimal.Decimal
 }
 
 type AccountSnapshot struct {
-	Id               string
-	CreatedAt        time.Time
-	BuyingPower      udecimal.Decimal
-	Assets           []Asset
-	RecentTxByTicker map[string]etrade.Transactions
+	Id          string
+	CreatedAt   time.Time
+	BuyingPower udecimal.Decimal
+	Assets      []Asset
+	RecentTx    []etrade.Transaction
 }
 
 func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, error) {
@@ -58,16 +59,16 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 		daysBack = config.WashSaleWindowDays
 	}
 
-	recentTxByTicker, err := etrade.GetRecentTransactionsByTicker(ctx, account, daysBack)
+	recentTx, err := etrade.GetRecentTransactions(ctx, account, daysBack)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account transactions")
 	}
 
 	snapshot := AccountSnapshot{
-		Id:               plan.AccountId,
-		CreatedAt:        time.Now(),
-		Assets:           assignToAssets(plan, portfolio.PositionByTicker),
-		RecentTxByTicker: recentTxByTicker,
+		Id:        plan.AccountId,
+		CreatedAt: time.Now(),
+		Assets:    assignToAssets(plan, portfolio.PositionByTicker),
+		RecentTx:  recentTx,
 	}
 
 	utils.DebugYAML(snapshot)
@@ -89,6 +90,7 @@ func assignToAssets(
 			if pos, exists := posByTicker[ticker]; exists {
 				positions = append(positions, pos)
 				allocation = allocation.Add(pos.Allocation)
+				delete(posByTicker, ticker)
 			}
 		}
 
@@ -96,9 +98,25 @@ func assignToAssets(
 		appendIfExists(assetPlan.AltTicker)
 
 		assets = append(assets, Asset{
-			Plan:       assetPlan,
+			Plan:       &assetPlan,
 			Positions:  positions,
 			Allocation: allocation,
+		})
+	}
+
+	hasExtraPos := len(posByTicker) > 0
+	if hasExtraPos {
+		var extraAlloc udecimal.Decimal
+		extraPositions := make([]etrade.Position, 0, len(posByTicker))
+
+		for _, pos := range posByTicker {
+			extraPositions = append(extraPositions, pos)
+			extraAlloc = extraAlloc.Add(pos.Allocation)
+		}
+
+		assets = append(assets, Asset{
+			Positions:  extraPositions,
+			Allocation: extraAlloc,
 		})
 	}
 
