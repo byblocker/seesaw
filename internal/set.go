@@ -12,9 +12,9 @@ func NewSet[T comparable](values ...T) Set[T] {
 	return s
 }
 
-func SetFrom[T comparable](seq iter.Seq[T]) Set[T] {
+func SetFrom[T comparable](sequences ...iter.Seq[T]) Set[T] {
 	s := NewSet[T]()
-	for value := range seq {
+	for value := range Concat(sequences...) {
 		s.Add(value)
 	}
 	return s

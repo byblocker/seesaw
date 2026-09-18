@@ -67,10 +67,8 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 	}
 
 	inScope := internal.SetFrom(
-		internal.Concat(
-			plan.Tickers(),
-			maps.Keys(portfolio.PositionByTicker),
-		),
+		plan.Tickers(),
+		maps.Keys(portfolio.PositionByTicker),
 	)
 
 	recentTx, err := client.GetRecentTransactions(ctx, account, daysBack, inScope)
