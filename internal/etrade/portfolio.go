@@ -14,25 +14,15 @@ import (
 
 type Portfolio struct {
 	BuyingPower      udecimal.Decimal
+	TotalValue       udecimal.Decimal
 	PositionByTicker map[string]Position
-}
-
-type Position struct {
-	Id       int64
-	Ticker   string
-	Quantity float64
-
-	Ask        udecimal.Decimal
-	Bid        udecimal.Decimal
-	Allocation udecimal.Decimal
-
-	Lots []PositionLot
 }
 
 type viewPortfolioResponse struct {
 	PortfolioResponse struct {
 		Totals struct {
-			Balance udecimal.Decimal `json:"cashBalance"`
+			Balance     udecimal.Decimal `json:"cashBalance"`
+			MarketValue udecimal.Decimal `json:"totalMarketValue"`
 		} `json:"totals"`
 		Portfolios []struct {
 			AccountId string `json:"accountId"`
@@ -41,14 +31,28 @@ type viewPortfolioResponse struct {
 				Ticker   string  `json:"symbolDescription"`
 				Quantity float64 `json:"quantity"`
 
-				Allocation udecimal.Decimal `json:"pctOfPortfolio"`
-				Complete   struct {
+				Allocation  udecimal.Decimal `json:"pctOfPortfolio"`
+				MarketValue udecimal.Decimal `json:"marketValue"`
+				Complete    struct {
 					Ask udecimal.Decimal `json:"ask"`
 					Bid udecimal.Decimal `json:"bid"`
 				} `json:"Complete"`
 			} `json:"Position"`
 		} `json:"AccountPortfolio"`
 	} `json:"PortfolioResponse"`
+}
+
+type Position struct {
+	Id       int64
+	Ticker   string
+	Quantity float64
+
+	Ask         udecimal.Decimal
+	Bid         udecimal.Decimal
+	Allocation  udecimal.Decimal
+	MarketValue udecimal.Decimal
+
+	Lots []PositionLot
 }
 
 type getPositionLotResponse struct {
@@ -109,18 +113,20 @@ func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) 
 		}
 
 		byTicker[pos.Ticker] = Position{
-			Id:         pos.Id,
-			Ticker:     pos.Ticker,
-			Quantity:   pos.Quantity,
-			Ask:        pos.Complete.Ask,
-			Bid:        pos.Complete.Bid,
-			Allocation: pos.Allocation,
-			Lots:       lots,
+			Id:          pos.Id,
+			Ticker:      pos.Ticker,
+			Quantity:    pos.Quantity,
+			Ask:         pos.Complete.Ask,
+			Bid:         pos.Complete.Bid,
+			Allocation:  pos.Allocation,
+			MarketValue: pos.MarketValue,
+			Lots:        lots,
 		}
 	}
 
 	return &Portfolio{
 		BuyingPower:      response.PortfolioResponse.Totals.Balance,
+		TotalValue:       response.PortfolioResponse.Totals.MarketValue.Add(response.PortfolioResponse.Totals.Balance),
 		PositionByTicker: byTicker,
 	}, nil
 }

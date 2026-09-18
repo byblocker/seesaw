@@ -3,9 +3,11 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"maps"
 	"seesaw/internal/config"
 	"seesaw/internal/etrade"
 	"seesaw/internal/utils"
+	"slices"
 	"time"
 
 	"github.com/quagmt/udecimal"
@@ -17,12 +19,16 @@ type Asset struct {
 
 	Allocation udecimal.Decimal
 	AllocDrift udecimal.Decimal
+
+	Value      udecimal.Decimal
+	ValueDrift udecimal.Decimal
 }
 
 type AccountSnapshot struct {
 	Id          string
 	CreatedAt   time.Time
 	BuyingPower udecimal.Decimal
+	TotalValue  udecimal.Decimal
 	Assets      []Asset
 	RecentTx    []etrade.Transaction
 }
@@ -35,7 +41,7 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 		return nil, fmt.Errorf("failed to load .env: %v", err)
 	}
 
-	etrade, err := etrade.NewClient(
+	client, err := etrade.NewClient(
 		ctx,
 		env.ETradeApiKey,
 		env.ETradeApiSecret,
@@ -45,12 +51,12 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 		return nil, fmt.Errorf("failed to connect to ETrade: %v", err)
 	}
 
-	account, err := etrade.GetAccountDetails(ctx, plan.AccountId)
+	account, err := client.GetAccountDetails(ctx, plan.AccountId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account key: %v", err)
 	}
 
-	portfolio, err := etrade.GetPortfolio(ctx, account)
+	portfolio, err := client.GetPortfolio(ctx, account)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve portfolio positions")
 	}
@@ -59,16 +65,40 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 		daysBack = config.WashSaleWindowDays
 	}
 
-	recentTx, err := etrade.GetRecentTransactions(ctx, account, daysBack)
+	recentTx, err := client.GetRecentTransactions(ctx, account, daysBack)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account transactions")
 	}
 
+	var assets []Asset
+
+	for _, assetPlan := range plan.Assets {
+		var positions []etrade.Position
+		for _, ticker := range []string{assetPlan.PrimaryTicker, assetPlan.AltTicker} {
+			if pos, exists := portfolio.PositionByTicker[ticker]; exists {
+				positions = append(positions, pos)
+				delete(portfolio.PositionByTicker, ticker)
+			}
+		}
+
+		assets = append(assets, assignAsset(&assetPlan, positions, portfolio.TotalValue))
+	}
+
+	// Extra positions should be uncommon, but still technically possible.
+	// Aggregate into a single Asset with a nil AssetPlan, which should
+	// force Seesaw into liquidating as soon as possible.
+	if len(portfolio.PositionByTicker) > 0 {
+		extraPositions := slices.Collect(maps.Values(portfolio.PositionByTicker))
+		assets = append(assets, assignAsset(nil, extraPositions, portfolio.TotalValue))
+	}
+
 	snapshot := AccountSnapshot{
-		Id:        plan.AccountId,
-		CreatedAt: time.Now(),
-		Assets:    assignToAssets(plan, portfolio.PositionByTicker),
-		RecentTx:  recentTx,
+		Id:          plan.AccountId,
+		CreatedAt:   time.Now(),
+		BuyingPower: portfolio.BuyingPower,
+		TotalValue:  portfolio.TotalValue,
+		Assets:      assets,
+		RecentTx:    recentTx,
 	}
 
 	utils.DebugYAML(snapshot)
@@ -76,49 +106,25 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 	return &snapshot, nil
 }
 
-func assignToAssets(
-	plan *PortfolioPlan,
-	posByTicker map[string]etrade.Position,
-) []Asset {
-	var assets []Asset
-
-	for _, assetPlan := range plan.Assets {
-		var positions []etrade.Position
-		var allocation udecimal.Decimal
-
-		appendIfExists := func(ticker string) {
-			if pos, exists := posByTicker[ticker]; exists {
-				positions = append(positions, pos)
-				allocation = allocation.Add(pos.Allocation)
-				delete(posByTicker, ticker)
-			}
-		}
-
-		appendIfExists(assetPlan.PrimaryTicker)
-		appendIfExists(assetPlan.AltTicker)
-
-		assets = append(assets, Asset{
-			Plan:       &assetPlan,
-			Positions:  positions,
-			Allocation: allocation,
-		})
+func assignAsset(
+	plan *AssetPlan,
+	positions []etrade.Position,
+	portfolioValue udecimal.Decimal,
+) Asset {
+	asset := Asset{Plan: plan, Positions: positions}
+	for _, pos := range positions {
+		asset.Value = asset.Value.Add(pos.MarketValue)
 	}
 
-	hasExtraPos := len(posByTicker) > 0
-	if hasExtraPos {
-		var extraAlloc udecimal.Decimal
-		extraPositions := make([]etrade.Position, 0, len(posByTicker))
-
-		for _, pos := range posByTicker {
-			extraPositions = append(extraPositions, pos)
-			extraAlloc = extraAlloc.Add(pos.Allocation)
-		}
-
-		assets = append(assets, Asset{
-			Positions:  extraPositions,
-			Allocation: extraAlloc,
-		})
+	if !portfolioValue.IsZero() {
+		asset.Allocation, _ = asset.Value.Div(portfolioValue)
 	}
 
-	return assets
+	if plan != nil {
+		asset.AllocDrift = asset.Allocation.Sub(plan.TargetAllocation)
+		expectedValue := portfolioValue.Mul(plan.TargetAllocation)
+		asset.ValueDrift = asset.Value.Sub(expectedValue)
+	}
+
+	return asset
 }
