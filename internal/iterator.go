@@ -2,6 +2,18 @@ package internal
 
 import "iter"
 
+func FlatMap[T, U any](seq iter.Seq[T], transform func(T) iter.Seq[U]) iter.Seq[U] {
+	return func(yield func(U) bool) {
+		for value := range seq {
+			for element := range transform(value) {
+				if !yield(element) {
+					return
+				}
+			}
+		}
+	}
+}
+
 func Map[T, U any](seq iter.Seq[T], transform func(T) U) iter.Seq[U] {
 	return func(yield func(U) bool) {
 		for value := range seq {

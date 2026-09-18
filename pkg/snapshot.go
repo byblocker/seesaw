@@ -82,7 +82,7 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 
 	for _, assetPlan := range plan.Assets {
 		var positions []etrade.Position
-		for _, ticker := range []string{assetPlan.PrimaryTicker, assetPlan.AltTicker} {
+		for ticker := range assetPlan.Tickers() {
 			if pos, exists := portfolio.PositionByTicker[ticker]; exists {
 				positions = append(positions, pos)
 				delete(portfolio.PositionByTicker, ticker)

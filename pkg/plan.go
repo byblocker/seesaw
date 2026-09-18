@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"seesaw/internal"
 	"seesaw/internal/utils"
+	"slices"
 	"strings"
 
 	"github.com/quagmt/udecimal"
@@ -16,23 +18,24 @@ type PortfolioPlan struct {
 }
 
 func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
-	return func(yield func(string) bool) {
-		yieldTicker := func(ticker string) bool {
-			return ticker == "" || yield(ticker)
-		}
-
-		for _, asset := range plan.Assets {
-			if !yieldTicker(asset.PrimaryTicker) || !yieldTicker(asset.AltTicker) {
-				return
-			}
-		}
-	}
+	return internal.FlatMap(slices.Values(plan.Assets), AssetPlan.Tickers)
 }
 
 type AssetPlan struct {
 	PrimaryTicker    string           `yaml:"primary_ticker"`
 	AltTicker        string           `yaml:"alternate_ticker"`
 	TargetAllocation udecimal.Decimal `yaml:"target_allocation"`
+}
+
+func (asset AssetPlan) Tickers() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		yieldTicker := func(ticker string) bool {
+			return ticker == "" || yield(ticker)
+		}
+		if !yieldTicker(asset.PrimaryTicker) || !yieldTicker(asset.AltTicker) {
+			return
+		}
+	}
 }
 
 func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
