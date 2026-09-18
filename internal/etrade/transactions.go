@@ -77,12 +77,7 @@ func (client Client) GetRecentTransactions(
 
 		for _, tx := range response.Page.Transactions {
 			ticker := strings.TrimSpace(tx.Brokerage.Ticker)
-
-			noTicker := ticker == ""
-			wrongAccount := tx.AccountID != account.Id
-			ignoreTx := tx.Type != TxBuy && tx.Type != TxSell
-
-			if noTicker || wrongAccount || ignoreTx {
+			if ticker == "" || !(tx.Type == TxBuy || tx.Type == TxSell) {
 				continue
 			}
 
