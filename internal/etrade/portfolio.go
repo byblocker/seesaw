@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"seesaw/internal"
+	"strings"
 	"time"
 
 	"github.com/quagmt/udecimal"
@@ -105,6 +106,7 @@ func (client Client) GetPortfolio(ctx context.Context, account *AccountDetails) 
 
 	positions := response.PortfolioResponse.Portfolios[0].Positions
 	for _, pos := range positions {
+		pos.Ticker = strings.TrimSpace(pos.Ticker)
 		log.Printf("Fetching lots for %s...", pos.Ticker)
 
 		lots, err := client.fetchLotsForPosition(ctx, account.Key, pos.Id)

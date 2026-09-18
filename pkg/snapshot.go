@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"seesaw/internal"
 	"seesaw/internal/config"
 	"seesaw/internal/etrade"
 	"seesaw/internal/utils"
@@ -30,7 +31,7 @@ type AccountSnapshot struct {
 	BuyingPower udecimal.Decimal
 	TotalValue  udecimal.Decimal
 	Assets      []Asset
-	RecentTx    []etrade.Transaction
+	RecentTx    etrade.RecentTxByTicker
 }
 
 func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, error) {
@@ -65,7 +66,14 @@ func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, err
 		daysBack = config.WashSaleWindowDays
 	}
 
-	recentTx, err := client.GetRecentTransactions(ctx, account, daysBack)
+	inScope := internal.SetFrom(
+		internal.Concat(
+			plan.Tickers(),
+			maps.Keys(portfolio.PositionByTicker),
+		),
+	)
+
+	recentTx, err := client.GetRecentTransactions(ctx, account, daysBack, inScope)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account transactions")
 	}

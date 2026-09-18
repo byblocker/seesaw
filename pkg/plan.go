@@ -3,7 +3,9 @@ package pkg
 import (
 	"fmt"
 	"io"
+	"iter"
 	"seesaw/internal/utils"
+	"strings"
 
 	"github.com/quagmt/udecimal"
 )
@@ -11,6 +13,20 @@ import (
 type PortfolioPlan struct {
 	AccountId string      `yaml:"accountId"`
 	Assets    []AssetPlan `yaml:"assets"`
+}
+
+func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
+	return func(yield func(string) bool) {
+		yieldTicker := func(ticker string) bool {
+			return ticker == "" || yield(ticker)
+		}
+
+		for _, asset := range plan.Assets {
+			if !yieldTicker(asset.PrimaryTicker) || !yieldTicker(asset.AltTicker) {
+				return
+			}
+		}
+	}
 }
 
 type AssetPlan struct {
@@ -34,8 +50,11 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 		)
 	}
 
-	for _, asset := range plan.Assets {
-		if err := validateAsset(&asset); err != nil {
+	for i := range plan.Assets {
+		asset := &plan.Assets[i]
+		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
+		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
+		if err := validateAsset(asset); err != nil {
 			return nil, err
 		}
 	}

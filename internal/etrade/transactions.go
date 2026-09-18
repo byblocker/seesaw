@@ -28,6 +28,11 @@ type Transaction struct {
 	Price    udecimal.Decimal
 }
 
+type RecentTxByTicker map[string]struct {
+	Buys  []Transaction
+	Sells []Transaction
+}
+
 type getTransactionResponse struct {
 	Page struct {
 		Transactions []struct {
@@ -47,8 +52,12 @@ func (client Client) GetRecentTransactions(
 	ctx context.Context,
 	account *AccountDetails,
 	daysBack int,
-) ([]Transaction, error) {
-	var transactions []Transaction
+	tickers internal.Set[string],
+) (RecentTxByTicker, error) {
+	transactions := make(RecentTxByTicker)
+	if len(tickers) == 0 {
+		return transactions, nil
+	}
 
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -daysBack)
@@ -80,13 +89,23 @@ func (client Client) GetRecentTransactions(
 			if ticker == "" || !(tx.Type == TxBuy || tx.Type == TxSell) {
 				continue
 			}
+			if !tickers.Contains(ticker) {
+				continue
+			}
 
-			transactions = append(transactions, Transaction{
+			transaction := Transaction{
 				Ticker:   ticker,
 				Type:     tx.Type,
 				Price:    tx.Brokerage.Price,
 				Quantity: tx.Brokerage.Quantity,
-			})
+			}
+			history := transactions[ticker]
+			if tx.Type == TxBuy {
+				history.Buys = append(history.Buys, transaction)
+			} else {
+				history.Sells = append(history.Sells, transaction)
+			}
+			transactions[ticker] = history
 		}
 
 		nextPage := response.Page.NextPage
