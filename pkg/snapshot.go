@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"seesaw/internal"
+	"seesaw/internal/collections"
 	"seesaw/internal/config"
-	"seesaw/internal/etrade"
-	"seesaw/internal/utils"
-	"slices"
+	"seesaw/pkg/etrade"
 	"time"
 
 	"github.com/quagmt/udecimal"
@@ -16,7 +14,7 @@ import (
 
 type Asset struct {
 	Plan      *AssetPlan
-	Positions []etrade.Position
+	Positions map[string]etrade.Position
 
 	Allocation udecimal.Decimal
 	AllocDrift udecimal.Decimal
@@ -34,87 +32,69 @@ type AccountSnapshot struct {
 	RecentTx    etrade.RecentTxByTicker
 }
 
-func SnapshotPortfolio(plan *PortfolioPlan, daysBack int) (*AccountSnapshot, error) {
-	ctx := context.Background()
-
-	env, err := config.LoadEnv()
+func SnapshotPortfolio(
+	ctx context.Context,
+	client *etrade.Client,
+	plan *PortfolioPlan,
+	daysBack int,
+) (*AccountSnapshot, error) {
+	portfolio, err := client.GetPortfolio(ctx, plan.AccountId)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load .env: %v", err)
-	}
-
-	client, err := etrade.NewClient(
-		ctx,
-		env.ETradeApiKey,
-		env.ETradeApiSecret,
-		env.ETradeAPIBaseURL,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to ETrade: %v", err)
-	}
-
-	account, err := client.GetAccountDetails(ctx, plan.AccountId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account key: %v", err)
-	}
-
-	portfolio, err := client.GetPortfolio(ctx, account)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve portfolio positions")
+		return nil, fmt.Errorf("failed to retrieve portfolio positions: %w", err)
 	}
 
 	if daysBack <= 0 {
 		daysBack = config.WashSaleWindowDays
 	}
 
-	inScope := internal.SetFrom(
+	inScope := collections.SetFrom(
 		plan.Tickers(),
 		maps.Keys(portfolio.PositionByTicker),
 	)
 
-	recentTx, err := client.GetRecentTransactions(ctx, account, daysBack, inScope)
+	recentTx, err := client.GetRecentTransactions(
+		ctx,
+		plan.AccountId,
+		daysBack,
+		inScope.Slice(),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account transactions")
+		return nil, fmt.Errorf("failed to retrieve account transactions: %w", err)
 	}
 
 	var assets []Asset
 
 	for _, assetPlan := range plan.Assets {
-		var positions []etrade.Position
-		for ticker := range assetPlan.Tickers() {
-			if pos, exists := portfolio.PositionByTicker[ticker]; exists {
-				positions = append(positions, pos)
-				delete(portfolio.PositionByTicker, ticker)
-			}
-		}
+		positions := collections.ExtractMapByKeys(
+			portfolio.PositionByTicker,
+			assetPlan.Tickers(),
+		)
+		planned := assignAsset(&assetPlan, positions, portfolio.TotalValue)
 
-		assets = append(assets, assignAsset(&assetPlan, positions, portfolio.TotalValue))
+		assets = append(assets, planned)
 	}
 
 	// Extra positions should be uncommon, but still technically possible.
 	// Aggregate into a single Asset with a nil AssetPlan, which should
 	// force Seesaw into liquidating as soon as possible.
 	if len(portfolio.PositionByTicker) > 0 {
-		extraPositions := slices.Collect(maps.Values(portfolio.PositionByTicker))
-		assets = append(assets, assignAsset(nil, extraPositions, portfolio.TotalValue))
+		unplanned := assignAsset(nil, portfolio.PositionByTicker, portfolio.TotalValue)
+		assets = append(assets, unplanned)
 	}
 
-	snapshot := AccountSnapshot{
+	return &AccountSnapshot{
 		Id:          plan.AccountId,
 		CreatedAt:   time.Now(),
 		BuyingPower: portfolio.BuyingPower,
 		TotalValue:  portfolio.TotalValue,
 		Assets:      assets,
 		RecentTx:    recentTx,
-	}
-
-	utils.DebugYAML(snapshot)
-
-	return &snapshot, nil
+	}, nil
 }
 
 func assignAsset(
 	plan *AssetPlan,
-	positions []etrade.Position,
+	positions map[string]etrade.Position,
 	portfolioValue udecimal.Decimal,
 ) Asset {
 	asset := Asset{Plan: plan, Positions: positions}

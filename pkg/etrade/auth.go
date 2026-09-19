@@ -6,7 +6,8 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"seesaw/internal"
+	"seesaw/internal/httpclient"
+	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
 
 	"time"
@@ -37,8 +38,9 @@ type oauthCache struct {
 }
 
 type Client struct {
+	account    *accountDetails
 	httpClient *http.Client `yaml:"-"`
-	APIBaseUrl string       `yaml:"api_base_url"`
+	apiBaseURL string       `yaml:"api_base_url"`
 }
 
 func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error) {
@@ -57,13 +59,13 @@ func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error
 	if err != nil {
 		log.Printf("Could not renew ETrade client: %v", err)
 
-		client, err = authNewETradeClient(oauth)
+		client, err = authNewETradeClient(ctx, oauth)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return &Client{httpClient: client, APIBaseUrl: baseURL}, nil
+	return &Client{httpClient: client, apiBaseURL: baseURL}, nil
 }
 
 func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
@@ -72,7 +74,7 @@ func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
 		return err
 	}
 
-	return internal.KeyringSet(keyringService, accessTokenKey, oauthCache{
+	return keyring.Set(keyringService, accessTokenKey, oauthCache{
 		Token:     token,
 		LastUsed:  lastUsed,
 		ExpiresAt: expiresAt,
@@ -82,7 +84,7 @@ func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
 func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Client, error) {
 	log.Print("Attempting to renew ETrade credentials...")
 
-	access, err := internal.KeyringGet[oauthCache](keyringService, accessTokenKey)
+	access, err := keyring.Get[oauthCache](keyringService, accessTokenKey)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +97,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 
 	if time.Since(access.LastUsed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
-		if _, err := internal.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil, nil); err != nil {
+		if _, err := httpclient.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil, nil); err != nil {
 			return nil, fmt.Errorf("failed to renew token: %v", err)
 		}
 
@@ -108,7 +110,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 	return client, nil
 }
 
-func authNewETradeClient(oauth *oauth1.Config) (*http.Client, error) {
+func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Client, error) {
 	log.Print("Reauthorizing with ETrade...")
 
 	requestToken, requestSecret, err := oauth.RequestToken()
@@ -140,5 +142,5 @@ func authNewETradeClient(oauth *oauth1.Config) (*http.Client, error) {
 		return nil, fmt.Errorf("failed to cache new access token: %v", err)
 	}
 
-	return oauth.Client(context.Background(), token), nil
+	return oauth.Client(ctx, token), nil
 }

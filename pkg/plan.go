@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"seesaw/internal"
+	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"slices"
 	"strings"
@@ -18,7 +18,7 @@ type PortfolioPlan struct {
 }
 
 func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
-	return internal.FlatMap(slices.Values(plan.Assets), AssetPlan.Tickers)
+	return collections.FlatMap(slices.Values(plan.Assets), AssetPlan.Tickers)
 }
 
 type AssetPlan struct {

@@ -1,6 +1,10 @@
-package internal
+package collections
 
-import "iter"
+import (
+	"iter"
+	"maps"
+	"slices"
+)
 
 type Set[T comparable] map[T]struct{}
 
@@ -9,6 +13,7 @@ func NewSet[T comparable](values ...T) Set[T] {
 	for _, value := range values {
 		s.Add(value)
 	}
+
 	return s
 }
 
@@ -17,6 +22,7 @@ func SetFrom[T comparable](sequences ...iter.Seq[T]) Set[T] {
 	for value := range Concat(sequences...) {
 		s.Add(value)
 	}
+
 	return s
 }
 
@@ -31,4 +37,8 @@ func (s Set[T]) Contains(value T) bool {
 
 func (s Set[T]) Remove(value T) {
 	delete(s, value)
+}
+
+func (s Set[T]) Slice() []T {
+	return slices.Collect(maps.Keys(s))
 }
