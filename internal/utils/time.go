@@ -16,6 +16,8 @@ func EndOfDay(date time.Time, timezone string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("invalid timezone %q: %w", timezone, err)
 	}
 
+	date = date.In(location)
+
 	endOfDay := time.Date(
 		date.Year(),
 		date.Month(),
@@ -23,5 +25,6 @@ func EndOfDay(date time.Time, timezone string) (time.Time, error) {
 		23, 59, 59, 0,
 		location,
 	)
+
 	return endOfDay, nil
 }
