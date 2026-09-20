@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/dghubble/oauth1 v0.7.3
 	github.com/joho/godotenv v1.5.1
-	github.com/quagmt/udecimal v1.10.1
+	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/zalando/go-keyring v0.2.8
 	gopkg.in/yaml.v3 v3.0.1

@@ -17,8 +17,10 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "seesaw",
-	Short: "Seesaw: An investment portfolio rebalancing engine",
+	Use:           "seesaw",
+	Short:         "Seesaw: An investment portfolio rebalancing engine",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		pathToPlan := filepath.Join(portfolioDir, portfolioPlanName+".yaml")
 		file, err := os.Open(pathToPlan)

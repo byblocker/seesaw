@@ -8,8 +8,13 @@ import (
 	"seesaw/internal/httpclient"
 	"strings"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
+
+type Quote struct {
+	Ask decimal.Decimal `json:"ask"`
+	Bid decimal.Decimal `json:"bid"`
+}
 
 type quoteResponse struct {
 	QuoteResponse struct {
@@ -17,17 +22,15 @@ type quoteResponse struct {
 			Product struct {
 				Symbol string `json:"symbol"`
 			} `json:"Product"`
-			All struct {
-				Ask udecimal.Decimal `json:"ask"`
-			} `json:"All"`
+			All Quote `json:"All"`
 		} `json:"QuoteData"`
 	} `json:"QuoteResponse"`
 }
 
-func (client *Client) Quote(ctx context.Context, ticker string) (udecimal.Decimal, error) {
+func (client *Client) Quote(ctx context.Context, ticker string) (Quote, error) {
 	ticker = strings.TrimSpace(ticker)
 	if ticker == "" {
-		return udecimal.Zero, fmt.Errorf("invalid ticker: %s", ticker)
+		return Quote{}, fmt.Errorf("invalid ticker: %s", ticker)
 	}
 
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
@@ -39,18 +42,23 @@ func (client *Client) Quote(ctx context.Context, ticker string) (udecimal.Decima
 		nil,
 		url.Values{"detailFlag": {"ALL"}},
 	)
-
 	if err != nil {
-		return udecimal.Zero, err
+		return Quote{}, err
 	}
-	for _, quote := range response.QuoteResponse.QuoteData {
-		matchFound := strings.EqualFold(quote.Product.Symbol, ticker)
-		validPrice := quote.All.Ask.GreaterThan(udecimal.Zero)
 
-		if matchFound && validPrice {
-			return quote.All.Ask, nil
+	for _, quote := range response.QuoteResponse.QuoteData {
+		if strings.EqualFold(quote.Product.Symbol, ticker) {
+			if !quote.All.Bid.IsPositive() {
+				return Quote{}, fmt.Errorf("invalid bid price for %s: %s (must be positive)", ticker, quote.All.Bid)
+			}
+
+			if !quote.All.Ask.IsPositive() {
+				return Quote{}, fmt.Errorf("invalid ask price for %s: %s (must be positive)", ticker, quote.All.Ask)
+			}
+
+			return quote.All, nil
 		}
 	}
 
-	return udecimal.Zero, fmt.Errorf("no ask price returned for %s", ticker)
+	return Quote{}, fmt.Errorf("no quote returned for %s", ticker)
 }

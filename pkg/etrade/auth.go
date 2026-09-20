@@ -43,7 +43,7 @@ type Client struct {
 	apiBaseURL string       `yaml:"api_base_url"`
 }
 
-func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error) {
+func NewClient(ctx context.Context, key, secret, baseURL string) (Client, error) {
 	oauth := &oauth1.Config{
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
@@ -61,11 +61,11 @@ func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error
 
 		client, err = authNewETradeClient(ctx, oauth)
 		if err != nil {
-			return nil, err
+			return Client{}, err
 		}
 	}
 
-	return &Client{httpClient: client, apiBaseURL: baseURL}, nil
+	return Client{httpClient: client, apiBaseURL: baseURL}, nil
 }
 
 func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {

@@ -2,15 +2,46 @@ package httpclient
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
+	"seesaw/internal/config"
+	"seesaw/internal/timing"
+	"syscall"
 )
 
 func SendHTTPRequest(
+	ctx context.Context,
+	client *http.Client,
+	method, endpoint string,
+	headers http.Header,
+	query url.Values,
+) ([]byte, error) {
+	timer := timing.NewRetryTimer(config.MsPerRetryAPI)
+	for attempt := 1; ; attempt++ {
+		if err := timer.Wait(ctx, attempt); err != nil {
+			return nil, fmt.Errorf("wait before request: %w", err)
+		}
+		body, err := sendHTTPRequestOnce(ctx, client, method, endpoint, headers, query)
+		if err == nil {
+			return body, nil
+		}
+		if ctx.Err() != nil {
+			return nil, fmt.Errorf("request canceled: %w", ctx.Err())
+		}
+		if method != http.MethodGet || !isTransientError(err) {
+			return nil, err
+		}
+		if attempt == timer.Attempts() {
+			return nil, fmt.Errorf("request failed after %d attempts: %w", attempt, err)
+		}
+	}
+}
+
+func sendHTTPRequestOnce(
 	ctx context.Context,
 	client *http.Client,
 	method, endpoint string,
@@ -50,30 +81,12 @@ func SendHTTPRequest(
 	}
 }
 
-func SendJSONRequest[T any](
-	ctx context.Context,
-	client *http.Client,
-	method, endpoint string,
-	headers http.Header,
-	query url.Values,
-) (T, error) {
-	var response T
-
-	if headers == nil {
-		headers = http.Header{}
+func isTransientError(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
 	}
-	headers.Add("Accept", "application/json")
-
-	body, err := SendHTTPRequest(ctx, client, method, endpoint, headers, query)
-	if err != nil {
-		return response, err
-	}
-	if len(body) == 0 {
-		return response, nil
-	}
-
-	if err := json.Unmarshal(body, &response); err != nil {
-		return response, fmt.Errorf("error unmarshaling JSON: %w", err)
-	}
-	return response, nil
+	var networkError net.Error
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, syscall.ECONNRESET) || errors.Is(err, syscall.EPIPE) ||
+		(errors.As(err, &networkError) && networkError.Timeout())
 }

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
 
 type RecentTxByTicker map[string]struct {
@@ -21,8 +21,8 @@ type RecentTxByTicker map[string]struct {
 type Transaction struct {
 	Ticker   string
 	Type     TransactionType
-	Quantity udecimal.Decimal
-	Price    udecimal.Decimal
+	Quantity decimal.Decimal
+	Price    decimal.Decimal
 }
 
 type TransactionType string
@@ -38,9 +38,9 @@ type transactionResponse struct {
 			AccountID string `json:"accountId"`
 			Type      string `json:"transactionType"`
 			Brokerage struct {
-				Ticker   string           `json:"displaySymbol"`
-				Quantity udecimal.Decimal `json:"quantity"`
-				Price    udecimal.Decimal `json:"price"`
+				Ticker   string          `json:"displaySymbol"`
+				Quantity decimal.Decimal `json:"quantity"`
+				Price    decimal.Decimal `json:"price"`
 			} `json:"brokerage"`
 		} `json:"Transaction"`
 		NextPage string `json:"next"`

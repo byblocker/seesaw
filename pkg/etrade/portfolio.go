@@ -9,39 +9,39 @@ import (
 	"strings"
 	"time"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
 
 type Portfolio struct {
-	BuyingPower      udecimal.Decimal
-	TotalValue       udecimal.Decimal
+	BuyingPower      decimal.Decimal
+	TotalValue       decimal.Decimal
 	PositionByTicker map[string]Position
 }
 
 type Position struct {
-	Id          int64            `json:"positionId"`
-	Ticker      string           `json:"symbolDescription"`
-	Quantity    float64          `json:"quantity"`
-	Allocation  udecimal.Decimal `json:"pctOfPortfolio"`
-	MarketValue udecimal.Decimal `json:"marketValue"`
-	Lots        []PositionLot    `json:"-"`
+	Id          int64           `json:"positionId"`
+	Ticker      string          `json:"symbolDescription"`
+	Quantity    decimal.Decimal `json:"quantity"`
+	Allocation  decimal.Decimal `json:"pctOfPortfolio"`
+	MarketValue decimal.Decimal `json:"marketValue"`
+	Lots        []PositionLot   `json:"-"`
 }
 
 type PositionLot struct {
-	Id           int64            `json:"positionLotId"`
-	Quantity     float64          `json:"remainingQty"`
-	PricePaid    float64          `json:"price"`
-	TimeAcquired time.Time        `json:"-"`
-	MarketValue  udecimal.Decimal `json:"marketValue"`
-	UnrealizedPL udecimal.Decimal `json:"totalGain"`
-	PLPct        udecimal.Decimal `json:"totalCostForGainPct"`
+	Id           int64           `json:"positionLotId"`
+	Quantity     decimal.Decimal `json:"remainingQty"`
+	PricePaid    decimal.Decimal `json:"price"`
+	TimeAcquired time.Time       `json:"-"`
+	MarketValue  decimal.Decimal `json:"marketValue"`
+	UnrealizedPL decimal.Decimal `json:"totalGain"`
+	PLPct        decimal.Decimal `json:"totalCostForGainPct"`
 }
 
 type portfolioResponse struct {
 	PortfolioResponse struct {
 		Totals struct {
-			Balance     udecimal.Decimal `json:"cashBalance"`
-			MarketValue udecimal.Decimal `json:"totalMarketValue"`
+			Balance     decimal.Decimal `json:"cashBalance"`
+			MarketValue decimal.Decimal `json:"totalMarketValue"`
 		} `json:"totals"`
 		Portfolios []struct {
 			Positions []Position `json:"Position"`

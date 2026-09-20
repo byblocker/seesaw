@@ -4,28 +4,44 @@ import (
 	"fmt"
 	"seesaw/internal/config"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
 
 type BuyRequest struct {
-	ValueDrift        udecimal.Decimal
-	Price             udecimal.Decimal
-	MaxValueDeviation udecimal.Decimal
+	Ticker     string
+	ValueDrift decimal.Decimal
+	Price      decimal.Decimal
 }
 
-type BuyOrder struct {
+type Buy struct {
 	Ticker        string
-	Price         udecimal.Decimal
-	Quantity      udecimal.Decimal
-	EstimatedCost udecimal.Decimal
+	Price         decimal.Decimal
+	Quantity      decimal.Decimal
+	EstimatedCost decimal.Decimal
 }
 
-func CalculateBuyQuantity(
+func ProposeBuy(
 	req BuyRequest,
-	balance udecimal.Decimal,
-) (udecimal.Decimal, error) {
-	if req.Price.LessThanOrEqual(udecimal.Zero) {
-		return udecimal.Zero, fmt.Errorf("price must be positive")
+	balance, maxValueDeviation decimal.Decimal,
+) (Buy, error) {
+	if !req.Price.IsPositive() {
+		return Buy{}, fmt.Errorf("price must be positive")
+	}
+	if !req.ValueDrift.IsPositive() || !balance.IsPositive() {
+		return Buy{}, nil
+	}
+
+	proposeQuantity := func(quantity decimal.Decimal) Buy {
+		if quantity.IsZero() {
+			return Buy{}
+		}
+
+		return Buy{
+			Ticker:        req.Ticker,
+			Price:         req.Price,
+			Quantity:      quantity,
+			EstimatedCost: quantity.Mul(req.Price),
+		}
 	}
 
 	valueToCover := req.ValueDrift
@@ -33,29 +49,25 @@ func CalculateBuyQuantity(
 		valueToCover = balance
 	}
 
-	exact, _ := valueToCover.Div(req.Price)
+	// Truncate division to preserve the previous decimal library's behavior.
+	exact, _ := valueToCover.QuoRem(req.Price, config.DecimalDivisionPrecision)
 	if config.CanBuyFractionalShares {
-		return exact, nil
+		return proposeQuantity(exact), nil
 	}
 
 	whole := exact.Floor()
 	fractional := exact.Sub(whole)
-
 	if fractional.LessThan(config.MinFractionalShareToRound) {
-		return whole, nil
+		return proposeQuantity(whole), nil
 	}
 
-	rounded := whole.Add(udecimal.One)
-	estimatedCost := rounded.Mul(req.Price)
+	rounded := whole.Add(config.DecimalOne)
+	cost := rounded.Mul(req.Price)
+	maxAllowedCost := req.ValueDrift.Add(maxValueDeviation)
 
-	canAfford := balance.GreaterThanOrEqual(estimatedCost)
-
-	maxAllowedCost := req.ValueDrift.Add(req.MaxValueDeviation)
-	canAllocateExtra := estimatedCost.LessThanOrEqual(maxAllowedCost)
-
-	if canAfford && canAllocateExtra {
-		return rounded, nil
+	if cost.Cmp(balance) > 0 || cost.Cmp(maxAllowedCost) > 0 {
+		return proposeQuantity(whole), nil
 	}
 
-	return whole, nil
+	return proposeQuantity(rounded), nil
 }

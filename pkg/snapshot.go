@@ -9,32 +9,35 @@ import (
 	"seesaw/pkg/etrade"
 	"time"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
+
+type AccountSnapshot struct {
+	Id        string
+	CreatedAt time.Time
+
+	BuyingPower decimal.Decimal
+	TotalValue  decimal.Decimal
+
+	Tickers []string
+	Assets  []Asset
+}
 
 type Asset struct {
 	Plan      *AssetPlan
 	Positions map[string]etrade.Position
+	RecentTx  etrade.RecentTxByTicker
 
-	Allocation udecimal.Decimal
-	AllocDrift udecimal.Decimal
+	Allocation decimal.Decimal
+	AllocDrift decimal.Decimal
 
-	Value      udecimal.Decimal
-	ValueDrift udecimal.Decimal
-}
-
-type AccountSnapshot struct {
-	Id          string
-	CreatedAt   time.Time
-	BuyingPower udecimal.Decimal
-	TotalValue  udecimal.Decimal
-	Assets      []Asset
-	RecentTx    etrade.RecentTxByTicker
+	Value      decimal.Decimal
+	ValueDrift decimal.Decimal
 }
 
 func SnapshotPortfolio(
 	ctx context.Context,
-	client *etrade.Client,
+	client etrade.Client,
 	plan *PortfolioPlan,
 	daysBack int,
 ) (*AccountSnapshot, error) {
@@ -50,13 +53,13 @@ func SnapshotPortfolio(
 	inScope := collections.SetFrom(
 		plan.Tickers(),
 		maps.Keys(portfolio.PositionByTicker),
-	)
+	).Slice()
 
 	recentTx, err := client.GetRecentTransactions(
 		ctx,
 		plan.AccountId,
 		daysBack,
-		inScope.Slice(),
+		inScope,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve account transactions: %w", err)
@@ -65,11 +68,9 @@ func SnapshotPortfolio(
 	var assets []Asset
 
 	for _, assetPlan := range plan.Assets {
-		positions := collections.ExtractMapByKeys(
-			portfolio.PositionByTicker,
-			assetPlan.Tickers(),
-		)
-		planned := assignAsset(&assetPlan, positions, portfolio.TotalValue)
+		positions := collections.ExtractMapByKeys(portfolio.PositionByTicker, assetPlan.Tickers())
+		transactions := collections.ExtractMapByKeys(recentTx, assetPlan.Tickers())
+		planned := assignAsset(&assetPlan, positions, transactions, portfolio.TotalValue)
 
 		assets = append(assets, planned)
 	}
@@ -78,7 +79,7 @@ func SnapshotPortfolio(
 	// Aggregate into a single Asset with a nil AssetPlan, which should
 	// force Seesaw into liquidating as soon as possible.
 	if len(portfolio.PositionByTicker) > 0 {
-		unplanned := assignAsset(nil, portfolio.PositionByTicker, portfolio.TotalValue)
+		unplanned := assignAsset(nil, portfolio.PositionByTicker, recentTx, portfolio.TotalValue)
 		assets = append(assets, unplanned)
 	}
 
@@ -87,23 +88,24 @@ func SnapshotPortfolio(
 		CreatedAt:   time.Now(),
 		BuyingPower: portfolio.BuyingPower,
 		TotalValue:  portfolio.TotalValue,
+		Tickers:     inScope,
 		Assets:      assets,
-		RecentTx:    recentTx,
 	}, nil
 }
 
 func assignAsset(
 	plan *AssetPlan,
 	positions map[string]etrade.Position,
-	portfolioValue udecimal.Decimal,
+	recentTx etrade.RecentTxByTicker,
+	portfolioValue decimal.Decimal,
 ) Asset {
-	asset := Asset{Plan: plan, Positions: positions}
+	asset := Asset{Plan: plan, Positions: positions, RecentTx: recentTx}
 	for _, pos := range positions {
 		asset.Value = asset.Value.Add(pos.MarketValue)
 	}
 
 	if !portfolioValue.IsZero() {
-		asset.Allocation, _ = asset.Value.Div(portfolioValue)
+		asset.Allocation, _ = asset.Value.QuoRem(portfolioValue, config.DecimalDivisionPrecision)
 	}
 
 	if plan != nil {

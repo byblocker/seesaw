@@ -5,11 +5,12 @@ import (
 	"io"
 	"iter"
 	"seesaw/internal/collections"
+	"seesaw/internal/config"
 	"seesaw/internal/utils"
 	"slices"
 	"strings"
 
-	"github.com/quagmt/udecimal"
+	"github.com/shopspring/decimal"
 )
 
 type PortfolioPlan struct {
@@ -22,9 +23,9 @@ func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
 }
 
 type AssetPlan struct {
-	PrimaryTicker    string           `yaml:"primary_ticker"`
-	AltTicker        string           `yaml:"alternate_ticker"`
-	TargetAllocation udecimal.Decimal `yaml:"target_allocation"`
+	PrimaryTicker    string          `yaml:"primary_ticker"`
+	AltTicker        string          `yaml:"alternate_ticker"`
+	TargetAllocation decimal.Decimal `yaml:"target_allocation"`
 }
 
 func (asset AssetPlan) Tickers() iter.Seq[string] {
@@ -53,6 +54,7 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 		)
 	}
 
+	totalAllocation := decimal.Zero
 	for i := range plan.Assets {
 		asset := &plan.Assets[i]
 		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
@@ -60,6 +62,10 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 		if err := validateAsset(asset); err != nil {
 			return nil, err
 		}
+		totalAllocation = totalAllocation.Add(asset.TargetAllocation)
+	}
+	if !totalAllocation.Equal(config.DecimalOne) {
+		return nil, fmt.Errorf("target allocations must sum to 1.0; got %s", totalAllocation.String())
 	}
 
 	return plan, nil
@@ -70,8 +76,8 @@ func validateAsset(asset *AssetPlan) error {
 		return fmt.Errorf("missing required primary_ticker")
 	}
 
-	allocTooLarge := asset.TargetAllocation.GreaterThan(udecimal.One)
-	allocNegative := asset.TargetAllocation.LessThanOrEqual(udecimal.Zero)
+	allocTooLarge := asset.TargetAllocation.Cmp(config.DecimalOne) > 0
+	allocNegative := asset.TargetAllocation.Cmp(decimal.Zero) <= 0
 
 	if allocTooLarge || allocNegative {
 		return fmt.Errorf(
