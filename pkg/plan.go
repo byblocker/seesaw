@@ -55,15 +55,28 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 	}
 
 	totalAllocation := decimal.Zero
+	seenTickers := collections.NewSet[string]()
+
 	for i := range plan.Assets {
 		asset := &plan.Assets[i]
 		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
 		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
+
 		if err := validateAsset(asset); err != nil {
 			return nil, err
 		}
+
+		for ticker := range asset.Tickers() {
+			if seenTickers.Contains(ticker) {
+				return nil, fmt.Errorf("duplicate ticker %q", ticker)
+			}
+
+			seenTickers.Add(ticker)
+		}
+
 		totalAllocation = totalAllocation.Add(asset.TargetAllocation)
 	}
+
 	if !totalAllocation.Equal(config.DecimalOne) {
 		return nil, fmt.Errorf("target allocations must sum to 1.0; got %s", totalAllocation.String())
 	}
@@ -74,6 +87,12 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 func validateAsset(asset *AssetPlan) error {
 	if asset.PrimaryTicker == "" {
 		return fmt.Errorf("missing required primary_ticker")
+	}
+
+	for ticker := range asset.Tickers() {
+		if ticker != strings.ToUpper(ticker) {
+			return fmt.Errorf("ticker %q must be uppercase", ticker)
+		}
 	}
 
 	allocTooLarge := asset.TargetAllocation.Cmp(config.DecimalOne) > 0

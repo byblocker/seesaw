@@ -74,7 +74,7 @@ func (client *Client) GetPortfolio(ctx context.Context, account *AccountDetails)
 		"view":           {"COMPLETE"},
 	}
 
-]	response, err := httpclient.SendJSONRequest[portfolioResponse](
+	response, err := httpclient.SendJSONRequest[portfolioResponse](
 		ctx, client.httpClient, http.MethodGet, endpoint, nil, query,
 	)
 	if err != nil {
