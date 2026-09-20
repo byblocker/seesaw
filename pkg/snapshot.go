@@ -53,7 +53,7 @@ func SnapshotPortfolio(
 	inScope := collections.SetFrom(
 		plan.Tickers(),
 		maps.Keys(portfolio.PositionByTicker),
-	).Slice()
+	)
 
 	recentTx, err := client.GetRecentTransactions(
 		ctx,
@@ -88,7 +88,7 @@ func SnapshotPortfolio(
 		CreatedAt:   time.Now(),
 		BuyingPower: portfolio.BuyingPower,
 		TotalValue:  portfolio.TotalValue,
-		Tickers:     inScope,
+		Tickers:     inScope.Slice(),
 		Assets:      assets,
 	}, nil
 }
@@ -105,7 +105,7 @@ func assignAsset(
 	}
 
 	if !portfolioValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(portfolioValue, config.DecimalDivisionPrecision)
+		asset.Allocation, _ = asset.Value.QuoRem(portfolioValue, config.DivisionDecimalPlaces)
 	}
 
 	if plan != nil {

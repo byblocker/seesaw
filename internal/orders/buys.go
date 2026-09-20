@@ -50,7 +50,7 @@ func ProposeBuy(
 	}
 
 	// Truncate division to preserve the previous decimal library's behavior.
-	exact, _ := valueToCover.QuoRem(req.Price, config.DecimalDivisionPrecision)
+	exact, _ := valueToCover.QuoRem(req.Price, config.DivisionDecimalPlaces)
 	if config.CanBuyFractionalShares {
 		return proposeQuantity(exact), nil
 	}

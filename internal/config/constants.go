@@ -3,29 +3,42 @@ package config
 import "github.com/shopspring/decimal"
 
 const (
-	DecimalDivisionPrecision int32 = 19
+	// Decimal places retained during division. "19" limits intermediate precision loss.
+	DivisionDecimalPlaces int32 = 19
 
-	// How many days after a sale before you may buy without incurring a wash-sale?
+	// Days to lookback for transaction history. "31" covers the IRS specifications for
+	// avoiding wash-sales during the `rebalance` workflow
 	WashSaleWindowDays = 31
 
+	// Allow fractional buys? ETRADE "supports" fractional shares of certain securities,
+	// so we default to "false"
 	CanBuyFractionalShares = false
 
+	// Ticker for no eligible purchase. DO NOT EDIT.
 	NoTicker = ""
 )
 
 var (
+	// Shared decimal used for increments and 100% decimals. DO NOT EDIT.
 	DecimalOne = decimal.NewFromInt(1)
 
-	// Delay (ms) before each API attempt; length sets the attempt limit, with
-	// no schedule enforcing a single attempt without retries
+	// Milliseconds before each HTTP attempt. {0, 250, 500} allows two short retries
+	// after an immediate attempt to recover from transient GET connection failures.
 	MsPerRetryAPI = []int{0, 250, 500}
 
-	// If not, how small a fractional share you would round to a whole share?
+	// Minimum fractional remainder for rounding a buy up. 0.7 favors rounding down
+	// to limit overshooting the target allocation.
 	MinFractionalShareToRound = decimal.RequireFromString("0.7")
 
-	// How much asset allocation deviation, percentage-wise, do you tolerate?
-	MaxPctAllocDeviationAllowed = decimal.RequireFromString("0.02") // or 2%
+	// Max tolerance of deviation from asset's `target_allocation`; provides extra
+	// purchase allowance during `rebalance` workflows. 0.02, or 2%, gives whole-share
+	// rounding up to 2% of portfolio value in headroom, subject to available cash.
+	MaxPctAllocDeviationAllowed = decimal.RequireFromString("0.02")
 
-	// Harvest lots with P/L at or below this negative threshold.
-	MinPctLossToHarvest = decimal.RequireFromString("-0.005") // -0.5%
+	// Harvest cutoff in the API's totalCostForGainPct units. -0.005 excludes losses
+	// closer to zero to avoid harvesting tiny fluctuations.
+
+	// Minimum percent loss required to initiate tax-loss-harvesting. -0.005, or -0.5%,
+	// excludes harvesting small fluctuations.
+	MinPctLossToHarvest = decimal.RequireFromString("-0.005")
 )

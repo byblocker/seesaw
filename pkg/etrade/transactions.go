@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"seesaw/internal/collections"
 	"seesaw/internal/httpclient"
 	"seesaw/internal/utils"
-	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -16,6 +16,21 @@ import (
 type RecentTxByTicker map[string]struct {
 	Buys  []Transaction
 	Sells []Transaction
+}
+
+func (r RecentTxByTicker) Add(transaction Transaction) {
+	history := r[transaction.Ticker]
+
+	switch transaction.Type {
+	case TxBuy:
+		history.Buys = append(history.Buys, transaction)
+	case TxSell:
+		history.Sells = append(history.Sells, transaction)
+	default:
+		return
+	}
+
+	r[transaction.Ticker] = history
 }
 
 type Transaction struct {
@@ -32,11 +47,15 @@ const (
 	TxSell TransactionType = "Sold"
 )
 
+func (t TransactionType) IsSupported() bool {
+	return t == TxBuy || t == TxSell
+}
+
 type transactionResponse struct {
 	Page struct {
 		Transactions []struct {
-			AccountID string `json:"accountId"`
-			Type      string `json:"transactionType"`
+			AccountID string          `json:"accountId"`
+			Type      TransactionType `json:"transactionType"`
 			Brokerage struct {
 				Ticker   string          `json:"displaySymbol"`
 				Quantity decimal.Decimal `json:"quantity"`
@@ -47,7 +66,12 @@ type transactionResponse struct {
 	} `json:"TransactionListResponse"`
 }
 
-func (client *Client) GetRecentTransactions(ctx context.Context, accountID string, daysBack int, tickers []string) (RecentTxByTicker, error) {
+func (client *Client) GetRecentTransactions(
+	ctx context.Context,
+	accountID string,
+	daysBack int,
+	tickers collections.Set[string],
+) (RecentTxByTicker, error) {
 	result := make(RecentTxByTicker)
 	if len(tickers) == 0 {
 		return result, nil
@@ -58,18 +82,18 @@ func (client *Client) GetRecentTransactions(ctx context.Context, accountID strin
 		return nil, fmt.Errorf("resolve account %s: %w", accountID, err)
 	}
 
-	inScope := make(map[string]bool, len(tickers))
-	for _, ticker := range tickers {
-		inScope[ticker] = true
-	}
-
 	end := time.Now()
 	start := end.AddDate(0, 0, -daysBack)
-	endpoint := fmt.Sprintf("%s/accounts/%s/transactions", client.apiBaseURL, url.PathEscape(account.Key))
+	endpoint := fmt.Sprintf(
+		"%s/accounts/%s/transactions",
+		client.apiBaseURL,
+		url.PathEscape(account.Key),
+	)
 	query := url.Values{
 		"startDate": {start.Format(utils.MMDDYYYY)},
 		"endDate":   {end.Format(utils.MMDDYYYY)},
 	}
+
 	for {
 		response, err := httpclient.SendJSONRequest[transactionResponse](
 			ctx,
@@ -82,26 +106,27 @@ func (client *Client) GetRecentTransactions(ctx context.Context, accountID strin
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)
 		}
+
 		for _, tx := range response.Page.Transactions {
-			ticker := strings.TrimSpace(tx.Brokerage.Ticker)
-			kind := TransactionType(tx.Type)
-			if !inScope[ticker] || (kind != TxBuy && kind != TxSell) {
+			if !tickers.Contains(tx.Brokerage.Ticker) || !tx.Type.IsSupported() {
 				continue
 			}
-			transaction := Transaction{Ticker: ticker, Type: kind, Quantity: tx.Brokerage.Quantity, Price: tx.Brokerage.Price}
-			history := result[ticker]
-			if kind == TxBuy {
-				history.Buys = append(history.Buys, transaction)
-			} else {
-				history.Sells = append(history.Sells, transaction)
-			}
-			result[ticker] = history
+
+			result.Add(Transaction{
+				Ticker:   tx.Brokerage.Ticker,
+				Type:     tx.Type,
+				Quantity: tx.Brokerage.Quantity,
+				Price:    tx.Brokerage.Price,
+			})
 		}
+
 		endpoint = response.Page.NextPage
 		if endpoint == "" {
 			break
 		}
+
 		query = nil
 	}
+
 	return result, nil
 }
