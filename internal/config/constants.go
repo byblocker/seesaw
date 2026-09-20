@@ -35,10 +35,7 @@ var (
 	// rounding up to 2% of portfolio value in headroom, subject to available cash.
 	MaxPctAllocDeviationAllowed = decimal.RequireFromString("0.02")
 
-	// Harvest cutoff in the API's totalCostForGainPct units. -0.005 excludes losses
-	// closer to zero to avoid harvesting tiny fluctuations.
-
-	// Minimum percent loss required to initiate tax-loss-harvesting. -0.005, or -0.5%,
+	// Minimum fractional loss required to initiate tax-loss-harvesting. -0.005, or -0.5%,
 	// excludes harvesting small fluctuations.
 	MinPctLossToHarvest = decimal.RequireFromString("-0.005")
 )

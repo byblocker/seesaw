@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"seesaw/internal/httpclient"
+	"seesaw/internal/utils"
 	"strings"
 	"time"
 
@@ -34,7 +35,7 @@ type PositionLot struct {
 	TimeAcquired time.Time       `json:"-"`
 	MarketValue  decimal.Decimal `json:"marketValue"`
 	UnrealizedPL decimal.Decimal `json:"totalGain"`
-	PLPct        decimal.Decimal `json:"totalCostForGainPct"`
+	PLPct        decimal.Decimal `json:"-"`
 }
 
 type portfolioResponse struct {
@@ -53,7 +54,8 @@ type getPositionLotResponse struct {
 	PositionLotsResponse struct {
 		PositionLots []struct {
 			PositionLot
-			DateAcquired int64 `json:"acquiredDate"`
+			DateAcquired int64           `json:"acquiredDate"`
+			GainPercent  decimal.Decimal `json:"totalCostForGainPct"`
 		} `json:"PositionLot"`
 	} `json:"PositionLotsResponse"`
 }
@@ -99,6 +101,8 @@ func (client *Client) GetPortfolio(ctx context.Context, accountID string) (*Port
 		}
 	}
 
+	utils.DebugYAML(positions)
+
 	return &Portfolio{
 		BuyingPower:      data.Totals.Balance,
 		TotalValue:       data.Totals.MarketValue.Add(data.Totals.Balance),
@@ -106,7 +110,11 @@ func (client *Client) GetPortfolio(ctx context.Context, accountID string) (*Port
 	}, nil
 }
 
-func (client *Client) getPositionLots(ctx context.Context, accountKey string, positionID int64) ([]PositionLot, error) {
+func (client *Client) getPositionLots(
+	ctx context.Context,
+	accountKey string,
+	positionID int64,
+) ([]PositionLot, error) {
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio/%d",
 		client.apiBaseURL,
@@ -128,6 +136,9 @@ func (client *Client) getPositionLots(ctx context.Context, accountKey string, po
 	lots := make([]PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
 		lot.TimeAcquired = time.UnixMilli(lot.DateAcquired)
+		// Despite its name, totalCostForGainPct contains percentage points in
+		// broker responses. Convert to a fraction: -0.5% becomes -0.005.
+		lot.PLPct = lot.GainPercent.Shift(-2)
 		lots = append(lots, lot.PositionLot)
 	}
 
