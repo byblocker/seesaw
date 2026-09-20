@@ -18,7 +18,7 @@ type RebalancePlan struct {
 func Rebalance(
 	ctx context.Context,
 	snapshot AccountSnapshot,
-	client etrade.Client,
+	client *etrade.Client,
 ) (*RebalancePlan, error) {
 	if snapshot.TotalValue.Cmp(decimal.Zero) <= 0 {
 		return nil, fmt.Errorf("empty or negative portfolio")

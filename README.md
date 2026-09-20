@@ -87,6 +87,8 @@ Similarly, _seesaw_ will not force liquidation of overweight assets to reduce al
 
 _seesaw_ prevents wash-sales by blocking a purchase after a recent sale, and it's sale after a recent purchase. This, however, is limited to accounts accessible in ETRADE. _seesaw_ cannot account for trading activity in other brokerages. 
 
+ETRADE returns up to 50 positions per portfolio API call by default. _seesaw_ assumes no account would exceed this and does not paginate portfolio requests.
+
 ## Configuration
 
 Certain behaviors are controlled by [constants.go](internal/config/constants.go). Each setting is expalined. If you wish to make changes, be sure to rebuild or use `go run`.

@@ -13,7 +13,7 @@ const (
 	brokerageAccountType = "BROKERAGE"
 )
 
-type accountDetails struct {
+type AccountDetails struct {
 	Id     string `json:"accountId"`
 	Key    string `json:"accountIdKey"`
 	Type   string `json:"institutionType"`
@@ -23,18 +23,14 @@ type accountDetails struct {
 type listAccountsAPIResponse struct {
 	AccountListResponse struct {
 		Accounts struct {
-			AccountList []accountDetails `json:"Account"`
+			AccountList []AccountDetails `json:"Account"`
 		} `json:"Accounts"`
 	} `json:"AccountListResponse"`
 }
 
-func (client *Client) getAccountDetails(ctx context.Context, accountId string) (*accountDetails, error) {
+func (client *Client) GetAccountDetails(ctx context.Context, accountId string) (*AccountDetails, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
-	}
-	if client.account != nil && client.account.Id == accountId {
-		account := *client.account
-		return &account, nil
 	}
 
 	log.Printf("Finding brokerage account with ID: %v", accountId)
@@ -58,8 +54,7 @@ func (client *Client) getAccountDetails(ctx context.Context, accountId string) (
 
 		if isBrokerage && isActive && isTargetAccount && validAccountKey {
 			log.Print("Found target brokerage account!")
-			cached := *account
-			client.account = &cached
+
 			return account, nil
 		}
 	}

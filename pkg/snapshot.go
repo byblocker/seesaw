@@ -37,11 +37,16 @@ type Asset struct {
 
 func SnapshotPortfolio(
 	ctx context.Context,
-	client etrade.Client,
+	client *etrade.Client,
 	plan *PortfolioPlan,
 	daysBack int,
 ) (*AccountSnapshot, error) {
-	portfolio, err := client.GetPortfolio(ctx, plan.AccountId)
+	account, err := client.GetAccountDetails(ctx, plan.AccountId)
+	if err != nil {
+		return nil, fmt.Errorf("resolve account %s: %w", plan.AccountId, err)
+	}
+
+	portfolio, err := client.GetPortfolio(ctx, account)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve portfolio positions: %w", err)
 	}
@@ -57,7 +62,7 @@ func SnapshotPortfolio(
 
 	recentTx, err := client.GetRecentTransactions(
 		ctx,
-		plan.AccountId,
+		account,
 		daysBack,
 		inScope,
 	)

@@ -68,7 +68,7 @@ type transactionResponse struct {
 
 func (client *Client) GetRecentTransactions(
 	ctx context.Context,
-	accountID string,
+	account *AccountDetails,
 	daysBack int,
 	tickers collections.Set[string],
 ) (RecentTxByTicker, error) {
@@ -77,9 +77,8 @@ func (client *Client) GetRecentTransactions(
 		return result, nil
 	}
 
-	account, err := client.getAccountDetails(ctx, accountID)
-	if err != nil {
-		return nil, fmt.Errorf("resolve account %s: %w", accountID, err)
+	if account == nil || account.Key == "" {
+		return nil, fmt.Errorf("account details with a nonempty key are required")
 	}
 
 	end := time.Now()

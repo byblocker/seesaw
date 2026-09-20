@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"seesaw/internal/httpclient"
-	"seesaw/internal/utils"
 	"strings"
 	"time"
 
@@ -60,10 +59,9 @@ type getPositionLotResponse struct {
 	} `json:"PositionLotsResponse"`
 }
 
-func (client *Client) GetPortfolio(ctx context.Context, accountID string) (*Portfolio, error) {
-	account, err := client.getAccountDetails(ctx, accountID)
-	if err != nil {
-		return nil, fmt.Errorf("resolve account %s: %w", accountID, err)
+func (client *Client) GetPortfolio(ctx context.Context, account *AccountDetails) (*Portfolio, error) {
+	if account == nil || account.Key == "" {
+		return nil, fmt.Errorf("invalid account details")
 	}
 
 	endpoint := fmt.Sprintf(
@@ -71,13 +69,13 @@ func (client *Client) GetPortfolio(ctx context.Context, accountID string) (*Port
 		client.apiBaseURL,
 		url.PathEscape(account.Key),
 	)
-	response, err := httpclient.SendJSONRequest[portfolioResponse](
-		ctx,
-		client.httpClient,
-		http.MethodGet,
-		endpoint,
-		nil,
-		url.Values{"totalsRequired": {"true"}, "view": {"COMPLETE"}},
+	query := url.Values{
+		"totalsRequired": {"true"},
+		"view":           {"COMPLETE"},
+	}
+
+]	response, err := httpclient.SendJSONRequest[portfolioResponse](
+		ctx, client.httpClient, http.MethodGet, endpoint, nil, query,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("fetch portfolio: %w", err)
@@ -85,29 +83,28 @@ func (client *Client) GetPortfolio(ctx context.Context, accountID string) (*Port
 
 	data := response.PortfolioResponse
 	if len(data.Portfolios) == 0 {
-		return nil, fmt.Errorf("no portfolio returned for account %s", accountID)
+		return nil, fmt.Errorf("no portfolio returned for account %s", account.Id)
 	}
 
-	positions := make(map[string]Position)
-	for _, portfolio := range data.Portfolios {
-		for _, pos := range portfolio.Positions {
+	portfolio := &Portfolio{
+		BuyingPower:      data.Totals.Balance,
+		TotalValue:       data.Totals.MarketValue.Add(data.Totals.Balance),
+		PositionByTicker: make(map[string]Position),
+	}
+
+	for _, accountPortfolio := range data.Portfolios {
+		for _, pos := range accountPortfolio.Positions {
 			pos.Ticker = strings.TrimSpace(pos.Ticker)
 			pos.Lots, err = client.getPositionLots(ctx, account.Key, pos.Id)
 			if err != nil {
 				return nil, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 			}
 
-			positions[pos.Ticker] = pos
+			portfolio.PositionByTicker[pos.Ticker] = pos
 		}
 	}
 
-	utils.DebugYAML(positions)
-
-	return &Portfolio{
-		BuyingPower:      data.Totals.Balance,
-		TotalValue:       data.Totals.MarketValue.Add(data.Totals.Balance),
-		PositionByTicker: positions,
-	}, nil
+	return portfolio, nil
 }
 
 func (client *Client) getPositionLots(
@@ -136,6 +133,7 @@ func (client *Client) getPositionLots(
 	lots := make([]PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
 		lot.TimeAcquired = time.UnixMilli(lot.DateAcquired)
+
 		// Despite its name, totalCostForGainPct contains percentage points in
 		// broker responses. Convert to a fraction: -0.5% becomes -0.005.
 		lot.PLPct = lot.GainPercent.Shift(-2)
