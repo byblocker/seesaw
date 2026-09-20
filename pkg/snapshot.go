@@ -41,9 +41,22 @@ func SnapshotPortfolio(
 	plan *PortfolioPlan,
 	daysBack int,
 ) (*AccountSnapshot, error) {
-	account, err := client.GetAccountDetails(ctx, plan.AccountId)
+	accounts, err := client.GetAccounts(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("resolve account %s: %w", plan.AccountId, err)
+		return nil, fmt.Errorf("retrieve active brokerage accounts: %w", err)
+	}
+
+	var account *etrade.AccountDetails
+
+	for i := range accounts {
+		if accounts[i].Id == plan.AccountId {
+			account = &accounts[i]
+			break
+		}
+	}
+
+	if account == nil {
+		return nil, fmt.Errorf("could not find active brokerage account %s", plan.AccountId)
 	}
 
 	portfolio, err := client.GetPortfolio(ctx, account)
@@ -60,14 +73,14 @@ func SnapshotPortfolio(
 		maps.Keys(portfolio.PositionByTicker),
 	)
 
-	recentTx, err := client.GetRecentTransactions(
-		ctx,
-		account,
-		daysBack,
-		inScope,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve account transactions: %w", err)
+	recentTx := make(etrade.RecentTxByTicker)
+	for i := range accounts {
+		accountHistory, err := client.GetRecentTx(ctx, &accounts[i], daysBack, inScope)
+		if err != nil {
+			return nil, fmt.Errorf("could not get transactions for account %s: %w", accounts[i].Id, err)
+		}
+
+		recentTx.Append(accountHistory)
 	}
 
 	var assets []Asset

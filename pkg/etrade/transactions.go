@@ -33,6 +33,15 @@ func (r RecentTxByTicker) Add(transaction Transaction) {
 	r[transaction.Ticker] = history
 }
 
+func (r RecentTxByTicker) Append(other RecentTxByTicker) {
+	for ticker, history := range other {
+		combined := r[ticker]
+		combined.Buys = append(combined.Buys, history.Buys...)
+		combined.Sells = append(combined.Sells, history.Sells...)
+		r[ticker] = combined
+	}
+}
+
 type Transaction struct {
 	Ticker   string
 	Type     TransactionType
@@ -66,10 +75,21 @@ type transactionResponse struct {
 	} `json:"TransactionListResponse"`
 }
 
-func (client *Client) GetRecentTransactions(
+func (client *Client) GetRecentTx(
 	ctx context.Context,
 	account *AccountDetails,
 	daysBack int,
+	tickers collections.Set[string],
+) (RecentTxByTicker, error) {
+	end := time.Now()
+	start := end.AddDate(0, 0, -daysBack)
+	return client.GetTx(ctx, account, start, end, tickers)
+}
+
+func (client *Client) GetTx(
+	ctx context.Context,
+	account *AccountDetails,
+	start, end time.Time,
 	tickers collections.Set[string],
 ) (RecentTxByTicker, error) {
 	result := make(RecentTxByTicker)
@@ -81,8 +101,6 @@ func (client *Client) GetRecentTransactions(
 		return nil, fmt.Errorf("account details with a nonempty key are required")
 	}
 
-	end := time.Now()
-	start := end.AddDate(0, 0, -daysBack)
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
 		client.apiBaseURL,

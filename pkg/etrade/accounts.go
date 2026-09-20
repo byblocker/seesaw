@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"seesaw/internal/collections"
 	"seesaw/internal/httpclient"
+	"slices"
 )
 
 const (
@@ -28,12 +30,12 @@ type listAccountsAPIResponse struct {
 	} `json:"AccountListResponse"`
 }
 
-func (client *Client) GetAccountDetails(ctx context.Context, accountId string) (*AccountDetails, error) {
+func (client *Client) GetAccounts(ctx context.Context) ([]AccountDetails, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	log.Printf("Finding brokerage account with ID: %v", accountId)
+	log.Print("Loading active brokerage accounts...")
 
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
 	response, err := httpclient.SendJSONRequest[listAccountsAPIResponse](
@@ -43,21 +45,13 @@ func (client *Client) GetAccountDetails(ctx context.Context, accountId string) (
 		return nil, fmt.Errorf("could not load accounts: %w", err)
 	}
 
-	accounts := response.AccountListResponse.Accounts.AccountList
-	for i := range accounts {
-		account := &accounts[i]
-
-		isBrokerage := account.Type == brokerageAccountType
-		isActive := account.Status == activeAccountStatus
-		isTargetAccount := account.Id == accountId
-		validAccountKey := account.Key != ""
-
-		if isBrokerage && isActive && isTargetAccount && validAccountKey {
-			log.Print("Found target brokerage account!")
-
-			return account, nil
-		}
+	isSupportedAccount := func(account AccountDetails) bool {
+		return account.Type == brokerageAccountType && account.Status == activeAccountStatus
 	}
+	accounts := collections.Filter(
+		slices.Values(response.AccountListResponse.Accounts.AccountList),
+		isSupportedAccount,
+	)
 
-	return nil, fmt.Errorf("could not find brokerage account")
+	return slices.Collect(accounts), nil
 }
