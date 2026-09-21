@@ -5,36 +5,29 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/httpclient"
+	"seesaw/pkg/models"
 	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
-type Portfolio struct {
-	BuyingPower      decimal.Decimal
-	TotalValue       decimal.Decimal
-	PositionByTicker map[string]Position
-}
-
-type Position struct {
+type positionResponse struct {
 	Id          int64           `json:"positionId"`
 	Ticker      string          `json:"symbolDescription"`
 	Quantity    decimal.Decimal `json:"quantity"`
 	Allocation  decimal.Decimal `json:"pctOfPortfolio"`
 	MarketValue decimal.Decimal `json:"marketValue"`
-	Lots        []PositionLot   `json:"-"`
 }
 
-type PositionLot struct {
+type positionLotResponse struct {
 	Id           int64           `json:"positionLotId"`
 	Quantity     decimal.Decimal `json:"remainingQty"`
 	PricePaid    decimal.Decimal `json:"price"`
-	TimeAcquired time.Time       `json:"-"`
 	MarketValue  decimal.Decimal `json:"marketValue"`
 	UnrealizedPL decimal.Decimal `json:"totalGain"`
-	PLPct        decimal.Decimal `json:"-"`
 }
 
 type portfolioResponse struct {
@@ -44,7 +37,7 @@ type portfolioResponse struct {
 			MarketValue decimal.Decimal `json:"totalMarketValue"`
 		} `json:"totals"`
 		Portfolios []struct {
-			Positions []Position `json:"Position"`
+			Positions []positionResponse `json:"Position"`
 		} `json:"AccountPortfolio"`
 	} `json:"PortfolioResponse"`
 }
@@ -52,22 +45,23 @@ type portfolioResponse struct {
 type getPositionLotResponse struct {
 	PositionLotsResponse struct {
 		PositionLots []struct {
-			PositionLot
+			positionLotResponse
 			DateAcquired int64           `json:"acquiredDate"`
 			GainPercent  decimal.Decimal `json:"totalCostForGainPct"`
 		} `json:"PositionLot"`
 	} `json:"PositionLotsResponse"`
 }
 
-func (client *Client) GetPortfolio(ctx context.Context, account *AccountDetails) (*Portfolio, error) {
-	if account == nil || account.Key == "" {
-		return nil, fmt.Errorf("invalid account details")
+func (client *Client) GetPortfolio(ctx context.Context, handle broker.Account) (*models.Portfolio, error) {
+	account, ok := handle.(brokerageAccount)
+	if !ok || account.key == "" {
+		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio",
 		client.apiBaseURL,
-		url.PathEscape(account.Key),
+		url.PathEscape(account.key),
 	)
 	query := url.Values{
 		"totalsRequired": {"true"},
@@ -84,24 +78,30 @@ func (client *Client) GetPortfolio(ctx context.Context, account *AccountDetails)
 
 	data := response.PortfolioResponse
 	if len(data.Portfolios) == 0 {
-		return nil, fmt.Errorf("no portfolio returned for account %s", account.Id)
+		return nil, fmt.Errorf("no portfolio returned for account %s", account.id)
 	}
 
-	portfolio := &Portfolio{
+	portfolio := &models.Portfolio{
 		BuyingPower:      data.Totals.Balance,
 		TotalValue:       data.Totals.MarketValue.Add(data.Totals.Balance),
-		PositionByTicker: make(map[string]Position),
+		PositionByTicker: make(map[string]models.Position),
 	}
 
 	for _, accountPortfolio := range data.Portfolios {
 		for _, pos := range accountPortfolio.Positions {
-			pos.Ticker = strings.TrimSpace(pos.Ticker)
-			pos.Lots, err = client.getPositionLots(ctx, account.Key, pos.Id)
+			position := models.Position{
+				Id:          pos.Id,
+				Ticker:      strings.TrimSpace(pos.Ticker),
+				Quantity:    pos.Quantity,
+				Allocation:  pos.Allocation,
+				MarketValue: pos.MarketValue,
+			}
+			position.Lots, err = client.getPositionLots(ctx, account.key, pos.Id)
 			if err != nil {
 				return nil, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 			}
 
-			portfolio.PositionByTicker[pos.Ticker] = pos
+			portfolio.PositionByTicker[position.Ticker] = position
 		}
 	}
 
@@ -112,7 +112,7 @@ func (client *Client) getPositionLots(
 	ctx context.Context,
 	accountKey string,
 	positionID int64,
-) ([]PositionLot, error) {
+) ([]models.PositionLot, error) {
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio/%d",
 		client.apiBaseURL,
@@ -130,14 +130,18 @@ func (client *Client) getPositionLots(
 		return nil, err
 	}
 
-	lots := make([]PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
+	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
-		lot.TimeAcquired = time.UnixMilli(lot.DateAcquired)
-
-		// Despite its name, totalCostForGainPct contains percentage points in
-		// broker responses. Convert to a fraction: -0.5% becomes -0.005.
-		lot.PLPct = lot.GainPercent.Shift(-2)
-		lots = append(lots, lot.PositionLot)
+		// ETRADE returns percentage points; the domain model uses a fraction.
+		lots = append(lots, models.PositionLot{
+			Id:           lot.Id,
+			Quantity:     lot.Quantity,
+			PricePaid:    lot.PricePaid,
+			TimeAcquired: time.UnixMilli(lot.DateAcquired),
+			MarketValue:  lot.MarketValue,
+			UnrealizedPL: lot.UnrealizedPL,
+			PLPct:        lot.GainPercent.Shift(-2),
+		})
 	}
 
 	return lots, nil

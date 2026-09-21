@@ -5,66 +5,21 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/collections"
 	"seesaw/internal/httpclient"
 	"seesaw/internal/utils"
+	"seesaw/pkg/models"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
-type RecentTxByTicker map[string]struct {
-	Buys  []Transaction
-	Sells []Transaction
-}
-
-func (r RecentTxByTicker) Add(transaction Transaction) {
-	history := r[transaction.Ticker]
-
-	switch transaction.Type {
-	case TxBuy:
-		history.Buys = append(history.Buys, transaction)
-	case TxSell:
-		history.Sells = append(history.Sells, transaction)
-	default:
-		return
-	}
-
-	r[transaction.Ticker] = history
-}
-
-func (r RecentTxByTicker) Append(other RecentTxByTicker) {
-	for ticker, history := range other {
-		combined := r[ticker]
-		combined.Buys = append(combined.Buys, history.Buys...)
-		combined.Sells = append(combined.Sells, history.Sells...)
-		r[ticker] = combined
-	}
-}
-
-type Transaction struct {
-	Ticker   string
-	Type     TransactionType
-	Quantity decimal.Decimal
-	Price    decimal.Decimal
-}
-
-type TransactionType string
-
-const (
-	TxBuy  TransactionType = "Bought"
-	TxSell TransactionType = "Sold"
-)
-
-func (t TransactionType) IsSupported() bool {
-	return t == TxBuy || t == TxSell
-}
-
 type transactionResponse struct {
 	Page struct {
 		Transactions []struct {
-			AccountID string          `json:"accountId"`
-			Type      TransactionType `json:"transactionType"`
+			AccountID string `json:"accountId"`
+			Type      string `json:"transactionType"`
 			Brokerage struct {
 				Ticker   string          `json:"displaySymbol"`
 				Quantity decimal.Decimal `json:"quantity"`
@@ -77,34 +32,35 @@ type transactionResponse struct {
 
 func (client *Client) GetRecentTx(
 	ctx context.Context,
-	account *AccountDetails,
+	handle broker.Account,
 	daysBack int,
-	tickers collections.Set[string],
-) (RecentTxByTicker, error) {
+	tickers []string,
+) (models.RecentTxByTicker, error) {
 	end := time.Now()
 	start := end.AddDate(0, 0, -daysBack)
-	return client.GetTx(ctx, account, start, end, tickers)
+	return client.GetTx(ctx, handle, start, end, tickers)
 }
 
 func (client *Client) GetTx(
 	ctx context.Context,
-	account *AccountDetails,
+	handle broker.Account,
 	start, end time.Time,
-	tickers collections.Set[string],
-) (RecentTxByTicker, error) {
-	result := make(RecentTxByTicker)
+	tickers []string,
+) (models.RecentTxByTicker, error) {
+	result := make(models.RecentTxByTicker)
 	if len(tickers) == 0 {
 		return result, nil
 	}
 
-	if account == nil || account.Key == "" {
-		return nil, fmt.Errorf("account details with a nonempty key are required")
+	account, ok := handle.(brokerageAccount)
+	if !ok || account.key == "" {
+		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
 		client.apiBaseURL,
-		url.PathEscape(account.Key),
+		url.PathEscape(account.key),
 	)
 	query := url.Values{
 		"startDate": {start.Format(utils.MMDDYYYY)},
@@ -112,6 +68,7 @@ func (client *Client) GetTx(
 	}
 	endpoint += "?" + query.Encode()
 
+	tickerSet := collections.NewSet(tickers...)
 	visitedPages := collections.NewSet[string]()
 
 	for {
@@ -132,13 +89,13 @@ func (client *Client) GetTx(
 		}
 
 		for _, tx := range response.Page.Transactions {
-			if !tickers.Contains(tx.Brokerage.Ticker) || !tx.Type.IsSupported() {
+			if !tickerSet.Contains(tx.Brokerage.Ticker) || !models.TransactionType(tx.Type).IsSupported() {
 				continue
 			}
 
-			result.Add(Transaction{
+			result.Add(models.Transaction{
 				Ticker:   tx.Brokerage.Ticker,
-				Type:     tx.Type,
+				Type:     models.TransactionType(tx.Type),
 				Quantity: tx.Brokerage.Quantity,
 				Price:    tx.Brokerage.Price,
 			})

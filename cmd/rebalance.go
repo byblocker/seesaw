@@ -3,10 +3,10 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"seesaw/internal/broker/etrade"
 	"seesaw/internal/config"
 	"seesaw/internal/utils"
 	"seesaw/pkg"
-	"seesaw/pkg/etrade"
 
 	"github.com/spf13/cobra"
 )

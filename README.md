@@ -96,3 +96,10 @@ Certain behaviors are controlled by [constants.go](internal/config/constants.go)
 ## Development
 
 We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0E-4`. We keep prices and quantities as decimals throughout the calculations and truncate division to 19 decimal places.
+
+Shared portfolio, quote, and transaction models live in `pkg/models`.
+Snapshotting and rebalancing depend on the `Broker` interface in `internal/broker/interface.go`.
+Broker implementations live under `internal/broker` (currently `internal/broker/etrade`);
+the CLI constructs the concrete client. API response types and authentication stay inside each implementation.
+
+Accounts are broker-owned handles exposing only their account ID; ETRADE account keys remain private to its implementation.

@@ -2,7 +2,7 @@ package orders
 
 import (
 	"seesaw/internal/config"
-	"seesaw/pkg/etrade"
+	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
@@ -23,12 +23,12 @@ func (p *SellProposal) Add(sell SellLot) {
 }
 
 type SellLot struct {
-	Lot      etrade.PositionLot
+	Lot      models.PositionLot
 	Quantity decimal.Decimal
 }
 
 func HarvestTaxLoss(
-	position etrade.Position,
+	position models.Position,
 	bid decimal.Decimal,
 ) SellProposal {
 	proposal := SellProposal{

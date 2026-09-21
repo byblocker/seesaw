@@ -3,9 +3,10 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"seesaw/internal/broker"
 	"seesaw/internal/config"
 	"seesaw/internal/orders"
-	"seesaw/pkg/etrade"
+	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
@@ -18,7 +19,7 @@ type RebalancePlan struct {
 func Rebalance(
 	ctx context.Context,
 	snapshot AccountSnapshot,
-	client *etrade.Client,
+	client broker.Broker,
 ) (*RebalancePlan, error) {
 	if snapshot.TotalValue.Cmp(decimal.Zero) <= 0 {
 		return nil, fmt.Errorf("empty or negative portfolio")
@@ -32,7 +33,7 @@ func Rebalance(
 	balance := snapshot.BuyingPower
 	maxValueDeviationAllowed := config.MaxPctAllocDeviationAllowed.Mul(snapshot.TotalValue)
 
-	quotePerTicker := make(map[string]etrade.Quote, len(snapshot.Tickers))
+	quotePerTicker := make(map[string]models.Quote, len(snapshot.Tickers))
 	for _, ticker := range snapshot.Tickers {
 		quote, err := client.Quote(ctx, ticker)
 		if err != nil {
@@ -144,7 +145,7 @@ func canSell(asset Asset, ticker string) bool {
 func selectPosToBuy(
 	asset Asset,
 	sell orders.SellProposal,
-	quoteByTicker map[string]etrade.Quote,
+	quoteByTicker map[string]models.Quote,
 ) orders.BuyRequest {
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {

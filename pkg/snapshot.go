@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"seesaw/internal/broker"
 	"seesaw/internal/collections"
 	"seesaw/internal/config"
-	"seesaw/pkg/etrade"
+	"seesaw/pkg/models"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -25,8 +26,8 @@ type AccountSnapshot struct {
 
 type Asset struct {
 	Plan      *AssetPlan
-	Positions map[string]etrade.Position
-	RecentTx  etrade.RecentTxByTicker
+	Positions map[string]models.Position
+	RecentTx  models.RecentTxByTicker
 
 	Allocation decimal.Decimal
 	AllocDrift decimal.Decimal
@@ -37,7 +38,7 @@ type Asset struct {
 
 func SnapshotPortfolio(
 	ctx context.Context,
-	client *etrade.Client,
+	client broker.Broker,
 	plan *PortfolioPlan,
 	daysBack int,
 ) (*AccountSnapshot, error) {
@@ -46,11 +47,10 @@ func SnapshotPortfolio(
 		return nil, fmt.Errorf("retrieve active brokerage accounts: %w", err)
 	}
 
-	var account *etrade.AccountDetails
-
+	var account broker.Account
 	for i := range accounts {
-		if accounts[i].Id == plan.AccountId {
-			account = &accounts[i]
+		if accounts[i].AccountID() == plan.AccountId {
+			account = accounts[i]
 			break
 		}
 	}
@@ -73,11 +73,12 @@ func SnapshotPortfolio(
 		maps.Keys(portfolio.PositionByTicker),
 	)
 
-	recentTx := make(etrade.RecentTxByTicker)
+	tickers := inScope.Slice()
+	recentTx := make(models.RecentTxByTicker)
 	for i := range accounts {
-		accountHistory, err := client.GetRecentTx(ctx, &accounts[i], daysBack, inScope)
+		accountHistory, err := client.GetRecentTx(ctx, accounts[i], daysBack, tickers)
 		if err != nil {
-			return nil, fmt.Errorf("could not get transactions for account %s: %w", accounts[i].Id, err)
+			return nil, fmt.Errorf("could not get transactions for account %s: %w", accounts[i].AccountID(), err)
 		}
 
 		recentTx.Append(accountHistory)
@@ -106,15 +107,15 @@ func SnapshotPortfolio(
 		CreatedAt:   time.Now(),
 		BuyingPower: portfolio.BuyingPower,
 		TotalValue:  portfolio.TotalValue,
-		Tickers:     inScope.Slice(),
+		Tickers:     tickers,
 		Assets:      assets,
 	}, nil
 }
 
 func assignAsset(
 	plan *AssetPlan,
-	positions map[string]etrade.Position,
-	recentTx etrade.RecentTxByTicker,
+	positions map[string]models.Position,
+	recentTx models.RecentTxByTicker,
 	portfolioValue decimal.Decimal,
 ) Asset {
 	asset := Asset{Plan: plan, Positions: positions, RecentTx: recentTx}

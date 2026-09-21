@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/httpclient"
 	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
@@ -36,6 +37,8 @@ type oauthCache struct {
 	LastUsed  time.Time     `json:"last_used"`
 	ExpiresAt time.Time     `json:"expires_at"`
 }
+
+var _ broker.Broker = (*Client)(nil)
 
 type Client struct {
 	httpClient *http.Client `yaml:"-"`
