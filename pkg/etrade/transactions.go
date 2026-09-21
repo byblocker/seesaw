@@ -110,15 +110,22 @@ func (client *Client) GetTx(
 		"startDate": {start.Format(utils.MMDDYYYY)},
 		"endDate":   {end.Format(utils.MMDDYYYY)},
 	}
+	endpoint += "?" + query.Encode()
+
+	visitedPages := collections.NewSet[string]()
 
 	for {
+		if visitedPages.Contains(endpoint) {
+			return nil, fmt.Errorf("transaction pagination repeated a page")
+		}
+		visitedPages.Add(endpoint)
+
 		response, err := httpclient.SendJSONRequest[transactionResponse](
 			ctx,
 			client.httpClient,
 			http.MethodGet,
 			endpoint,
 			nil,
-			query,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)
@@ -141,8 +148,6 @@ func (client *Client) GetTx(
 		if endpoint == "" {
 			break
 		}
-
-		query = nil
 	}
 
 	return result, nil

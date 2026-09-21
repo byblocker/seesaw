@@ -34,13 +34,13 @@ func (client *Client) Quote(ctx context.Context, ticker string) (Quote, error) {
 	}
 
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
+	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
 	response, err := httpclient.SendJSONRequest[quoteResponse](
 		ctx,
 		client.httpClient,
 		http.MethodGet,
 		endpoint,
 		nil,
-		url.Values{"detailFlag": {"ALL"}},
 	)
 	if err != nil {
 		return Quote{}, err

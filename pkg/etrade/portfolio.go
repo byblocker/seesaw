@@ -73,9 +73,10 @@ func (client *Client) GetPortfolio(ctx context.Context, account *AccountDetails)
 		"totalsRequired": {"true"},
 		"view":           {"COMPLETE"},
 	}
+	endpoint += "?" + query.Encode()
 
 	response, err := httpclient.SendJSONRequest[portfolioResponse](
-		ctx, client.httpClient, http.MethodGet, endpoint, nil, query,
+		ctx, client.httpClient, http.MethodGet, endpoint, nil,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("fetch portfolio: %w", err)
@@ -123,7 +124,6 @@ func (client *Client) getPositionLots(
 		client.httpClient,
 		http.MethodGet,
 		endpoint,
-		nil,
 		nil,
 	)
 	if err != nil {

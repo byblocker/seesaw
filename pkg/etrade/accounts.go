@@ -39,7 +39,7 @@ func (client *Client) GetAccounts(ctx context.Context) ([]AccountDetails, error)
 
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
 	response, err := httpclient.SendJSONRequest[listAccountsAPIResponse](
-		ctx, client.httpClient, http.MethodGet, endpoint, nil, nil,
+		ctx, client.httpClient, http.MethodGet, endpoint, nil,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not load accounts: %w", err)

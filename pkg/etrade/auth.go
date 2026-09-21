@@ -96,7 +96,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 
 	if time.Since(access.LastUsed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
-		if _, err := httpclient.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil, nil); err != nil {
+		if _, err := httpclient.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil); err != nil {
 			return nil, fmt.Errorf("failed to renew token: %v", err)
 		}
 

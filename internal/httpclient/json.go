@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 )
 
 func SendJSONRequest[T any](
@@ -14,16 +13,16 @@ func SendJSONRequest[T any](
 	client *http.Client,
 	method, endpoint string,
 	headers http.Header,
-	query url.Values,
 ) (T, error) {
 	var response T
 
+	headers = headers.Clone()
 	if headers == nil {
 		headers = http.Header{}
 	}
-	headers.Add("Accept", "application/json")
+	headers.Set("Accept", "application/json")
 
-	body, err := SendHTTPRequest(ctx, client, method, endpoint, headers, query)
+	body, err := SendHTTPRequest(ctx, client, method, endpoint, headers)
 	if err != nil {
 		return response, err
 	}

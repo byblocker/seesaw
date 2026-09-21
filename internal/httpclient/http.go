@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"seesaw/internal/timing"
 	"syscall"
 	"time"
@@ -28,14 +27,13 @@ func SendHTTPRequest(
 	client *http.Client,
 	method, endpoint string,
 	headers http.Header,
-	query url.Values,
 ) ([]byte, error) {
 	timer := timing.NewRetryTimer(msPerRetryAPI)
 	for attempt := 1; ; attempt++ {
 		if err := timer.Wait(ctx, attempt); err != nil {
 			return nil, fmt.Errorf("wait before request: %w", err)
 		}
-		body, err := sendHTTPRequestOnce(ctx, client, method, endpoint, headers, query)
+		body, err := sendHTTPRequestOnce(ctx, client, method, endpoint, headers)
 		if err == nil {
 			return body, nil
 		}
@@ -56,7 +54,6 @@ func sendHTTPRequestOnce(
 	client *http.Client,
 	method, endpoint string,
 	headers http.Header,
-	query url.Values,
 ) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, httpRequestTimeout)
 	defer cancel()
@@ -68,9 +65,6 @@ func sendHTTPRequestOnce(
 
 	if headers != nil {
 		request.Header = headers.Clone()
-	}
-	if query != nil {
-		request.URL.RawQuery = query.Encode()
 	}
 
 	resp, err := client.Do(request)
