@@ -123,7 +123,9 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 	}.Encode())
 
 	log.Print("Redirecting to authenticate with ETrade...")
-	utils.OpenUrl(authURL)
+	if err = utils.OpenUrl(authURL); err != nil {
+		return nil, err
+	}
 
 	verificationCode, err := utils.AskForInput("Enter verification code: ")
 	if err != nil {

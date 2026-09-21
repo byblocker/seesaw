@@ -3,7 +3,6 @@ package utils
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"runtime"
@@ -21,19 +20,20 @@ func AskForInput(prompt string) (string, error) {
 	return strings.TrimSpace(text), nil
 }
 
-func OpenUrl(url string) {
-	var err error
+func OpenUrl(url string) error {
+	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
-	case "darwin": // macOS
-		err = exec.Command("open", url).Start()
-	case "windows": // Windows
-		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
-	default: // Linux and other Unix-like systems
-		err = exec.Command("xdg-open", url).Start()
+	case "darwin":
+		cmd = exec.Command("open", url)
+	case "windows":
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
 	}
 
-	if err != nil {
-		log.Fatal("Failed to open browser: ", err)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("cannot open browser: %v", err)
 	}
+	return nil
 }
