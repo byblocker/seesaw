@@ -1,6 +1,8 @@
 package config
 
-import "github.com/shopspring/decimal"
+import (
+	"github.com/shopspring/decimal"
+)
 
 const (
 	// Decimal places retained during division. "19" limits intermediate precision loss.
@@ -21,10 +23,6 @@ const (
 var (
 	// Shared decimal used for increments and 100% decimals. DO NOT EDIT.
 	DecimalOne = decimal.NewFromInt(1)
-
-	// Milliseconds before each HTTP attempt. {0, 250, 500} allows two short retries
-	// after an immediate attempt to recover from transient GET connection failures.
-	MsPerRetryAPI = []int{0, 250, 500}
 
 	// Minimum fractional remainder for rounding a buy up. 0.7 favors rounding down
 	// to limit overshooting the target allocation.

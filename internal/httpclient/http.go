@@ -8,10 +8,20 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"seesaw/internal/config"
 	"seesaw/internal/timing"
 	"syscall"
+	"time"
 )
+
+const (
+	maxHTTPResponseBytes int64         = 10 * 1024 * 1024
+	maxHTTPErrorBytes    int64         = 4 * 1024
+	httpRequestTimeout   time.Duration = 30 * time.Second
+)
+
+// Milliseconds before each HTTP attempt. {0, 250, 500} allows two short retries
+// after an immediate attempt to recover from transient GET connection failures.
+var msPerRetryAPI = []int{0, 250, 500}
 
 func SendHTTPRequest(
 	ctx context.Context,
@@ -20,7 +30,7 @@ func SendHTTPRequest(
 	headers http.Header,
 	query url.Values,
 ) ([]byte, error) {
-	timer := timing.NewRetryTimer(config.MsPerRetryAPI)
+	timer := timing.NewRetryTimer(msPerRetryAPI)
 	for attempt := 1; ; attempt++ {
 		if err := timer.Wait(ctx, attempt); err != nil {
 			return nil, fmt.Errorf("wait before request: %w", err)
@@ -48,6 +58,9 @@ func sendHTTPRequestOnce(
 	headers http.Header,
 	query url.Values,
 ) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, httpRequestTimeout)
+	defer cancel()
+
 	request, err := http.NewRequestWithContext(ctx, method, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -66,19 +79,30 @@ func sendHTTPRequestOnce(
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("unauthorized request")
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		excerpt, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPErrorBytes+1))
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status %d: failed to read response body: %w", resp.StatusCode, err)
+		}
+		if int64(len(excerpt)) > maxHTTPErrorBytes {
+			return nil, fmt.Errorf("unexpected status %d: %s [truncated]", resp.StatusCode, excerpt[:maxHTTPErrorBytes])
+		}
+		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, excerpt)
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxHTTPResponseBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	switch {
-	case resp.StatusCode == http.StatusUnauthorized:
-		return nil, errors.New("unauthorized request")
-	case resp.StatusCode < 200 || resp.StatusCode >= 300:
-		return nil, fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)
-	default:
-		return body, nil
+	if int64(len(body)) > maxHTTPResponseBytes {
+		return nil, fmt.Errorf("response body exceeds %d bytes", maxHTTPResponseBytes)
 	}
+	return body, nil
 }
 
 func isTransientError(err error) bool {
