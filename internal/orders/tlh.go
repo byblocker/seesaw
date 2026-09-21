@@ -3,7 +3,6 @@ package orders
 import (
 	"seesaw/internal/config"
 	"seesaw/pkg/etrade"
-	"sort"
 
 	"github.com/shopspring/decimal"
 )
@@ -38,13 +37,9 @@ func HarvestTaxLoss(
 		Price:  bid,
 	}
 
-	sort.Slice(position.Lots, func(i, j int) bool {
-		return position.Lots[i].PLPct.LessThan(position.Lots[j].PLPct)
-	})
-
 	for _, lot := range position.Lots {
 		if lot.PLPct.Cmp(config.MinPctLossToHarvest) > 0 {
-			break
+			continue
 		}
 
 		proposal.Add(SellLot{Quantity: lot.Quantity, Lot: lot})
