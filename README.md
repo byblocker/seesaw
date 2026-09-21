@@ -34,6 +34,12 @@ You can also supply these values through environment variables; they take preced
 Create `data/portfolios/default.yaml`:
 
 ```yaml
+broker: ETRADE
+settings:
+  allow_fractional_shares: false
+  min_fractional_share_to_round: 0.7
+  max_pct_alloc_deviation_allowed: 0.02
+  min_pct_loss_to_harvest: -0.005
 accountId: "YOUR_ACCOUNT_ID"
 assets:
   - primary_ticker: VOO
@@ -45,6 +51,15 @@ assets:
 ```
 
 Replace the **acountId** placeholder with your own ETRADE account number.
+
+`broker` is required and currently supports only `ETRADE`.
+`settings.allow_fractional_shares` controls buy sizing for this portfolio and defaults to `false` when omitted. Set it to `true` to allow fractional quantities; `false` preserves whole-share rounding.
+
+The remaining settings default to the values shown above when omitted; explicit zero values are preserved:
+
+- `min_fractional_share_to_round`: remainder needed to round a whole-share buy up, from `0` to `1`. Ignored when fractional shares are allowed.
+- `max_pct_alloc_deviation_allowed`: extra whole-share purchase allowance as a fraction of total portfolio value, from `0` to `1`, still limited by available cash.
+- `min_pct_loss_to_harvest`: harvest lots at or below this return, from `-1` to `0`; `-0.005` means a loss of at least 0.5%.
 
 For each asset, you must choose a . . .
 1. `primary_ticker` and `alternate_ticker`: These symbols for securities eligible for tax loss harvesting. You must provide the primary ticker, which is the preferred security for most purchases. You can specify an alternate ticker to buy when harvesting losses in the primary position; the primary position will then be used when harvesting from the alternate. Without an alternate, _seesaw_ will propose buys but will abstain from suggesting tax-loss harvesting orders.
@@ -100,6 +115,6 @@ We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0
 Shared portfolio, quote, and transaction models live in `pkg/models`.
 Snapshotting and rebalancing depend on the `Broker` interface in `internal/broker/interface.go`.
 Broker implementations live under `internal/broker` (currently `internal/broker/etrade`);
-the CLI constructs the concrete client. API response types and authentication stay inside each implementation.
+the CLI uses `ConnectBroker` in `pkg/broker.go` to construct the configured client. API response types and authentication stay inside each implementation.
 
 Accounts are broker-owned handles exposing only their account ID; ETRADE account keys remain private to its implementation.

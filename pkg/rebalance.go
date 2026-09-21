@@ -20,7 +20,11 @@ func Rebalance(
 	ctx context.Context,
 	snapshot AccountSnapshot,
 	client broker.Broker,
+	settings RebalanceSettings,
 ) (*RebalancePlan, error) {
+	if err := settings.Validate(); err != nil {
+		return nil, err
+	}
 	if snapshot.TotalValue.Cmp(decimal.Zero) <= 0 {
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
@@ -31,7 +35,7 @@ func Rebalance(
 	)
 
 	balance := snapshot.BuyingPower
-	maxValueDeviationAllowed := config.MaxPctAllocDeviationAllowed.Mul(snapshot.TotalValue)
+	maxValueDeviationAllowed := settings.MaxPctAllocDeviationAllowed.Mul(snapshot.TotalValue)
 
 	quotePerTicker := make(map[string]models.Quote, len(snapshot.Tickers))
 	for _, ticker := range snapshot.Tickers {
@@ -49,7 +53,7 @@ func Rebalance(
 				return orders.SellProposal{}
 			}
 
-			return orders.HarvestTaxLoss(position, quotePerTicker[ticker].Bid)
+			return orders.HarvestTaxLoss(position, quotePerTicker[ticker].Bid, settings.MinPctLossToHarvest)
 		}
 
 		if asset.Plan == nil {
@@ -87,7 +91,13 @@ func Rebalance(
 			break
 		}
 
-		buy, err := orders.ProposeBuy(request, balance, maxValueDeviationAllowed)
+		buy, err := orders.ProposeBuy(
+			request,
+			balance,
+			maxValueDeviationAllowed,
+			settings.MinFractionalShareToRound,
+			settings.AllowFractionalShares,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
 		}

@@ -5,6 +5,8 @@ import (
 	"seesaw/pkg/models"
 )
 
+const ETRADE = "ETRADE"
+
 type Account interface {
 	AccountID() string
 }

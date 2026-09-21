@@ -22,7 +22,10 @@ type Buy struct {
 
 func ProposeBuy(
 	req BuyRequest,
-	balance, maxValueDeviation decimal.Decimal,
+	balance,
+	maxValueDeviation,
+	minFractionalShareToRound decimal.Decimal,
+	allowFractionalShares bool,
 ) (Buy, error) {
 	if !req.Price.IsPositive() {
 		return Buy{}, fmt.Errorf("price must be positive")
@@ -51,13 +54,13 @@ func ProposeBuy(
 
 	// Truncate division to preserve the previous decimal library's behavior.
 	exact, _ := valueToCover.QuoRem(req.Price, config.DivisionDecimalPlaces)
-	if config.CanBuyFractionalShares {
+	if allowFractionalShares {
 		return proposeQuantity(exact), nil
 	}
 
 	whole := exact.Floor()
 	fractional := exact.Sub(whole)
-	if fractional.LessThan(config.MinFractionalShareToRound) {
+	if fractional.IsZero() || fractional.LessThan(minFractionalShareToRound) {
 		return proposeQuantity(whole), nil
 	}
 

@@ -1,7 +1,6 @@
 package orders
 
 import (
-	"seesaw/internal/config"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
@@ -29,7 +28,8 @@ type SellLot struct {
 
 func HarvestTaxLoss(
 	position models.Position,
-	bid decimal.Decimal,
+	bid,
+	minPctLossToHarvest decimal.Decimal,
 ) SellProposal {
 	proposal := SellProposal{
 		Ticker: position.Ticker,
@@ -38,7 +38,7 @@ func HarvestTaxLoss(
 	}
 
 	for _, lot := range position.Lots {
-		if lot.PLPct.Cmp(config.MinPctLossToHarvest) > 0 {
+		if lot.PLPct.Cmp(minPctLossToHarvest) > 0 {
 			continue
 		}
 

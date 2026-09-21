@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"seesaw/internal/broker/etrade"
 	"seesaw/internal/config"
 	"seesaw/internal/utils"
 	"seesaw/pkg"
@@ -30,22 +29,17 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load .env: %w", err)
 	}
 
-	client, err := etrade.NewClient(
-		ctx,
-		env.ETradeApiKey,
-		env.ETradeApiSecret,
-		env.ETradeAPIBaseURL,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to connect to ETrade: %w", err)
-	}
-
-	snapshot, err := pkg.SnapshotPortfolio(ctx, client, portfolioPlan, 0)
+	client, err := pkg.ConnectBroker(ctx, plan.Broker, *env)
 	if err != nil {
 		return err
 	}
 
-	orders, err := pkg.Rebalance(ctx, *snapshot, client)
+	snapshot, err := pkg.SnapshotPortfolio(ctx, client, plan, 0)
+	if err != nil {
+		return err
+	}
+
+	orders, err := pkg.Rebalance(ctx, *snapshot, client, plan.Settings)
 	if err != nil {
 		return err
 	}
