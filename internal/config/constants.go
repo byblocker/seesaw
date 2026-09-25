@@ -5,10 +5,6 @@ import (
 )
 
 const (
-	DefaultMinFractionalShareToRound   = "0.7"
-	DefaultMaxPctAllocDeviationAllowed = "0.02"
-	DefaultMinPctLossToHarvest         = "-0.005"
-
 	// Decimal places retained during division. "19" limits intermediate precision loss.
 	DivisionDecimalPlaces int32 = 19
 
@@ -22,3 +18,15 @@ const (
 
 // Shared decimal used for increments and 100% decimals. DO NOT EDIT.
 var DecimalOne = decimal.NewFromInt(1)
+
+var (
+	// Minimum remainder to round a whole-share purchase up.
+	MinFractionalShareToRound = decimal.RequireFromString("0.7")
+
+	// Extra whole-share purchase allowance as a fraction of portfolio value,
+	// still limited by available cash.
+	MaxPctAllocDeviationAllowed = decimal.RequireFromString("0.02")
+
+	// Harvest lots at or below this return; -0.005 means a loss of at least 0.5%.
+	MinPctLossToHarvest = decimal.RequireFromString("-0.005")
+)

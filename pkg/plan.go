@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"seesaw/internal/broker"
 	"seesaw/internal/collections"
 	"seesaw/internal/config"
 	"slices"
@@ -15,17 +14,9 @@ import (
 )
 
 type PortfolioPlan struct {
-	Broker    string            `yaml:"broker"`
-	AccountId string            `yaml:"accountId"`
-	Assets    []AssetPlan       `yaml:"assets"`
-	Settings  RebalanceSettings `yaml:"settings"`
-}
-
-type RebalanceSettings struct {
-	AllowFractionalShares       bool            `yaml:"allow_fractional_shares"`
-	MinFractionalShareToRound   decimal.Decimal `yaml:"min_fractional_share_to_round"`
-	MaxPctAllocDeviationAllowed decimal.Decimal `yaml:"max_pct_alloc_deviation_allowed"`
-	MinPctLossToHarvest         decimal.Decimal `yaml:"min_pct_loss_to_harvest"`
+	Broker    string      `yaml:"broker"`
+	AccountId string      `yaml:"accountId"`
+	Assets    []AssetPlan `yaml:"assets"`
 }
 
 func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
@@ -57,23 +48,11 @@ func ParsePortfolioPlan(file io.Reader) (*PortfolioPlan, error) {
 		)
 	}
 
-	plan := &PortfolioPlan{Settings: RebalanceSettings{
-		MinFractionalShareToRound:   decimal.RequireFromString(config.DefaultMinFractionalShareToRound),
-		MaxPctAllocDeviationAllowed: decimal.RequireFromString(config.DefaultMaxPctAllocDeviationAllowed),
-		MinPctLossToHarvest:         decimal.RequireFromString(config.DefaultMinPctLossToHarvest),
-	}}
+	plan := &PortfolioPlan{}
 	if err := yaml.Unmarshal(data, plan); err != nil {
 		return nil, fmt.Errorf(
 			"failed to parse portfolio plan at %w", err,
 		)
-	}
-
-	if plan.Broker != broker.ETRADE {
-		return nil, fmt.Errorf("unsupported broker %q: expected %s", plan.Broker, broker.ETRADE)
-	}
-
-	if err := plan.Settings.Validate(); err != nil {
-		return nil, err
 	}
 
 	totalAllocation := decimal.Zero
@@ -127,18 +106,5 @@ func validateAsset(asset *AssetPlan) error {
 		)
 	}
 
-	return nil
-}
-
-func (settings RebalanceSettings) Validate() error {
-	if settings.MinFractionalShareToRound.IsNegative() || settings.MinFractionalShareToRound.GreaterThan(config.DecimalOne) {
-		return fmt.Errorf("settings.min_fractional_share_to_round must be between 0 and 1")
-	}
-	if settings.MaxPctAllocDeviationAllowed.IsNegative() || settings.MaxPctAllocDeviationAllowed.GreaterThan(config.DecimalOne) {
-		return fmt.Errorf("settings.max_pct_alloc_deviation_allowed must be between 0 and 1")
-	}
-	if settings.MinPctLossToHarvest.LessThan(config.DecimalOne.Neg()) || settings.MinPctLossToHarvest.IsPositive() {
-		return fmt.Errorf("settings.min_pct_loss_to_harvest must be between -1 and 0")
-	}
 	return nil
 }

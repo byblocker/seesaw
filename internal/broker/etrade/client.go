@@ -32,17 +32,23 @@ const (
 	etradeMaxAccessTokenAge = 2 * time.Hour
 )
 
-type oauthCache struct {
-	Token     *oauth1.Token `json:"token"`
-	LastUsed  time.Time     `json:"last_used"`
-	ExpiresAt time.Time     `json:"expires_at"`
-}
-
 var _ broker.Broker = (*Client)(nil)
+
+func (client *Client) Settings() broker.Settings {
+	return broker.Settings{
+		AllowFractionalShares: false,
+	}
+}
 
 type Client struct {
 	httpClient *http.Client `yaml:"-"`
 	apiBaseURL string       `yaml:"api_base_url"`
+}
+
+type oauthCache struct {
+	Token     *oauth1.Token `json:"token"`
+	LastUsed  time.Time     `json:"last_used"`
+	ExpiresAt time.Time     `json:"expires_at"`
 }
 
 func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error) {
