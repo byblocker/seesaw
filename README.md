@@ -108,8 +108,9 @@ Certain behaviors are controlled by [constants.go](internal/config/constants.go)
 We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0E-4`. We keep prices and quantities as decimals throughout the calculations and truncate division to 19 decimal places.
 
 Shared portfolio, quote, and transaction models live in `pkg/models`.
-Snapshotting and rebalancing depend on the `Broker` interface in `internal/broker/interface.go`.
-Broker implementations live under `internal/broker` (currently `internal/broker/etrade`);
-the CLI uses `ConnectBroker` in `pkg/broker.go` to construct the configured client. API response types and authentication stay inside each implementation.
+Snapshotting and rebalancing depend on the `Broker` interface in `pkg/models/broker.go`.
+Broker implementations live under `internal/broker` (currently `internal/broker/etrade.go`);
+the CLI uses `ConnectBroker` in `pkg/broker.go` to construct the configured client. ETrade endpoint calls, response conversion, and authentication live in `internal/broker/etrade`.
+`internal/broker/etrade.go` owns portfolio orchestration and the broker wrappers.
 
-Accounts are broker-owned handles exposing only their account ID; ETRADE account keys remain private to its implementation.
+`Portfolio` accepts an account ID and returns holdings, balances, and recent transactions. Each broker privately resolves accounts and aggregates transactions across all accessible supported accounts for both planned and held tickers. The returned portfolio carries the union of planned and held tickers for transaction filtering and quoting. Snapshotting then assigns holdings to the portfolio plan and calculates allocation drift.

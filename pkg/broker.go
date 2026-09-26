@@ -4,23 +4,23 @@ import (
 	"context"
 	"fmt"
 	"seesaw/internal/broker"
-	"seesaw/internal/broker/etrade"
 	"seesaw/internal/config"
+	"seesaw/pkg/models"
 )
 
 func ConnectBroker(
 	ctx context.Context,
 	name string,
 	env config.ENV,
-) (broker.Broker, error) {
+) (models.Broker, error) {
 	var (
-		client broker.Broker
+		client models.Broker
 		err    error
 	)
 
 	switch name {
 	case broker.ETRADE:
-		client, err = etrade.NewClient(
+		client, err = broker.NewETradeClient(
 			ctx,
 			env.ETradeApiKey, env.ETradeApiSecret, env.ETradeAPIBaseURL,
 		)

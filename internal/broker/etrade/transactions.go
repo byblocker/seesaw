@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"seesaw/internal/broker"
 	"seesaw/internal/collections"
 	"seesaw/internal/httpclient"
 	"seesaw/internal/utils"
@@ -30,20 +29,9 @@ type transactionResponse struct {
 	} `json:"TransactionListResponse"`
 }
 
-func (client *Client) GetRecentTx(
+func (client *Client) Transactions(
 	ctx context.Context,
-	handle broker.Account,
-	daysBack int,
-	tickers []string,
-) (models.RecentTxByTicker, error) {
-	end := time.Now()
-	start := end.AddDate(0, 0, -daysBack)
-	return client.GetTx(ctx, handle, start, end, tickers)
-}
-
-func (client *Client) GetTx(
-	ctx context.Context,
-	handle broker.Account,
+	account Account,
 	start, end time.Time,
 	tickers []string,
 ) (models.RecentTxByTicker, error) {
@@ -52,8 +40,7 @@ func (client *Client) GetTx(
 		return result, nil
 	}
 
-	account, ok := handle.(brokerageAccount)
-	if !ok || account.key == "" {
+	if account.key == "" {
 		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
 

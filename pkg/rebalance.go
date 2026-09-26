@@ -3,7 +3,6 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"seesaw/internal/broker"
 	"seesaw/internal/config"
 	"seesaw/internal/orders"
 	"seesaw/pkg/models"
@@ -19,7 +18,7 @@ type RebalancePlan struct {
 func Rebalance(
 	ctx context.Context,
 	snapshot AccountSnapshot,
-	client broker.Broker,
+	client models.Broker,
 ) (*RebalancePlan, error) {
 	if snapshot.TotalValue.Cmp(decimal.Zero) <= 0 {
 		return nil, fmt.Errorf("empty or negative portfolio")

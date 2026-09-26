@@ -3,11 +3,10 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"maps"
-	"seesaw/internal/broker"
 	"seesaw/internal/collections"
 	"seesaw/internal/config"
 	"seesaw/pkg/models"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -38,58 +37,37 @@ type Asset struct {
 
 func SnapshotPortfolio(
 	ctx context.Context,
-	client broker.Broker,
+	client models.Broker,
 	plan *PortfolioPlan,
 	daysBack int,
 ) (*AccountSnapshot, error) {
-	accounts, err := client.GetAccounts(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("retrieve active brokerage accounts: %w", err)
-	}
-
-	var account broker.Account
-	for i := range accounts {
-		if accounts[i].AccountID() == plan.AccountId {
-			account = accounts[i]
-			break
-		}
-	}
-
-	if account == nil {
-		return nil, fmt.Errorf("could not find active brokerage account %s", plan.AccountId)
-	}
-
-	portfolio, err := client.GetPortfolio(ctx, account)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve portfolio positions: %w", err)
-	}
-
 	if daysBack <= 0 {
 		daysBack = config.WashSaleWindowDays
 	}
-
-	inScope := collections.SetFrom(
-		plan.Tickers(),
-		maps.Keys(portfolio.PositionByTicker),
-	)
-
-	tickers := inScope.Slice()
-	recentTx := make(models.RecentTxByTicker)
-	for i := range accounts {
-		accountHistory, err := client.GetRecentTx(ctx, accounts[i], daysBack, tickers)
-		if err != nil {
-			return nil, fmt.Errorf("could not get transactions for account %s: %w", accounts[i].AccountID(), err)
-		}
-
-		recentTx.Append(accountHistory)
+	portfolio, err := client.Portfolio(ctx, plan.AccountId, daysBack, slices.Collect(plan.Tickers()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve portfolio: %w", err)
 	}
+
+	recentTx := portfolio.RecentTx
 
 	var assets []Asset
 
 	for _, assetPlan := range plan.Assets {
-		positions := collections.ExtractMapByKeys(portfolio.PositionByTicker, assetPlan.Tickers())
-		transactions := collections.ExtractMapByKeys(recentTx, assetPlan.Tickers())
-		planned := assignAsset(&assetPlan, positions, transactions, portfolio.TotalValue)
+		positions := collections.ExtractMapByKeys(
+			portfolio.PositionByTicker,
+			assetPlan.Tickers(),
+		)
+		transactions := collections.ExtractMapByKeys(
+			recentTx,
+			assetPlan.Tickers(),
+		)
+		planned := assignAsset(
+			&assetPlan,
+			positions,
+			transactions,
+			portfolio.TotalValue,
+		)
 
 		assets = append(assets, planned)
 	}
@@ -98,7 +76,12 @@ func SnapshotPortfolio(
 	// Aggregate into a single Asset with a nil AssetPlan, which should
 	// force Seesaw into liquidating as soon as possible.
 	if len(portfolio.PositionByTicker) > 0 {
-		unplanned := assignAsset(nil, portfolio.PositionByTicker, recentTx, portfolio.TotalValue)
+		unplanned := assignAsset(
+			nil,
+			portfolio.PositionByTicker,
+			recentTx,
+			portfolio.TotalValue,
+		)
 		assets = append(assets, unplanned)
 	}
 
@@ -107,7 +90,7 @@ func SnapshotPortfolio(
 		CreatedAt:   time.Now(),
 		BuyingPower: portfolio.BuyingPower,
 		TotalValue:  portfolio.TotalValue,
-		Tickers:     tickers,
+		Tickers:     portfolio.Tickers,
 		Assets:      assets,
 	}, nil
 }

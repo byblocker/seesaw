@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"seesaw/internal/broker"
 	"seesaw/internal/httpclient"
 	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
@@ -32,17 +31,13 @@ const (
 	etradeMaxAccessTokenAge = 2 * time.Hour
 )
 
-var _ broker.Broker = (*Client)(nil)
-
-func (client *Client) Settings() broker.Settings {
-	return broker.Settings{
-		AllowFractionalShares: false,
-	}
+type Client struct {
+	httpClient *http.Client
+	apiBaseURL string
 }
 
-type Client struct {
-	httpClient *http.Client `yaml:"-"`
-	apiBaseURL string       `yaml:"api_base_url"`
+func NewClient(httpClient *http.Client, baseURL string) *Client {
+	return &Client{httpClient: httpClient, apiBaseURL: baseURL}
 }
 
 type oauthCache struct {
@@ -51,7 +46,7 @@ type oauthCache struct {
 	ExpiresAt time.Time     `json:"expires_at"`
 }
 
-func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error) {
+func Connect(ctx context.Context, key, secret, baseURL string) (*Client, error) {
 	oauth := &oauth1.Config{
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
@@ -73,7 +68,7 @@ func NewClient(ctx context.Context, key, secret, baseURL string) (*Client, error
 		}
 	}
 
-	return &Client{httpClient: client, apiBaseURL: baseURL}, nil
+	return NewClient(client, baseURL), nil
 }
 
 func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {

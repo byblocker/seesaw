@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"seesaw/internal/broker"
 	"seesaw/internal/httpclient"
 )
 
@@ -14,14 +13,12 @@ const (
 	brokerageAccountType = "BROKERAGE"
 )
 
-type brokerageAccount struct {
+type Account struct {
 	id  string
 	key string
 }
 
-func (account brokerageAccount) AccountID() string {
-	return account.id
-}
+func (account Account) ID() string { return account.id }
 
 type accountResponse struct {
 	Id     string `json:"accountId"`
@@ -38,7 +35,7 @@ type listAccountsAPIResponse struct {
 	} `json:"AccountListResponse"`
 }
 
-func (client *Client) GetAccounts(ctx context.Context) ([]broker.Account, error) {
+func (client *Client) Accounts(ctx context.Context) ([]Account, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -53,12 +50,12 @@ func (client *Client) GetAccounts(ctx context.Context) ([]broker.Account, error)
 		return nil, fmt.Errorf("could not load accounts: %w", err)
 	}
 
-	accounts := make([]broker.Account, 0, len(response.AccountListResponse.Accounts.AccountList))
+	accounts := make([]Account, 0, len(response.AccountListResponse.Accounts.AccountList))
 	for _, account := range response.AccountListResponse.Accounts.AccountList {
 		if account.Type != brokerageAccountType || account.Status != activeAccountStatus {
 			continue
 		}
-		accounts = append(accounts, brokerageAccount{id: account.Id, key: account.Key})
+		accounts = append(accounts, Account{id: account.Id, key: account.Key})
 	}
 	return accounts, nil
 }

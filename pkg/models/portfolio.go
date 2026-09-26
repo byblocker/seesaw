@@ -12,9 +12,11 @@ type Quote struct {
 }
 
 type Portfolio struct {
+	Tickers          []string
 	BuyingPower      decimal.Decimal
 	TotalValue       decimal.Decimal
 	PositionByTicker map[string]Position
+	RecentTx         RecentTxByTicker
 }
 
 type Position struct {

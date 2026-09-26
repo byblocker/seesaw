@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"seesaw/internal/broker"
 	"seesaw/internal/httpclient"
 	"seesaw/pkg/models"
 	"strings"
@@ -52,9 +51,8 @@ type getPositionLotResponse struct {
 	} `json:"PositionLotsResponse"`
 }
 
-func (client *Client) GetPortfolio(ctx context.Context, handle broker.Account) (*models.Portfolio, error) {
-	account, ok := handle.(brokerageAccount)
-	if !ok || account.key == "" {
+func (client *Client) Holdings(ctx context.Context, account Account) (*models.Portfolio, error) {
+	if account.key == "" {
 		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
 
