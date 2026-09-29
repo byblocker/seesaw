@@ -3,33 +3,37 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"os"
 	"seesaw/internal/broker"
-	"seesaw/internal/config"
 	"seesaw/pkg/models"
+
+	"github.com/joho/godotenv"
 )
 
-func ConnectBroker(
-	ctx context.Context,
-	name string,
-	env config.ENV,
-) (models.Broker, error) {
-	var (
-		client models.Broker
-		err    error
-	)
+func ConnectFromENV(ctx context.Context, name string) (models.Broker, error) {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("could not load .env: %v", err)
+	}
 
 	switch name {
 	case broker.ETRADE:
-		client, err = broker.NewETradeClient(
-			ctx,
-			env.ETradeApiKey, env.ETradeApiSecret, env.ETradeAPIBaseURL,
-		)
+		return ConnectETrade(ctx, broker.ETradeConfig{
+			APIBaseURL: os.Getenv("ETRADE_API_BASE_URL"),
+			APIKey:     os.Getenv("ETRADE_API_KEY"),
+			APISecret:  os.Getenv("ETRADE_API_SECRET"),
+		})
 	default:
 		return nil, fmt.Errorf("unsupported broker %q", name)
 	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to %s: %w", name, err)
-	}
+}
 
+func ConnectETrade(
+	ctx context.Context,
+	config broker.ETradeConfig,
+) (*broker.ETradeClient, error) {
+	client, err := broker.NewETradeClient(ctx, config)
+	if err != nil {
+		return nil, err
+	}
 	return client, nil
 }

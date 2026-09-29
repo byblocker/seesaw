@@ -1,6 +1,11 @@
 broker: ETRADE
 accountId: "146621793"
 
+settings:
+  min_fractional_share_to_round: 0.7
+  max_pct_alloc_deviation_allowed: 0.02
+  min_pct_loss_to_harvest: -0.005
+
 assets:
   - primary_ticker: VOO
     alternate_ticker: SCHX

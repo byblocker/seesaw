@@ -4,14 +4,22 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/url"
 	"seesaw/internal/broker/etrade"
 	"seesaw/internal/collections"
 	"seesaw/pkg/models"
 	"slices"
+	"strings"
 	"time"
 )
 
 const ETRADE = "ETRADE"
+
+type ETradeConfig struct {
+	APIBaseURL string
+	APIKey     string
+	APISecret  string
+}
 
 type ETradeClient struct {
 	api *etrade.Client
@@ -19,16 +27,30 @@ type ETradeClient struct {
 
 var _ models.Broker = (*ETradeClient)(nil)
 
-func NewETradeClient(ctx context.Context, key, secret, baseURL string) (*ETradeClient, error) {
-	client, err := etrade.Connect(ctx, key, secret, baseURL)
+func NewETradeClient(ctx context.Context, config ETradeConfig) (*ETradeClient, error) {
+	if strings.TrimSpace(config.APIKey) == "" {
+		return nil, fmt.Errorf("ETrade APIKey must not be empty")
+	}
+	if strings.TrimSpace(config.APISecret) == "" {
+		return nil, fmt.Errorf("ETrade APISecret must not be empty")
+	}
+	baseURL, err := url.Parse(config.APIBaseURL)
+	if err != nil || baseURL.Hostname() == "" || (baseURL.Scheme != "https" && baseURL.Scheme != "http") {
+		return nil, fmt.Errorf("ETrade APIBaseURL must be an absolute HTTP or HTTPS URL")
+	}
+	if baseURL.User != nil || baseURL.RawQuery != "" || baseURL.ForceQuery || baseURL.Fragment != "" {
+		return nil, fmt.Errorf("ETrade APIBaseURL must not contain user information, a query, or a fragment")
+	}
+
+	client, err := etrade.Connect(ctx, config.APIKey, config.APISecret, strings.TrimRight(config.APIBaseURL, "/"))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to ETRADE: %w", err)
 	}
 	return &ETradeClient{api: client}, nil
 }
 
-func (client *ETradeClient) Settings() models.Settings {
-	return models.Settings{AllowFractionalShares: false}
+func (client *ETradeClient) Settings() models.BrokerSettings {
+	return models.BrokerSettings{AllowFractionalShares: false}
 }
 
 func (client *ETradeClient) Quote(ctx context.Context, ticker string) (models.Quote, error) {

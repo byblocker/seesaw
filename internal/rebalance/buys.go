@@ -1,23 +1,18 @@
-package orders
+package rebalance
 
 import (
 	"fmt"
-	"seesaw/internal/config"
+	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
+
+const divisionDecimalPlaces int32 = 19
 
 type BuyRequest struct {
 	Ticker     string
 	ValueDrift decimal.Decimal
 	Price      decimal.Decimal
-}
-
-type Buy struct {
-	Ticker        string
-	Price         decimal.Decimal
-	Quantity      decimal.Decimal
-	EstimatedCost decimal.Decimal
 }
 
 func ProposeBuy(
@@ -26,20 +21,20 @@ func ProposeBuy(
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
 	allowFractionalShares bool,
-) (Buy, error) {
+) (models.Buy, error) {
 	if !req.Price.IsPositive() {
-		return Buy{}, fmt.Errorf("price must be positive")
+		return models.Buy{}, fmt.Errorf("price must be positive")
 	}
 	if !req.ValueDrift.IsPositive() || !balance.IsPositive() {
-		return Buy{}, nil
+		return models.Buy{}, nil
 	}
 
-	proposeQuantity := func(quantity decimal.Decimal) Buy {
+	proposeQuantity := func(quantity decimal.Decimal) models.Buy {
 		if quantity.IsZero() {
-			return Buy{}
+			return models.Buy{}
 		}
 
-		return Buy{
+		return models.Buy{
 			Ticker:        req.Ticker,
 			Price:         req.Price,
 			Quantity:      quantity,
@@ -52,8 +47,7 @@ func ProposeBuy(
 		valueToCover = balance
 	}
 
-	// Truncate division to preserve the previous decimal library's behavior.
-	exact, _ := valueToCover.QuoRem(req.Price, config.DivisionDecimalPlaces)
+	exact, _ := valueToCover.QuoRem(req.Price, divisionDecimalPlaces)
 	if allowFractionalShares {
 		return proposeQuantity(exact), nil
 	}
@@ -64,7 +58,7 @@ func ProposeBuy(
 		return proposeQuantity(whole), nil
 	}
 
-	rounded := whole.Add(config.DecimalOne)
+	rounded := whole.Add(decimal.NewFromInt(1))
 	cost := rounded.Mul(req.Price)
 	maxAllowedCost := req.ValueDrift.Add(maxValueDeviation)
 

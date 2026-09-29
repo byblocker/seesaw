@@ -3,35 +3,41 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"seesaw/internal/config"
-	"seesaw/internal/orders"
+	"seesaw/internal/rebalance"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
 
 type RebalancePlan struct {
-	Buys  []orders.Buy
-	Sells []orders.SellProposal
+	Buys  []models.Buy
+	Sells []models.SellProposal
 }
 
 func Rebalance(
 	ctx context.Context,
-	snapshot AccountSnapshot,
+	snapshot models.AccountSnapshot,
 	client models.Broker,
+	settings models.RebalanceSettings,
 ) (*RebalancePlan, error) {
+	if err := settings.Validate(); err != nil {
+		return nil, err
+	}
 	if snapshot.TotalValue.Cmp(decimal.Zero) <= 0 {
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
 
 	var (
-		buyRequests []orders.BuyRequest
+		buyRequests []rebalance.BuyRequest
 		plan        RebalancePlan
 	)
 
-	settings := client.Settings()
+	brokerSettings := client.Settings()
+
 	balance := snapshot.BuyingPower
-	maxValueDeviationAllowed := config.MaxPctAllocDeviationAllowed.Mul(snapshot.TotalValue)
+	maxValueDeviationAllowed := snapshot.TotalValue.Mul(
+		*settings.MaxPctAllocDeviationAllowed,
+	)
 
 	quotePerTicker := make(map[string]models.Quote, len(snapshot.Tickers))
 	for _, ticker := range snapshot.Tickers {
@@ -43,13 +49,17 @@ func Rebalance(
 	}
 
 	for _, asset := range snapshot.Assets {
-		harvestFunc := func(ticker string) orders.SellProposal {
+		harvestFunc := func(ticker string) models.SellProposal {
 			position, exists := asset.Positions[ticker]
-			if !exists || !canSell(asset, ticker) {
-				return orders.SellProposal{}
+			if !exists || !rebalance.CanSell(asset, ticker) {
+				return models.SellProposal{}
 			}
 
-			return orders.HarvestTaxLoss(position, quotePerTicker[ticker].Bid, config.MinPctLossToHarvest)
+			return rebalance.HarvestTaxLoss(
+				position,
+				quotePerTicker[ticker].Bid,
+				*settings.MinPctLossToHarvest,
+			)
 		}
 
 		if asset.Plan == nil {
@@ -65,10 +75,10 @@ func Rebalance(
 			continue
 		}
 
-		sell := selectPosToSell(asset, harvestFunc)
-		buy := selectPosToBuy(asset, sell, quotePerTicker)
+		sell := rebalance.SelectPosToSell(asset, harvestFunc)
+		buy := rebalance.SelectPosToBuy(asset, sell, quotePerTicker)
 
-		if buy.Ticker == config.NoTicker {
+		if buy.Ticker == "" {
 			// This should rarely happen, but if we cannot maintain an asset's allocation
 			// by purchasing its paired ticker, we should not harvest a ticker
 			continue
@@ -87,12 +97,12 @@ func Rebalance(
 			break
 		}
 
-		buy, err := orders.ProposeBuy(
+		buy, err := rebalance.ProposeBuy(
 			request,
 			balance,
 			maxValueDeviationAllowed,
-			config.MinFractionalShareToRound,
-			settings.AllowFractionalShares,
+			*settings.MinFractionalShareToRound,
+			brokerSettings.AllowFractionalShares,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
@@ -107,68 +117,4 @@ func Rebalance(
 	}
 
 	return &plan, nil
-}
-
-func canBuy(asset Asset, ticker string) bool {
-	return ticker != "" && len(asset.RecentTx[ticker].Sells) == 0
-}
-
-func selectPosToSell(
-	asset Asset,
-	harvestPosition func(string) orders.SellProposal,
-) orders.SellProposal {
-	if asset.Plan == nil {
-		return orders.SellProposal{}
-	}
-
-	primary, alternate := asset.Plan.PrimaryTicker, asset.Plan.AltTicker
-	if primary == alternate {
-		return orders.SellProposal{}
-	}
-
-	var sellPrimary, sellAlt orders.SellProposal
-
-	if canBuy(asset, primary) {
-		sellAlt = harvestPosition(alternate)
-	}
-	if canBuy(asset, alternate) {
-		sellPrimary = harvestPosition(primary)
-	}
-
-	if len(sellPrimary.Lots) == 0 {
-		return sellAlt
-	}
-	if len(sellAlt.Lots) == 0 || sellPrimary.RealizedPL.LessThan(sellAlt.RealizedPL) {
-		return sellPrimary
-	}
-	return sellAlt
-}
-
-func canSell(asset Asset, ticker string) bool {
-	return ticker != "" && len(asset.RecentTx[ticker].Buys) == 0
-}
-
-func selectPosToBuy(
-	asset Asset,
-	sell orders.SellProposal,
-	quoteByTicker map[string]models.Quote,
-) orders.BuyRequest {
-	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
-	if !shortfall.IsPositive() {
-		// We should not buy into overweight position
-		return orders.BuyRequest{}
-	}
-
-	for _, ticker := range []string{asset.Plan.PrimaryTicker, asset.Plan.AltTicker} {
-		isBeingSold := len(sell.Lots) > 0 && ticker == sell.Ticker
-		if !isBeingSold && canBuy(asset, ticker) {
-			return orders.BuyRequest{
-				Ticker:     ticker,
-				ValueDrift: shortfall,
-				Price:      quoteByTicker[ticker].Ask,
-			}
-		}
-	}
-
-	return orders.BuyRequest{}
 }

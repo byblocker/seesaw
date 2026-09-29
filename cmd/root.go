@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"seesaw/pkg"
+	"seesaw/pkg/models"
 
 	"github.com/spf13/cobra"
 )
@@ -13,7 +14,7 @@ const portfolioDir = "./data/portfolios"
 
 var (
 	planName string
-	plan     *pkg.PortfolioPlan
+	plan     *models.PortfolioPlan
 )
 
 var rootCmd = &cobra.Command{

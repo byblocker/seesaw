@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"seesaw/internal/collections"
-	"seesaw/internal/config"
+	"seesaw/internal/rebalance"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -12,46 +12,27 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type AccountSnapshot struct {
-	Id        string
-	CreatedAt time.Time
-
-	BuyingPower decimal.Decimal
-	TotalValue  decimal.Decimal
-
-	Tickers []string
-	Assets  []Asset
-}
-
-type Asset struct {
-	Plan      *AssetPlan
-	Positions map[string]models.Position
-	RecentTx  models.RecentTxByTicker
-
-	Allocation decimal.Decimal
-	AllocDrift decimal.Decimal
-
-	Value      decimal.Decimal
-	ValueDrift decimal.Decimal
-}
+// Allocation ratios retain 19 decimal places to limit intermediate precision loss.
+const allocationDecimalPlaces int32 = 19
 
 func SnapshotPortfolio(
 	ctx context.Context,
 	client models.Broker,
-	plan *PortfolioPlan,
-	daysBack int,
-) (*AccountSnapshot, error) {
-	if daysBack <= 0 {
-		daysBack = config.WashSaleWindowDays
-	}
-	portfolio, err := client.Portfolio(ctx, plan.AccountId, daysBack, slices.Collect(plan.Tickers()))
+	plan *models.PortfolioPlan,
+) (*models.AccountSnapshot, error) {
+	portfolio, err := client.Portfolio(
+		ctx,
+		plan.AccountId,
+		rebalance.WashSaleWindowDays,
+		slices.Collect(plan.Tickers()),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve portfolio: %w", err)
 	}
 
 	recentTx := portfolio.RecentTx
 
-	var assets []Asset
+	var assets []models.Asset
 
 	for _, assetPlan := range plan.Assets {
 		positions := collections.ExtractMapByKeys(
@@ -73,8 +54,7 @@ func SnapshotPortfolio(
 	}
 
 	// Extra positions should be uncommon, but still technically possible.
-	// Aggregate into a single Asset with a nil AssetPlan, which should
-	// force Seesaw into liquidating as soon as possible.
+	// Aggregate into a single unplanned asset for tax-loss harvesting.
 	if len(portfolio.PositionByTicker) > 0 {
 		unplanned := assignAsset(
 			nil,
@@ -85,7 +65,7 @@ func SnapshotPortfolio(
 		assets = append(assets, unplanned)
 	}
 
-	return &AccountSnapshot{
+	return &models.AccountSnapshot{
 		Id:          plan.AccountId,
 		CreatedAt:   time.Now(),
 		BuyingPower: portfolio.BuyingPower,
@@ -96,18 +76,18 @@ func SnapshotPortfolio(
 }
 
 func assignAsset(
-	plan *AssetPlan,
+	plan *models.AssetPlan,
 	positions map[string]models.Position,
 	recentTx models.RecentTxByTicker,
 	portfolioValue decimal.Decimal,
-) Asset {
-	asset := Asset{Plan: plan, Positions: positions, RecentTx: recentTx}
+) models.Asset {
+	asset := models.Asset{Plan: plan, Positions: positions, RecentTx: recentTx}
 	for _, pos := range positions {
 		asset.Value = asset.Value.Add(pos.MarketValue)
 	}
 
 	if !portfolioValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(portfolioValue, config.DivisionDecimalPlaces)
+		asset.Allocation, _ = asset.Value.QuoRem(portfolioValue, allocationDecimalPlaces)
 	}
 
 	if plan != nil {

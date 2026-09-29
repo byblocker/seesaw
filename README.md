@@ -36,6 +36,10 @@ Create `data/portfolios/default.yaml`:
 ```yaml
 broker: ETRADE
 accountId: "YOUR_ACCOUNT_ID"
+settings:
+  min_fractional_share_to_round: 0.7
+  max_pct_alloc_deviation_allowed: 0.02
+  min_pct_loss_to_harvest: -0.005
 assets:
   - primary_ticker: VOO
     alternate_ticker: SCHX
@@ -48,11 +52,13 @@ assets:
 Replace the **acountId** placeholder with your own ETRADE account number.
 
 `broker` is required and currently supports only `ETRADE`.
-Rebalancing thresholds are shared across portfolios in [settings.go](internal/config/settings.go):
+Rebalancing thresholds are required in each portfolio's flat `settings` block:
 
-- `MinFractionalShareToRound` is `0.7`, the remainder needed to round a whole-share buy up.
-- `MaxPctAllocDeviationAllowed` is `0.02`, extra whole-share purchase allowance as a fraction of total portfolio value, limited by available cash.
-- `MinPctLossToHarvest` is `-0.005`, requiring a loss of at least 0.5% before harvesting.
+- `min_fractional_share_to_round` is the remainder needed to round a whole-share buy up, between `0` and `1` inclusive.
+- `max_pct_alloc_deviation_allowed` is extra whole-share purchase allowance as a fraction of total portfolio value, between `0` and `1` inclusive, limited by available cash.
+- `min_pct_loss_to_harvest` is the loss threshold, between `-1` and `0` inclusive. The example's `-0.005` requires a loss of at least 0.5% before harvesting.
+
+There are no implicit defaults. Missing or null settings are rejected before broker authentication; explicit zero values are accepted. Existing portfolio files must add all three fields. The values above preserve the previous behavior.
 
 Fractional-share support is defined by each broker implementation. The ETRADE integration returns `false` from `CanBuyFractionalShares`, preserving whole-share purchases.
 
@@ -101,16 +107,26 @@ ETRADE returns up to 50 positions per portfolio API call by default. _seesaw_ as
 
 ## Configuration
 
-Certain behaviors are controlled by [constants.go](internal/config/constants.go). Each setting is expalined. If you wish to make changes, be sure to rebuild or use `go run`.
+The CLI calls `pkg.ConnectFromENV(ctx, plan.Broker)`, which loads an optional `.env` file from the working directory before reading the selected broker's environment variables. Existing environment variables take precedence, including explicitly empty values. A missing `.env` file is allowed; other loading errors are returned. ETrade uses `ETRADE_API_BASE_URL`, `ETRADE_API_KEY`, and `ETRADE_API_SECRET`, with validation performed before authentication.
+
+Library callers can use `pkg.ConnectFromENV` with their environment. ETrade configuration and validation live in `internal/broker/etrade.go`; `pkg.ETradeConfig` aliases the provider's configuration type.
+
+Library callers can construct a `models.RebalanceSettings` value and pass it directly to `pkg.Rebalance`:
+
+```go
+roundingThreshold := decimal.RequireFromString("0.7")
+allocationAllowance := decimal.RequireFromString("0.02")
+harvestThreshold := decimal.RequireFromString("-0.005")
+settings := models.RebalanceSettings{
+    MinFractionalShareToRound:   &roundingThreshold,
+    MaxPctAllocDeviationAllowed: &allocationAllowance,
+    MinPctLossToHarvest:         &harvestThreshold,
+}
+orders, err := pkg.Rebalance(ctx, snapshot, client, settings)
+```
+
+Use `seesaw/pkg/models` and `github.com/shopspring/decimal` for these types. All three pointers are required; explicit zero values are accepted. `pkg.Rebalance` validates settings before fetching quotes. Treat the pointed-to values as immutable while rebalancing. The transaction lookback remains defined in [tlh.go](internal/rebalance/tlh.go).
 
 ## Development
 
 We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0E-4`. We keep prices and quantities as decimals throughout the calculations and truncate division to 19 decimal places.
-
-Shared portfolio, quote, and transaction models live in `pkg/models`.
-Snapshotting and rebalancing depend on the `Broker` interface in `pkg/models/broker.go`.
-Broker implementations live under `internal/broker` (currently `internal/broker/etrade.go`);
-the CLI uses `ConnectBroker` in `pkg/broker.go` to construct the configured client. ETrade endpoint calls, response conversion, and authentication live in `internal/broker/etrade`.
-`internal/broker/etrade.go` owns portfolio orchestration and the broker wrappers.
-
-`Portfolio` accepts an account ID and returns holdings, balances, and recent transactions. Each broker privately resolves accounts and aggregates transactions across all accessible supported accounts for both planned and held tickers. The returned portfolio carries the union of planned and held tickers for transaction filtering and quoting. Snapshotting then assigns holdings to the portfolio plan and calculates allocation drift.
