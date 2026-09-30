@@ -3,9 +3,8 @@ package etrade
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
-	"seesaw/internal/httpclient"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
 	"time"
@@ -67,8 +66,8 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 	}
 	endpoint += "?" + query.Encode()
 
-	response, err := httpclient.SendJSONRequest[portfolioResponse](
-		ctx, client.httpClient, http.MethodGet, endpoint, nil,
+	response, err := utils.FetchJSON[portfolioResponse](
+		ctx, client.httpClient, endpoint,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("fetch portfolio: %w", err)
@@ -117,12 +116,10 @@ func (client *Client) getPositionLots(
 		url.PathEscape(accountKey),
 		positionID,
 	)
-	response, err := httpclient.SendJSONRequest[getPositionLotResponse](
+	response, err := utils.FetchJSON[getPositionLotResponse](
 		ctx,
 		client.httpClient,
-		http.MethodGet,
 		endpoint,
-		nil,
 	)
 	if err != nil {
 		return nil, err

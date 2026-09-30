@@ -3,10 +3,8 @@ package etrade
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"seesaw/internal/collections"
-	"seesaw/internal/httpclient"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"time"
@@ -64,12 +62,10 @@ func (client *Client) Transactions(
 		}
 		visitedPages.Add(endpoint)
 
-		response, err := httpclient.SendJSONRequest[transactionResponse](
+		response, err := utils.FetchJSON[transactionResponse](
 			ctx,
 			client.httpClient,
-			http.MethodGet,
 			endpoint,
-			nil,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)

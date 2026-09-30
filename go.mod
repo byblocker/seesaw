@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	github.com/dghubble/oauth1 v0.7.3
+	github.com/go-resty/resty/v2 v2.17.2
 	github.com/joho/godotenv v1.5.1
 	github.com/shopspring/decimal v1.4.0
 	github.com/spf13/cobra v1.10.2
@@ -16,5 +17,6 @@ require (
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
+	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 )

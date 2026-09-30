@@ -3,9 +3,8 @@ package etrade
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
-	"seesaw/internal/httpclient"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
 
@@ -36,12 +35,10 @@ func (client *Client) Quote(ctx context.Context, ticker string) (models.Quote, e
 
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
-	response, err := httpclient.SendJSONRequest[quoteResponse](
+	response, err := utils.FetchJSON[quoteResponse](
 		ctx,
 		client.httpClient,
-		http.MethodGet,
 		endpoint,
-		nil,
 	)
 	if err != nil {
 		return models.Quote{}, err

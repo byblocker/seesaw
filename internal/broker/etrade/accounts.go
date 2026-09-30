@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
-	"seesaw/internal/httpclient"
+	"seesaw/internal/utils"
 )
 
 const (
@@ -43,8 +42,8 @@ func (client *Client) Accounts(ctx context.Context) ([]Account, error) {
 	log.Print("Loading active brokerage accounts...")
 
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
-	response, err := httpclient.SendJSONRequest[listAccountsAPIResponse](
-		ctx, client.httpClient, http.MethodGet, endpoint, nil,
+	response, err := utils.FetchJSON[listAccountsAPIResponse](
+		ctx, client.httpClient, endpoint,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not load accounts: %w", err)

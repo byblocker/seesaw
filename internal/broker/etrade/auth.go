@@ -6,13 +6,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"seesaw/internal/httpclient"
 	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
 
 	"time"
 
 	"github.com/dghubble/oauth1"
+	"github.com/go-resty/resty/v2"
 )
 
 const (
@@ -32,11 +32,11 @@ const (
 )
 
 type Client struct {
-	httpClient *http.Client
+	httpClient *resty.Client
 	apiBaseURL string
 }
 
-func NewClient(httpClient *http.Client, baseURL string) *Client {
+func NewClient(httpClient *resty.Client, baseURL string) *Client {
 	return &Client{httpClient: httpClient, apiBaseURL: baseURL}
 }
 
@@ -51,6 +51,7 @@ func Connect(ctx context.Context, key, secret, baseURL string) (*Client, error) 
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
 		CallbackURL:    "oob",
+		HTTPClient:     &http.Client{Timeout: 30 * time.Second},
 		Endpoint: oauth1.Endpoint{
 			RequestTokenURL: etradeRequestTokenURL,
 			AuthorizeURL:    etradeAuthorizeURL,
@@ -84,7 +85,7 @@ func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
 	})
 }
 
-func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Client, error) {
+func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*resty.Client, error) {
 	log.Print("Attempting to renew ETrade credentials...")
 
 	access, err := keyring.Get[oauthCache](keyringService, accessTokenKey)
@@ -96,12 +97,12 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 		return nil, fmt.Errorf("token expired yesterday")
 	}
 
-	client := oauth.Client(ctx, access.Token)
+	client := utils.NewHTTPClient(oauth.Client(ctx, access.Token))
 
 	if time.Since(access.LastUsed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
-		if _, err := httpclient.SendHTTPRequest(ctx, client, http.MethodGet, etradeRenewAccessURL, nil); err != nil {
-			return nil, fmt.Errorf("failed to renew token: %v", err)
+		if _, err := client.R().SetContext(ctx).Get(etradeRenewAccessURL); err != nil {
+			return nil, fmt.Errorf("failed to renew token: %w", err)
 		}
 
 		if err := cacheOAuthToken(access.Token, time.Now()); err != nil {
@@ -113,7 +114,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 	return client, nil
 }
 
-func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Client, error) {
+func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*resty.Client, error) {
 	log.Print("Reauthorizing with ETrade...")
 
 	requestToken, requestSecret, err := oauth.RequestToken()
@@ -147,5 +148,5 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*http.Clien
 		return nil, fmt.Errorf("failed to cache new access token: %v", err)
 	}
 
-	return oauth.Client(ctx, token), nil
+	return utils.NewHTTPClient(oauth.Client(ctx, token)), nil
 }
