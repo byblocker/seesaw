@@ -18,7 +18,7 @@ import (
 const (
 	etradeRequestTokenURL = "https://api.etrade.com/oauth/request_token"
 	etradeAuthorizeURL    = "https://us.etrade.com/e/t/etws/authorize"
-	oauthCacheTokenURL    = "https://api.etrade.com/oauth/access_token"
+	etradeAccessTokenURL  = "https://api.etrade.com/oauth/access_token"
 	etradeRenewAccessURL  = "https://api.etrade.com/oauth/renew_access_token"
 
 	keyringService = "seesaw"
@@ -36,14 +36,10 @@ type Client struct {
 	apiBaseURL string
 }
 
-func NewClient(httpClient *resty.Client, baseURL string) *Client {
-	return &Client{httpClient: httpClient, apiBaseURL: baseURL}
-}
-
 type oauthCache struct {
-	Token     *oauth1.Token `json:"token"`
-	LastUsed  time.Time     `json:"last_used"`
-	ExpiresAt time.Time     `json:"expires_at"`
+	Token         *oauth1.Token `json:"token"`
+	LastRefreshed time.Time     `json:"last_used"`
+	ExpiresAt     time.Time     `json:"expires_at"`
 }
 
 func Connect(ctx context.Context, key, secret, baseURL string) (*Client, error) {
@@ -51,11 +47,11 @@ func Connect(ctx context.Context, key, secret, baseURL string) (*Client, error) 
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
 		CallbackURL:    "oob",
-		HTTPClient:     &http.Client{Timeout: 30 * time.Second},
+		HTTPClient:     &http.Client{Timeout: utils.Timeout},
 		Endpoint: oauth1.Endpoint{
 			RequestTokenURL: etradeRequestTokenURL,
 			AuthorizeURL:    etradeAuthorizeURL,
-			AccessTokenURL:  oauthCacheTokenURL,
+			AccessTokenURL:  etradeAccessTokenURL,
 		},
 	}
 
@@ -64,24 +60,24 @@ func Connect(ctx context.Context, key, secret, baseURL string) (*Client, error) 
 		log.Printf("Could not renew ETrade client: %v", err)
 
 		client, err = authNewETradeClient(ctx, oauth)
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	return NewClient(client, baseURL), nil
+	return &Client{httpClient: client, apiBaseURL: baseURL}, nil
 }
 
-func cacheOAuthToken(token *oauth1.Token, lastUsed time.Time) error {
-	expiresAt, err := utils.EndOfDay(lastUsed, timezone)
+func cacheOAuthToken(token *oauth1.Token, refreshedAt time.Time) error {
+	expiresAt, err := utils.EndOfDay(refreshedAt, timezone)
 	if err != nil {
 		return err
 	}
 
 	return keyring.Set(keyringService, accessTokenKey, oauthCache{
-		Token:     token,
-		LastUsed:  lastUsed,
-		ExpiresAt: expiresAt,
+		Token:         token,
+		LastRefreshed: refreshedAt,
+		ExpiresAt:     expiresAt,
 	})
 }
 
@@ -99,7 +95,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config) (*resty.Clie
 
 	client := utils.NewHTTPClient(oauth.Client(ctx, access.Token))
 
-	if time.Since(access.LastUsed) > etradeMaxAccessTokenAge {
+	if time.Since(access.LastRefreshed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
 		if _, err := client.R().SetContext(ctx).Get(etradeRenewAccessURL); err != nil {
 			return nil, fmt.Errorf("failed to renew token: %w", err)
@@ -119,7 +115,7 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*resty.Clie
 
 	requestToken, requestSecret, err := oauth.RequestToken()
 	if err != nil {
-		return nil, fmt.Errorf("failed to obtain request token: %v", err)
+		return nil, fmt.Errorf("failed to obtain request token: %w", err)
 	}
 
 	authURL := fmt.Sprintf("%s?%s", oauth.Endpoint.AuthorizeURL, url.Values{
@@ -134,18 +130,18 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config) (*resty.Clie
 
 	verificationCode, err := utils.AskForInput("Enter verification code: ")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read verification code: %v", err)
+		return nil, fmt.Errorf("failed to read verification code: %w", err)
 	}
 
 	log.Print("Received verification code. Creating new access token...")
 	accessToken, accessSecret, err := oauth.AccessToken(requestToken, requestSecret, verificationCode)
 	if err != nil {
-		return nil, fmt.Errorf("failed to obtain access token: %v", err)
+		return nil, fmt.Errorf("failed to obtain access token: %w", err)
 	}
 
 	token := oauth1.NewToken(accessToken, accessSecret)
 	if err := cacheOAuthToken(token, time.Now()); err != nil {
-		return nil, fmt.Errorf("failed to cache new access token: %v", err)
+		return nil, fmt.Errorf("failed to cache new access token: %w", err)
 	}
 
 	return utils.NewHTTPClient(oauth.Client(ctx, token)), nil
