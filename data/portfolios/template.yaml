@@ -1,5 +1,5 @@
-broker: ETRADE
-accountId: "146621793"
+broker: YOUR_BROKER_NAME
+accountId: "YOUR_ACCOUNT_ID"
 
 settings:
   min_fractional_share_to_round: 0.7
@@ -11,6 +11,5 @@ assets:
     alternate_ticker: SCHX
     target_allocation: 0.75
 
-  - primary_ticker: VXUS
-    alternate_ticker: IXUS
+  - primary_ticker: SGOV
     target_allocation: 0.25

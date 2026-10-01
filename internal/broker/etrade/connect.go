@@ -15,6 +15,8 @@ const Name = "ETRADE"
 
 const etradeConfigKey = "etrade_config"
 
+const productionAPIBaseURL = "https://api.etrade.com/v1"
+
 type Config struct {
 	APIBaseURL string
 	APIKey     string
@@ -115,9 +117,13 @@ func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
 }
 
 func promptForConfig() (Config, error) {
-	baseURL, err := utils.AskForInput("ETrade API base URL (e.g. https://api.etrade.com/v1): ")
+	baseURL, err := utils.AskForInput(fmt.Sprintf("ETrade API base URL [%s]: ", productionAPIBaseURL))
 	if err != nil {
 		return Config{}, err
+	}
+
+	if baseURL == "" {
+		baseURL = productionAPIBaseURL
 	}
 
 	apiKey, err := utils.AskForSecret("ETrade API key: ")

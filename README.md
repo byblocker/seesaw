@@ -1,50 +1,56 @@
 # Seesaw
 
-_seesaw_ plans portfolio rebalancing and tax-loss harvesting for ETRADE accounts. Define specific assets with target allocations and tax-loss-harvesting ticker pairs. Then, run the CLI to inspect any actions suggested for your portfolio.
+_seesaw_ automates portfolio rebalancing and tax-loss harvesting. Plan assets with target allocations and tax-loss-harvesting ticker pairs, and then, run `rebalance` to inspect any actions suggested for your portfolio.
 
-Currently, _seesaw_ outputs an order plan in YAML. It does not automatically submit orders; _seesaw_ is purely diagnostic.
+Currently, _seesaw_ is purely diagnostic; actions are listed in YAML format and not automatically submitted.
 
 ## Setup
 
 1. Install Go 1.26 or later: [Go installation guide](https://go.dev/doc/install).
-2. Fetch ETRADE API credentials: [ETRADE getting started and requesting keys](https://developer.etrade.com/getting-started).
-3. Verify access to your OS keyring: [go-keyring platform support and requirements](https://github.com/zalando/go-keyring#readme).
-4. Verify you can open a browser from your terminal for the OAuth sign-in flow: [ETRADE authorization documentation](https://apisb.etrade.com/docs/api/authorization/authorize.html).
 
-5. Run these commands from the repository root:
-
+2. Download the project dependencies
 ```sh
 go mod download
-mkdir -p data/portfolios
 ```
 
-6. Connect your broker from an interactive terminal:
+4. Secrets and OAuth token caching relies upon your OS keyring. Verify access: [go-keyring platform support and requirements](https://github.com/zalando/go-keyring#readme).
+
+5. Broker authorization requires an internet connection and the ability to open a browser from your terminal. To check browser access, run the command for your OS:
 
 ```sh
-go run . connect --broker ETRADE
+# macOS
+open https://example.com
+
+# Linux desktop
+xdg-open https://example.com
+
+# Windows PowerShell
+Start-Process https://example.com
 ```
 
-Enter the API base URL, API key, and API secret when prompted. For production, use `https://api.etrade.com/v1` with production credentials. The key and secret prompts hide your input. Seesaw validates and saves the configuration in your OS keyring, then opens the OAuth sign-in flow. You do not need a portfolio file for this command.
+6. Connect your broker using its setup guide:
+- [ETRADE setup](docs/brokers/etrade.md)
 
-Run `connect` again to replace credentials or change the endpoint. If configuration already exists, you will see an overwrite warning before any credential prompts. Enter `y` or `yes` to proceed; pressing Enter or entering another answer exits without changing configuration or starting authentication.
+## Creating your portfolio plan
 
-Changing credentials or the endpoint requires a new OAuth sign-in. If authentication fails after saving, run `rebalance` to retry with saved configuration, or rerun `connect` to replace it.
+1. Create a personal copy of the template portfolio plan:
+```sh
+cp data/portfolios/template.yaml data/portfolios/< your portfolio name here >.yaml
+```
 
-### Migrating from .env
+**NOTE**: Personal portfolio .yaml files are ignored through `.gitignore`; only `data/portfolios/template.yaml` is tracked for explanation purposes.
 
-Run `connect` and enter the values from your existing `.env`. After connecting, you can delete that file. Seesaw no longer loads `.env` or reads `ETRADE_API_*` environment variables. Existing OAuth tokens require a new sign-in once after this upgrade.
-
-## Portfolio plan
-
-Create `data/portfolios/default.yaml`:
+2. Edit your local portfolio plan:
 
 ```yaml
-broker: ETRADE
+broker: YOUR_BROKER_NAME
 accountId: "YOUR_ACCOUNT_ID"
+
 settings:
   min_fractional_share_to_round: 0.7
   max_pct_alloc_deviation_allowed: 0.02
   min_pct_loss_to_harvest: -0.005
+
 assets:
   - primary_ticker: VOO
     alternate_ticker: SCHX
@@ -54,84 +60,70 @@ assets:
     target_allocation: 0.25
 ```
 
-Replace the **acountId** placeholder with your own ETRADE account number.
+`broker` and `accountId` should be your broker name and brokerage account number.
 
-`broker` is required and currently supports only `ETRADE`.
-Rebalancing thresholds are required in each portfolio's flat `settings` block:
-
-- `min_fractional_share_to_round` is the remainder needed to round a whole-share buy up, between `0` and `1` inclusive.
+Rebalancing settings are defined in the `settings` struct:
+- `min_fractional_share_to_round` is the remainder needed to round a whole-share buy up, between `0` and `1` inclusive. Fractional-share support depends on the broker. See its setup guide for supported behavior.
 - `max_pct_alloc_deviation_allowed` is extra whole-share purchase allowance as a fraction of total portfolio value, between `0` and `1` inclusive, limited by available cash.
-- `min_pct_loss_to_harvest` is the loss threshold, between `-1` and `0` inclusive. The example's `-0.005` requires a loss of at least 0.5% before harvesting.
+- `min_pct_loss_to_harvest` is the loss threshold, between `-1` and `0` inclusive. 
 
-There are no implicit defaults. Missing or null settings are rejected before broker authentication; explicit zero values are accepted. Existing portfolio files must add all three fields. The values above preserve the previous behavior.
+There are no defaults. Missing settings are rejected, while zero values are accepted. 
 
-Fractional-share support is defined by each broker implementation. The ETRADE integration returns `false` from `CanBuyFractionalShares`, preserving whole-share purchases.
+For each `asset`, you must choose a . . .
+- `primary_ticker` and `alternate_ticker`: These identify publically-tradable security pairs suitable for tax-loss harvesting. The primary is preferred for most purchases, but the alternate is used when harvesting losses from primary, and vice versa. Without an `alternate_ticker`, _seesaw_ will propose buys without suggesting tax-loss harvesting.
 
-For each asset, you must choose a . . .
-1. `primary_ticker` and `alternate_ticker`: These symbols for securities eligible for tax loss harvesting. You must provide the primary ticker, which is the preferred security for most purchases. You can specify an alternate ticker to buy when harvesting losses in the primary position; the primary position will then be used when harvesting from the alternate. Without an alternate, _seesaw_ will propose buys but will abstain from suggesting tax-loss harvesting orders.
+**WARNING:** _seesaw_ does not ensure the pairs tickers suitability for wash-sale avoidance. Please review this yourself.
 
-**WARNING:** _seesaw_ does not verify that provided security pairs offer comparable market exposure nor determines whether the pair are substancitaly identical or not for wash-sale avoidance. You must review the pairs suitability yourself. 
+- `target_allocation`: The target fraction of your portfolio dedicated to this pair of securities. Both the primary and alternate position allocation count towards this total. Each allocation must be greater than `0.0` and at most `1.0`. _seesaw_ ensures the sum of all `target_allocations` equals `1.0`
 
-2. `target_allocation`: The target fraction of your portfolio dedicated to these pair of securities. Both the primary and alternate positions combined count towards this total. Each allocation must be greater than `0.0` and at most `1.0`. _seesaw_ ensures the sum of all asset allocations equals `1.0`
+## Rebalance!
 
-## Run
-
-Run from the repository root:
+1. Pass your portfolio filename `data/portfolios/` without `.yaml`. _seesaw_ reads files relative to your working directory.
 
 ```sh
-go run . rebalance --portfolio default
+go run . rebalance --portfolio < name of your portfolio >
 ```
 
-Pass the portfolio filename from `data/portfolios/` without `.yaml`. Seesaw reads portfolio files relative to your working directory and broker configuration from your OS keyring.
+2. _seesaw_ will create a output of a list of `buys`with suggested quantities and estimated costs, and `sells`, with specific lots, estimated proceeds, and the profit/loss realized:
 
-You must authenticate with ETRADE once per day, at least;  _seesaw_, however, reuses/refreshes these tokens for subsequent, same-day invocations (ETRADE routinely revokes OAuth tokens every night at midnight).
-
-The output will contain a list of `buys`, with suggested quantities and estimated costs, and `sells`, with specific lots, estimated proceeds, and the profit/loss realized.
-
-To build and run a binary from the repository root:
-
-```sh
-go build -o seesaw .
-./seesaw rebalance --portfolio default
+```yaml
+buys:
+    - ticker: SGOV
+      price: "100.00"
+      quantity: "1"
+      estimatedcost: "100"
+sells:
+    - ticker: VOO
+      type: MARKET
+      price: "100"
+      lots:
+        - lot:
+            id: 123456789
+            quantity: "100"
+            pricepaid: "90"
+            timeacquired: 2026-01-01T00:00:00-04:00
+            marketvalue: "10000"
+            unrealizedpl: "1000"
+            plpct: "0.10"
+          quantity: "100"
 ```
 
 ### Rebalance Behavior
 
-`rebalance` fetches a snapshot of your account and then completes the following:
-1. Assign portfolio positions to Assets according to the provided configuration
-2. Proposes sales for lots with tax loss
+`rebalance` fetches a snapshot of your account and then . . .
+1. Assigns positions to `Assets` according to the provided portfolio plan;
+2. Identifies lots with tax loss and simulates sales, if any;
 3. Sizes purchases using available cash balance and proceeds from suggested sells
 
-For holdings outside of the planned positions, _seesaw_ attempts to harvest any tax loss; it does not force liquidation to reduce tax liability. 
+For any holdings outside of the planned positions, _seesaw_ will attempt to harvest any tax-loss; it does not force liquidation to reduce tax liability. Similarly, _seesaw_ will not force liquidation of overweight assets to reduce allocation.
 
-Similarly, _seesaw_ will not force liquidation of overweight assets to reduce allocation.
+_seesaw_ uses recent purchases from the snapshot to help avoid wash sales; however, the available transaction history is limited to a single broker. Review its setup guide for coverage and limitations. Avoid wash-sales by ensuring different portfolios use different securities.
 
-_seesaw_ prevents wash-sales by blocking a purchase after a recent sale, and it's sale after a recent purchase. This, however, is limited to accounts accessible in ETRADE. _seesaw_ cannot account for trading activity in other brokerages and activity in close/inactive ETRADE accounts.
+## Library Usage
 
-ETRADE returns up to 50 positions per portfolio API call by default. _seesaw_ assumes no account would exceed this and does not paginate portfolio requests.
+Use `pkg.Connect(ctx, name)` with a saved configuration in your OS keyring, or see specific usage for a given broker:
+- [ETRADE guide](docs/brokers/etrade.md#library-use)
 
-## Configuration
-
-The CLI calls `pkg.Connect(ctx, plan.Broker)` to load saved broker configuration and authenticate. Each brokerage implements the `internal/broker.Broker` interface with `Setup(ctx)` and `Connect(ctx)` methods, separate from the authenticated `models.BrokerClient` interface. The CLI selects the broker through `internal/broker.For(name)`. Setup collects, validates, and saves configuration; connection loads it and authenticates. The CLI supports one saved configuration per broker.
-
-Library callers can supply `pkg.ETradeConfig` to `pkg.ConnectETrade(ctx, config)` without reading or writing saved broker configuration. Populate that value from your own environment loader or secrets manager as needed. ETrade still uses the OS keyring for OAuth tokens. Callers using `ConnectFromENV` must migrate to `Connect` or `ConnectETrade`.
-
-Library callers can construct a `models.RebalanceSettings` value and pass it directly to `pkg.Rebalance`:
-
-```go
-roundingThreshold := decimal.RequireFromString("0.7")
-allocationAllowance := decimal.RequireFromString("0.02")
-harvestThreshold := decimal.RequireFromString("-0.005")
-settings := models.RebalanceSettings{
-    MinFractionalShareToRound:   &roundingThreshold,
-    MaxPctAllocDeviationAllowed: &allocationAllowance,
-    MinPctLossToHarvest:         &harvestThreshold,
-}
-orders, err := pkg.Rebalance(ctx, snapshot, client, settings)
-```
-
-Use `seesaw/pkg/models` and `github.com/shopspring/decimal` for these types. All three pointers are required; explicit zero values are accepted. `pkg.Rebalance` validates settings before fetching quotes. Treat the pointed-to values as immutable while rebalancing. The transaction lookback remains defined in [tlh.go](internal/rebalance/tlh.go).
-
-## Development
+## Development Choices
 
 We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0E-4`. We keep prices and quantities as decimals throughout the calculations and truncate division to 19 decimal places.

@@ -29,6 +29,7 @@ func init() {
 	rootCmd.AddCommand(connectCmd)
 }
 
+// Selects and configures a Broker before an authenticated BrokerClient exists.
 func connectBroker(cmd *cobra.Command, args []string) error {
 	selectedBroker, err := broker.For(brokerName)
 	if err != nil {
