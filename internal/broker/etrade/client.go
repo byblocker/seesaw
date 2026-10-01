@@ -17,7 +17,7 @@ type Client struct {
 	apiBaseURL string
 }
 
-var _ models.Broker = (*Client)(nil)
+var _ models.BrokerClient = (*Client)(nil)
 
 func (client *Client) Settings() models.BrokerSettings {
 	return models.BrokerSettings{AllowFractionalShares: false}

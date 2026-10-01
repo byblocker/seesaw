@@ -112,7 +112,7 @@ ETRADE returns up to 50 positions per portfolio API call by default. _seesaw_ as
 
 ## Configuration
 
-The CLI calls `pkg.Connect(ctx, plan.Broker)` to load saved broker configuration and authenticate. Each broker implements a provider interface with `Setup(ctx)` and `Connect(ctx)` methods, separate from the authenticated `models.Broker` interface. `pkg.Provider(name)` selects the provider. Setup collects, validates, and saves configuration; connection loads it and authenticates. The CLI supports one saved configuration per broker.
+The CLI calls `pkg.Connect(ctx, plan.Broker)` to load saved broker configuration and authenticate. Each brokerage implements the `internal/broker.Broker` interface with `Setup(ctx)` and `Connect(ctx)` methods, separate from the authenticated `models.BrokerClient` interface. The CLI selects the broker through `internal/broker.For(name)`. Setup collects, validates, and saves configuration; connection loads it and authenticates. The CLI supports one saved configuration per broker.
 
 Library callers can supply `pkg.ETradeConfig` to `pkg.ConnectETrade(ctx, config)` without reading or writing saved broker configuration. Populate that value from your own environment loader or secrets manager as needed. ETrade still uses the OS keyring for OAuth tokens. Callers using `ConnectFromENV` must migrate to `Connect` or `ConnectETrade`.
 

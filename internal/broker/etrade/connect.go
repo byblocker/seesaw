@@ -55,9 +55,9 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 	return &Client{httpClient: httpClient, apiBaseURL: baseURL}, nil
 }
 
-type Provider struct{}
+type Broker struct{}
 
-func (Provider) Setup(ctx context.Context) error {
+func (Broker) Setup(ctx context.Context) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func (Provider) Setup(ctx context.Context) error {
 	return nil
 }
 
-func (Provider) Connect(ctx context.Context) (models.Broker, error) {
+func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

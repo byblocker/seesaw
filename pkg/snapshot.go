@@ -17,7 +17,7 @@ const allocationDecimalPlaces int32 = 19
 
 func SnapshotPortfolio(
 	ctx context.Context,
-	client models.Broker,
+	client models.BrokerClient,
 	plan *models.PortfolioPlan,
 ) (*models.AccountSnapshot, error) {
 	portfolio, err := client.Portfolio(

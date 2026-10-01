@@ -17,7 +17,7 @@ type RebalancePlan struct {
 func Rebalance(
 	ctx context.Context,
 	snapshot models.AccountSnapshot,
-	client models.Broker,
+	client models.BrokerClient,
 	settings models.RebalanceSettings,
 ) (*RebalancePlan, error) {
 	if err := settings.Validate(); err != nil {
