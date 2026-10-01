@@ -2,6 +2,16 @@ package collections
 
 import "iter"
 
+func Find[T any](seq iter.Seq[T], match func(T) bool) (T, bool) {
+	for value := range seq {
+		if match(value) {
+			return value, true
+		}
+	}
+	var zero T
+	return zero, false
+}
+
 func FlatMap[T, U any](seq iter.Seq[T], transform func(T) iter.Seq[U]) iter.Seq[U] {
 	return func(yield func(U) bool) {
 		for value := range seq {

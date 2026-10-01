@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 func AskForInput(prompt string) (string, error) {
@@ -18,6 +20,23 @@ func AskForInput(prompt string) (string, error) {
 		return "", fmt.Errorf("failed to read input: %w", err)
 	}
 	return strings.TrimSpace(text), nil
+}
+
+func AskForSecret(prompt string) (string, error) {
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		return "", fmt.Errorf("credential setup requires an interactive terminal")
+	}
+
+	fmt.Fprint(os.Stderr, prompt)
+	secret, err := term.ReadPassword(fd)
+	fmt.Fprintln(os.Stderr)
+	if err != nil {
+		return "", fmt.Errorf("failed to read credential: %w", err)
+	}
+	defer clear(secret)
+
+	return strings.TrimSpace(string(secret)), nil
 }
 
 func OpenUrl(url string) error {

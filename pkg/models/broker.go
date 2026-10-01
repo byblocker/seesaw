@@ -1,6 +1,11 @@
 package models
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrBrokerNotConfigured = errors.New("broker is not configured")
 
 type Broker interface {
 	Portfolio(ctx context.Context, accountID string, daysBack int, tickers []string) (*Portfolio, error)

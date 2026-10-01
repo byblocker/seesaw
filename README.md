@@ -15,19 +15,24 @@ Currently, _seesaw_ outputs an order plan in YAML. It does not automatically sub
 
 ```sh
 go mod download
-cp .env.template .env
 mkdir -p data/portfolios
 ```
 
-6. Fill in `.env` at the repository root with your credentials:
+6. Connect your broker from an interactive terminal:
 
-```dotenv
-ETRADE_API_BASE_URL=https://api.etrade.com/v1
-ETRADE_API_KEY=your-api-key
-ETRADE_API_SECRET=your-api-secret
+```sh
+go run . connect --broker ETRADE
 ```
 
-You can also supply these values through environment variables; they take precedence over `.env`. Use the proper credentials for the repsective BASE_URL; this production URL requires production credentials.
+Enter the API base URL, API key, and API secret when prompted. For production, use `https://api.etrade.com/v1` with production credentials. The key and secret prompts hide your input. Seesaw validates and saves the configuration in your OS keyring, then opens the OAuth sign-in flow. You do not need a portfolio file for this command.
+
+Run `connect` again to replace credentials or change the endpoint. If configuration already exists, you will see an overwrite warning before any credential prompts. Enter `y` or `yes` to proceed; pressing Enter or entering another answer exits without changing configuration or starting authentication.
+
+Changing credentials or the endpoint requires a new OAuth sign-in. If authentication fails after saving, run `rebalance` to retry with saved configuration, or rerun `connect` to replace it.
+
+### Migrating from .env
+
+Run `connect` and enter the values from your existing `.env`. After connecting, you can delete that file. Seesaw no longer loads `.env` or reads `ETRADE_API_*` environment variables. Existing OAuth tokens require a new sign-in once after this upgrade.
 
 ## Portfolio plan
 
@@ -77,7 +82,7 @@ Run from the repository root:
 go run . rebalance --portfolio default
 ```
 
-Pass the portfolio filename from `data/portfolios/` without `.yaml`. Seesaw reads `.env` and portfolio files relative to your working directory.
+Pass the portfolio filename from `data/portfolios/` without `.yaml`. Seesaw reads portfolio files relative to your working directory and broker configuration from your OS keyring.
 
 You must authenticate with ETRADE once per day, at least;  _seesaw_, however, reuses/refreshes these tokens for subsequent, same-day invocations (ETRADE routinely revokes OAuth tokens every night at midnight).
 
@@ -107,9 +112,9 @@ ETRADE returns up to 50 positions per portfolio API call by default. _seesaw_ as
 
 ## Configuration
 
-The CLI calls `pkg.ConnectFromENV(ctx, plan.Broker)`, which loads an optional `.env` file from the working directory before reading the selected broker's environment variables. Existing environment variables take precedence, including explicitly empty values. A missing `.env` file is allowed; other loading errors are returned. ETrade uses `ETRADE_API_BASE_URL`, `ETRADE_API_KEY`, and `ETRADE_API_SECRET`, with validation performed before authentication.
+The CLI calls `pkg.Connect(ctx, plan.Broker)` to load saved broker configuration and authenticate. Each broker implements a provider interface with `Setup(ctx)` and `Connect(ctx)` methods, separate from the authenticated `models.Broker` interface. `pkg.Provider(name)` selects the provider. Setup collects, validates, and saves configuration; connection loads it and authenticates. The CLI supports one saved configuration per broker.
 
-Library callers can use `pkg.ConnectFromENV` with their environment. ETrade configuration and validation live in `internal/broker/etrade.go`; `pkg.ETradeConfig` aliases the provider's configuration type.
+Library callers can supply `pkg.ETradeConfig` to `pkg.ConnectETrade(ctx, config)` without reading or writing saved broker configuration. Populate that value from your own environment loader or secrets manager as needed. ETrade still uses the OS keyring for OAuth tokens. Callers using `ConnectFromENV` must migrate to `Connect` or `ConnectETrade`.
 
 Library callers can construct a `models.RebalanceSettings` value and pass it directly to `pkg.Rebalance`:
 
