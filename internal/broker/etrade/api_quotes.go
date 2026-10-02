@@ -35,11 +35,15 @@ func (client *Client) Quote(ctx context.Context, ticker string) (models.Quote, e
 
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
+
+	var timer utils.Timer
+	timer.Start(fmt.Sprintf("Loading quote for %s", ticker))
 	response, err := utils.FetchJSON[quoteResponse](
 		ctx,
 		client.httpClient,
 		endpoint,
 	)
+	timer.Stop(err)
 	if err != nil {
 		return models.Quote{}, err
 	}

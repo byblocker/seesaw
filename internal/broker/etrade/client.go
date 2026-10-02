@@ -3,8 +3,10 @@ package etrade
 import (
 	"context"
 	"fmt"
+	"log"
 	"maps"
 	"seesaw/internal/collections"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -63,6 +65,12 @@ func (client *Client) Portfolio(
 
 	end := time.Now()
 	start := end.AddDate(0, 0, -daysBack)
+	log.Printf(
+		"Checking transactions from %s to %s",
+		start.Format(utils.YYYY_MM_DD),
+		end.Format(utils.YYYY_MM_DD),
+	)
+
 	portfolio.RecentTx = make(models.RecentTxByTicker)
 	for _, account := range accounts {
 		history, err := client.Transactions(ctx, account, start, end, portfolio.Tickers)

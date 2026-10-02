@@ -32,8 +32,8 @@ func (client *Client) Transactions(
 	account Account,
 	start, end time.Time,
 	tickers []string,
-) (models.RecentTxByTicker, error) {
-	result := make(models.RecentTxByTicker)
+) (result models.RecentTxByTicker, err error) {
+	result = make(models.RecentTxByTicker)
 	if len(tickers) == 0 {
 		return result, nil
 	}
@@ -41,6 +41,16 @@ func (client *Client) Transactions(
 	if account.key == "" {
 		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	var timer utils.Timer
+	timer.Start("Loading transactions for " + account.maskedID())
+	pages := 0
+	defer func() {
+		timer.Stop(err, fmt.Sprintf("%d page(s)", pages))
+	}()
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
@@ -70,6 +80,7 @@ func (client *Client) Transactions(
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)
 		}
+		pages++
 
 		for _, tx := range response.Page.Transactions {
 			if !tickerSet.Contains(tx.Brokerage.Ticker) || !models.TransactionType(tx.Type).IsSupported() {

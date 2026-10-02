@@ -3,7 +3,6 @@ package etrade
 import (
 	"context"
 	"fmt"
-	"log"
 	"seesaw/internal/utils"
 )
 
@@ -18,6 +17,10 @@ type Account struct {
 }
 
 func (account Account) ID() string { return account.id }
+
+func (account Account) maskedID() string {
+	return "****" + account.id[len(account.id)-4:]
+}
 
 type accountResponse struct {
 	Id     string `json:"accountId"`
@@ -39,12 +42,13 @@ func (client *Client) Accounts(ctx context.Context) ([]Account, error) {
 		return nil, err
 	}
 
-	log.Print("Loading active brokerage accounts...")
-
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
+	var timer utils.Timer
+	timer.Start("Loading brokerage accounts")
 	response, err := utils.FetchJSON[listAccountsAPIResponse](
 		ctx, client.httpClient, endpoint,
 	)
+	timer.Stop(err)
 	if err != nil {
 		return nil, fmt.Errorf("could not load accounts: %w", err)
 	}

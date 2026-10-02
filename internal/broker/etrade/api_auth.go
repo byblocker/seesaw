@@ -61,7 +61,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	clear(configuration)
 	client, err := refreshETradeClient(ctx, oauth, configurationHash)
 	if err != nil {
-		log.Printf("Could not renew ETrade client: %v", err)
+		log.Printf("Could not renew %s client: %v", Name, err)
 
 		client, err = authNewETradeClient(ctx, oauth, configurationHash)
 	}
@@ -87,7 +87,7 @@ func cacheOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHa
 }
 
 func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	log.Print("Attempting to renew ETrade credentials...")
+	log.Printf("Attempting to renew %s credentials...", Name)
 
 	access, err := keyring.Get[oauthCache](accessTokenKey)
 	if err != nil {
@@ -115,12 +115,12 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		}
 	}
 
-	log.Print("Successfully renewed ETrade client!")
+	log.Printf("Successfully renewed %s client!", Name)
 	return client, nil
 }
 
 func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	log.Print("Reauthorizing with ETrade...")
+	log.Printf("Reauthorizing with %s...", Name)
 
 	requestToken, requestSecret, err := oauth.RequestToken()
 	if err != nil {
@@ -132,7 +132,7 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		"token": {requestToken},
 	}.Encode())
 
-	log.Print("Redirecting to authenticate with ETrade...")
+	log.Printf("Redirecting to authenticate with %s...", Name)
 	if err = utils.OpenUrl(authURL); err != nil {
 		return nil, err
 	}
