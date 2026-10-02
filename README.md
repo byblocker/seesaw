@@ -2,7 +2,7 @@
 
 _seesaw_ automates portfolio rebalancing and tax-loss harvesting. Plan assets with target allocations and tax-loss-harvesting ticker pairs, and then, run `rebalance` to inspect any actions suggested for your portfolio.
 
-Currently, _seesaw_ is purely diagnostic; actions are listed in YAML format and not automatically submitted.
+_seesaw_ displays portfolio allocations and suggested orders in tables. It does not submit orders.
 
 ## Setup
 
@@ -84,28 +84,32 @@ For each `asset`, you must choose a . . .
 go run . rebalance --portfolio < name of your portfolio >
 ```
 
-2. _seesaw_ will create a output of a list of `buys`with suggested quantities and estimated costs, and `sells`, with specific lots, estimated proceeds, and the profit/loss realized:
+2. Review the account snapshot: asset values, current and target allocations, cash balance, and portfolio total.
 
-```yaml
-buys:
-    - ticker: SGOV
-      price: "100.00"
-      quantity: "1"
-      estimatedcost: "100"
-sells:
-    - ticker: VOO
-      type: MARKET
-      price: "100"
-      lots:
-        - lot:
-            id: 123456789
-            quantity: "100"
-            pricepaid: "90"
-            timeacquired: 2026-01-01T00:00:00-04:00
-            marketvalue: "10000"
-            unrealizedpl: "1000"
-            plpct: "0.10"
-          quantity: "100"
+3. Review the suggested orders. For example, with a starting cash balance of $1,000:
+
+```text
+Suggested Orders
+
+Ticker  Action  Acquired    Shares    Price        Cost       P/L
+_________________________________________________________________
+VOO     SELL    2026-06-10      10  $100.00   $1,000.00  -$100.00
+
+SCHX    BUY     —               15  $100.00  -$1,500.00         —
+
+SGOV    BUY     —                5  $100.00    -$500.00         —
+_________________________________________________________________
+
+Total P/L:         -$100.00
+Remaining balance:    $0.00
+```
+
+When no trades qualify, you will see `No trades suggested.`
+
+Add `--verbose` (or `-v`) to show source locations and individual transaction page results:
+
+```sh
+go run . rebalance --portfolio < name of your portfolio > --verbose
 ```
 
 ### Rebalance Behavior
