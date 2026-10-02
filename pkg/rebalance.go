@@ -3,8 +3,12 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"log"
 	"seesaw/internal/rebalance"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
+	"slices"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -40,6 +44,7 @@ func Rebalance(
 	)
 
 	quotePerTicker := make(map[string]models.Quote, len(snapshot.Tickers))
+	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Tickers))
 	for _, ticker := range snapshot.Tickers {
 		quote, err := client.Quote(ctx, ticker)
 		if err != nil {
@@ -48,18 +53,44 @@ func Rebalance(
 		quotePerTicker[ticker] = quote
 	}
 
+	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	for _, asset := range snapshot.Assets {
+		if asset.Plan != nil {
+			utils.Verbosef(ctx, "Evaluating %s: current %s%%, target %s%%",
+				strings.Join(slices.Collect(asset.Plan.Tickers()), " / "),
+				asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
+			for ticker := range asset.Plan.Tickers() {
+				if len(asset.RecentTx[ticker].Sells) > 0 {
+					utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", ticker)
+				}
+			}
+		} else {
+			utils.Verbosef(ctx, "Evaluating holdings outside the portfolio plan for tax losses")
+		}
+
 		harvestFunc := func(ticker string) models.SellProposal {
 			position, exists := asset.Positions[ticker]
-			if !exists || !rebalance.CanSell(asset, ticker) {
+			if !exists {
+				return models.SellProposal{}
+			}
+			if !rebalance.CanSell(asset, ticker) {
+				utils.Verbosef(ctx, "Skip harvesting %s: recent purchases in the wash-sale window", ticker)
 				return models.SellProposal{}
 			}
 
-			return rebalance.HarvestTaxLoss(
+			candidate := rebalance.HarvestTaxLoss(
 				position,
 				quotePerTicker[ticker].Bid,
 				*settings.MinPctLossToHarvest,
 			)
+			if len(candidate.Lots) == 0 {
+				utils.Verbosef(ctx, "No lots of %s meet the %s%% loss threshold",
+					ticker, settings.MinPctLossToHarvest.Shift(2).StringFixed(2))
+			} else {
+				utils.Verbosef(ctx, "Harvest candidate %s: %d lot(s), proceeds $%s, P/L $%s",
+					ticker, len(candidate.Lots), candidate.Proceeds.StringFixed(2), candidate.RealizedPL.StringFixed(2))
+			}
+			return candidate
 		}
 
 		if asset.Plan == nil {
@@ -81,9 +112,15 @@ func Rebalance(
 		if buy.Ticker == "" {
 			// This should rarely happen, but if we cannot maintain an asset's allocation
 			// by purchasing its paired ticker, we should not harvest a ticker
+			if !sell.Proceeds.Sub(asset.ValueDrift).IsPositive() {
+				utils.Verbosef(ctx, "Skip %s: no allocation shortfall after considering sales", asset.Plan.PrimaryTicker)
+			} else {
+				utils.Verbosef(ctx, "Skip %s: no eligible purchase ticker", asset.Plan.PrimaryTicker)
+			}
 			continue
 		}
 
+		utils.Verbosef(ctx, "Queue purchase of %s to cover a $%s shortfall", buy.Ticker, buy.ValueDrift.StringFixed(2))
 		buyRequests = append(buyRequests, buy)
 
 		if len(sell.Lots) > 0 {
@@ -92,8 +129,10 @@ func Rebalance(
 		}
 	}
 
+	log.Printf("Sizing %d purchase(s) with $%s available, including proposed sales", len(buyRequests), balance.StringFixed(2))
 	for _, request := range buyRequests {
 		if balance.Cmp(decimal.Zero) <= 0 {
+			log.Print("No buying power remains; skipping remaining purchases")
 			break
 		}
 
@@ -109,12 +148,16 @@ func Rebalance(
 		}
 
 		if buy.Quantity.IsZero() {
+			utils.Verbosef(ctx, "Skip buying %s: sized quantity is zero under cash and rounding limits", request.Ticker)
 			continue
 		}
 
 		plan.Buys = append(plan.Buys, buy)
 		balance = balance.Sub(buy.EstimatedCost)
+		utils.Verbosef(ctx, "Propose buying %s: %s share(s), cost $%s, remaining balance $%s",
+			buy.Ticker, buy.Quantity.String(), buy.EstimatedCost.StringFixed(2), balance.StringFixed(2))
 	}
 
+	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(plan.Buys), len(plan.Sells))
 	return &plan, nil
 }

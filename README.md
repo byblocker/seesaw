@@ -106,7 +106,7 @@ Remaining balance:    $0.00
 
 When no trades qualify, you will see `No trades suggested.`
 
-Add `--verbose` (or `-v`) to show source locations and individual transaction page results:
+Rebalance logs show quote fetching, tax-loss evaluation, purchase sizing, and final trade counts. Add `--verbose` (or `-v`) to show source locations, individual transaction page results, and reasons for skipped trades:
 
 ```sh
 go run . rebalance --portfolio < name of your portfolio > --verbose

@@ -31,7 +31,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "show source locations and transaction page progress")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "show source locations, transaction pages, and rebalance decisions")
 }
 
 func Execute() {
