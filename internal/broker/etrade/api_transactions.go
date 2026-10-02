@@ -46,11 +46,14 @@ func (client *Client) Transactions(
 	}
 
 	var timer utils.Timer
-	timer.Start("Loading transactions for " + account.maskedID())
+	verbose := utils.IsVerbose(ctx)
 	pages := 0
-	defer func() {
-		timer.Stop(err, fmt.Sprintf("%d page(s)", pages))
-	}()
+	if !verbose {
+		timer.Start("Loading transactions for " + account.maskedID())
+		defer func() {
+			timer.Stop(err, fmt.Sprintf("%d page(s)", pages))
+		}()
+	}
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
@@ -72,11 +75,17 @@ func (client *Client) Transactions(
 		}
 		visitedPages.Add(endpoint)
 
+		if verbose {
+			timer.Start(fmt.Sprintf("Loading transactions for %s, page %d", account.maskedID(), pages+1))
+		}
 		response, err := utils.FetchJSON[transactionResponse](
 			ctx,
 			client.httpClient,
 			endpoint,
 		)
+		if verbose {
+			timer.Stop(err)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)
 		}
