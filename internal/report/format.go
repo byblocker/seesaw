@@ -28,3 +28,15 @@ func money(amount decimal.Decimal) string {
 func percentage(ratio decimal.Decimal) string {
 	return ratio.Shift(2).StringFixed(2) + "%"
 }
+
+// Quotes and lot costs can have sub-cent precision; totals are displayed in cents.
+func price(amount decimal.Decimal) string {
+	if amount.Equal(amount.Round(2)) {
+		return money(amount)
+	}
+
+	if amount.IsNegative() {
+		return "-$" + amount.Abs().String()
+	}
+	return "$" + amount.String()
+}

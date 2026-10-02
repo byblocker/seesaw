@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"seesaw/internal/report"
-	"seesaw/internal/utils"
 	"seesaw/pkg"
 
 	"github.com/spf13/cobra"
@@ -65,6 +64,8 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	utils.DebugYAML(orders)
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Orders(*orders, snapshot.BuyingPower)); err != nil {
+		return fmt.Errorf("write proposed orders: %w", err)
+	}
 	return nil
 }
