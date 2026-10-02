@@ -19,6 +19,7 @@ func NewHTTPClient(client *http.Client) *resty.Client {
 		SetTimeout(Timeout).
 		SetRetryCount(RetryCount).
 		SetResponseBodyLimit(ResponseBodyLimit).
+		OnBeforeRequest(logRequestAttempt).
 		SetJSONUnmarshaler(func(body []byte, response any) error {
 			if len(body) == 0 {
 				return nil
