@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"seesaw/internal/report"
 	"seesaw/internal/utils"
 	"seesaw/pkg"
 
@@ -53,6 +55,9 @@ func rebalance(cmd *cobra.Command, args []string) error {
 	snapshot, err := pkg.SnapshotPortfolio(ctx, client, plan)
 	if err != nil {
 		return err
+	}
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(*snapshot)); err != nil {
+		return fmt.Errorf("write snapshot summary: %w", err)
 	}
 
 	orders, err := pkg.Rebalance(ctx, *snapshot, client, plan.Settings)
