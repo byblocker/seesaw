@@ -67,7 +67,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 	endpoint += "?" + query.Encode()
 
 	var timer utils.Timer
-	timer.Start("Loading holdings and cash balance")
+	timer.Start("Fetching holdings and cash balance")
 	response, err := utils.FetchJSON[portfolioResponse](
 		ctx, client.httpClient, endpoint,
 	)
@@ -96,7 +96,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 				Allocation:  pos.Allocation,
 				MarketValue: pos.MarketValue,
 			}
-			timer.Start(fmt.Sprintf("Loading tax lots for %s", position.Ticker))
+			timer.Start(fmt.Sprintf("Fetching tax lots for %s", position.Ticker))
 			position.Lots, err = client.getPositionLots(ctx, account.key, pos.Id)
 			timer.Stop(err)
 			if err != nil {

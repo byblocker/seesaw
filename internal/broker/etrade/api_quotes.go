@@ -37,7 +37,7 @@ func (client *Client) Quote(ctx context.Context, ticker string) (models.Quote, e
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
 
 	var timer utils.Timer
-	timer.Start(fmt.Sprintf("Loading quote for %s", ticker))
+	timer.Start(fmt.Sprintf("Fetching quote for %s", ticker))
 	response, err := utils.FetchJSON[quoteResponse](
 		ctx,
 		client.httpClient,

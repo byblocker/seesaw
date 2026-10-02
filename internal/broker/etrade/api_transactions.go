@@ -49,7 +49,7 @@ func (client *Client) Transactions(
 	verbose := utils.IsVerbose(ctx)
 	pages := 0
 	if !verbose {
-		timer.Start("Loading transactions for " + account.maskedID())
+		timer.Start("Fetching transactions for " + account.maskedID())
 		defer func() {
 			timer.Stop(err, fmt.Sprintf("%d page(s)", pages))
 		}()
@@ -76,7 +76,7 @@ func (client *Client) Transactions(
 		visitedPages.Add(endpoint)
 
 		if verbose {
-			timer.Start(fmt.Sprintf("Loading transactions for %s, page %d", account.maskedID(), pages+1))
+			timer.Start(fmt.Sprintf("Fetching transactions for %s, page %d", account.maskedID(), pages+1))
 		}
 		response, err := utils.FetchJSON[transactionResponse](
 			ctx,
