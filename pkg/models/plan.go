@@ -11,10 +11,12 @@ import (
 )
 
 type PortfolioPlan struct {
-	Broker    string            `yaml:"broker"`
-	AccountId string            `yaml:"accountId"`
-	Settings  RebalanceSettings `yaml:"settings"`
-	Assets    []AssetPlan       `yaml:"assets"`
+	Broker      string              `yaml:"broker"`
+	AccountId   string              `yaml:"accountId"`
+	IsTaxable   *bool               `yaml:"is_taxable"`
+	Rebalance   RebalanceSettings   `yaml:"rebalance"`
+	Liquidation LiquidationSettings `yaml:"liquidation"`
+	Assets      []AssetPlan         `yaml:"assets"`
 }
 
 func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
@@ -66,31 +68,74 @@ type RebalanceSettings struct {
 	// Minimum remainder to round a whole-share purchase up.
 	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round"`
 	// Extra purchase allowance as a fraction of total portfolio value.
-	MaxPctAllocDeviationAllowed *decimal.Decimal `yaml:"max_pct_alloc_deviation_allowed"`
+	MaxPctAllocDeviationAllowed *decimal.Decimal `yaml:"max_pct_allocation_deviation"`
 	// Loss threshold expressed as a nonpositive fraction of the lot's cost.
 	MinPctLossToHarvest *decimal.Decimal `yaml:"min_pct_loss_to_harvest"`
 }
 
 func (settings RebalanceSettings) Validate() error {
 	if settings.MinFractionalShareToRound == nil {
-		return fmt.Errorf("missing required settings.min_fractional_share_to_round")
+		return fmt.Errorf("missing required rebalance.min_fractional_share_to_round")
 	}
 	if settings.MaxPctAllocDeviationAllowed == nil {
-		return fmt.Errorf("missing required settings.max_pct_alloc_deviation_allowed")
+		return fmt.Errorf("missing required rebalance.max_pct_allocation_deviation")
 	}
 	if settings.MinPctLossToHarvest == nil {
-		return fmt.Errorf("missing required settings.min_pct_loss_to_harvest")
+		return fmt.Errorf("missing required rebalance.min_pct_loss_to_harvest")
 	}
 
 	one := decimal.NewFromInt(1)
 	if settings.MinFractionalShareToRound.IsNegative() || settings.MinFractionalShareToRound.GreaterThan(one) {
-		return fmt.Errorf("settings.min_fractional_share_to_round must be between 0 and 1")
+		return fmt.Errorf("rebalance.min_fractional_share_to_round must be between 0 and 1")
 	}
 	if settings.MaxPctAllocDeviationAllowed.IsNegative() || settings.MaxPctAllocDeviationAllowed.GreaterThan(one) {
-		return fmt.Errorf("settings.max_pct_alloc_deviation_allowed must be between 0 and 1")
+		return fmt.Errorf("rebalance.max_pct_allocation_deviation must be between 0 and 1")
 	}
 	if settings.MinPctLossToHarvest.LessThan(one.Neg()) || settings.MinPctLossToHarvest.IsPositive() {
-		return fmt.Errorf("settings.min_pct_loss_to_harvest must be between -1 and 0")
+		return fmt.Errorf("rebalance.min_pct_loss_to_harvest must be between -1 and 0")
+	}
+	return nil
+}
+
+type LotSelection string
+
+const (
+	// Rank lots by estimated tax-cost per dollar raised using user supplied tax rates.
+	EstimatedTax LotSelection = "estimated_tax"
+
+	// Rank lots in this order:  short-term losses, long-term losses, long-term gains,
+	// then short-term gains without requiring user tax rates.
+	MinTaxOrder LotSelection = "min_tax_order"
+)
+
+type LiquidationSettings struct {
+	LotSelection           LotSelection     `yaml:"lot_selection"`
+	MaxAllocationDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation"`
+	CashReserve            *decimal.Decimal `yaml:"cash_reserve"`
+	MaxExcessCash          *decimal.Decimal `yaml:"max_excess_cash"`
+}
+
+func (settings LiquidationSettings) Validate() error {
+	if settings.LotSelection != EstimatedTax && settings.LotSelection != MinTaxOrder {
+		return fmt.Errorf("liquidation.lot_selection must be estimated_tax or min_tax_order")
+	}
+	if settings.MaxAllocationDeviation == nil {
+		return fmt.Errorf("missing required liquidation.max_pct_allocation_deviation")
+	}
+	if settings.CashReserve == nil {
+		return fmt.Errorf("missing required liquidation.cash_reserve")
+	}
+	if settings.MaxExcessCash == nil {
+		return fmt.Errorf("missing required liquidation.max_excess_cash")
+	}
+	if settings.MaxAllocationDeviation.IsNegative() || settings.MaxAllocationDeviation.GreaterThan(decimal.NewFromInt(1)) {
+		return fmt.Errorf("liquidation.max_pct_allocation_deviation must be between 0 and 1")
+	}
+	if settings.CashReserve.IsNegative() {
+		return fmt.Errorf("liquidation.cash_reserve must be nonnegative")
+	}
+	if settings.MaxExcessCash.IsNegative() {
+		return fmt.Errorf("liquidation.max_excess_cash must be nonnegative")
 	}
 	return nil
 }

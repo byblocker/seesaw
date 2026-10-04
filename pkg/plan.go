@@ -1,6 +1,7 @@
 package pkg
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"seesaw/internal/collections"
@@ -20,31 +21,57 @@ func ParsePortfolioPlan(file io.Reader) (*models.PortfolioPlan, error) {
 	}
 
 	plan := &models.PortfolioPlan{}
-	if err := yaml.Unmarshal(data, plan); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(plan); err != nil {
 		return nil, fmt.Errorf(
 			"failed to parse portfolio plan at %w", err,
 		)
 	}
+	var extraDocument any
+	if err := decoder.Decode(&extraDocument); err != io.EOF {
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse portfolio plan: %w", err)
+		}
+		return nil, fmt.Errorf("portfolio plan must contain exactly one YAML document")
+	}
 
-	if err := plan.Settings.Validate(); err != nil {
+	if err := plan.Rebalance.Validate(); err != nil {
 		return nil, err
 	}
 
+	if plan.IsTaxable == nil {
+		return nil, fmt.Errorf("missing required is_taxable")
+	}
+
+	if err := plan.Liquidation.Validate(); err != nil {
+		return nil, err
+	}
+
+	if err := normalizeAssets(plan.Assets); err != nil {
+		return nil, err
+	}
+
+	return plan, nil
+}
+
+func normalizeAssets(assets []models.AssetPlan) error {
 	totalAllocation := decimal.Zero
 	seenTickers := collections.NewSet[string]()
 
-	for i := range plan.Assets {
-		asset := &plan.Assets[i]
+	for i := range assets {
+		asset := &assets[i]
+
 		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
 		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
 
 		if err := asset.Validate(); err != nil {
-			return nil, err
+			return err
 		}
 
 		for ticker := range asset.Tickers() {
 			if seenTickers.Contains(ticker) {
-				return nil, fmt.Errorf("duplicate ticker %q", ticker)
+				return fmt.Errorf("duplicate ticker %q", ticker)
 			}
 
 			seenTickers.Add(ticker)
@@ -54,8 +81,8 @@ func ParsePortfolioPlan(file io.Reader) (*models.PortfolioPlan, error) {
 	}
 
 	if !totalAllocation.Equal(decimal.NewFromInt(1)) {
-		return nil, fmt.Errorf("target allocations must sum to 1.0; got %s", totalAllocation.String())
+		return fmt.Errorf("target allocations must sum to 1.0; got %s", totalAllocation.String())
 	}
 
-	return plan, nil
+	return nil
 }

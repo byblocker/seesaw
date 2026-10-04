@@ -45,11 +45,18 @@ cp data/portfolios/template.yaml data/portfolios/< your portfolio name here >.ya
 ```yaml
 broker: YOUR_BROKER_NAME
 accountId: "YOUR_ACCOUNT_ID"
+is_taxable: true
 
-settings:
+rebalance:
   min_fractional_share_to_round: 0.7
-  max_pct_alloc_deviation_allowed: 0.02
+  max_pct_allocation_deviation: 0.02
   min_pct_loss_to_harvest: -0.005
+
+liquidation:
+  lot_selection: estimated_tax
+  max_pct_allocation_deviation: 0.02
+  cash_reserve: 0
+  max_excess_cash: 100
 
 assets:
   - primary_ticker: VOO
@@ -60,21 +67,27 @@ assets:
     target_allocation: 0.25
 ```
 
-`broker` and `accountId` should be your broker name and brokerage account number.
+All fields below are required except `assets[].alternate_ticker`. Values have no defaults or user-config overrides; explicit zeros are accepted where allowed.
 
-Rebalancing settings are defined in the `settings` struct:
-- `min_fractional_share_to_round` is the remainder needed to round a whole-share buy up, between `0` and `1` inclusive. Fractional-share support depends on the broker. See its setup guide for supported behavior.
-- `max_pct_alloc_deviation_allowed` is extra whole-share purchase allowance as a fraction of total portfolio value, between `0` and `1` inclusive, limited by available cash.
-- `min_pct_loss_to_harvest` is the loss threshold, between `-1` and `0` inclusive. 
+| Field | Purpose | Values / constraints |
+| --- | --- | --- |
+| `broker` | Name of a supported brokerage | `ETRADE` |
+| `accountId` | Brokerage account number. | String |
+| `is_taxable` | Is the account taxable? | `true` or `false`. |
+| `rebalance.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
+| `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
+| `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
+| `liquidation.lot_selection` | Select lots by estimated tax cost or a fixed priority: short-term losses, long-term losses, long-term gains, then short-term gains. | `estimated_tax` or  `min_tax_order` |
+| `liquidation.max_pct_allocation_deviation` | If liquidating, how low may an asset deviate from its target deviation | `[0, 1]` |
+| `liquidation.cash_reserve` | Minimum balance for this account | Non-negative number |
+| `liquidation.max_excess_cash` | Maximum balance above requested liquidation amount |  Non-negative number |
+| `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
+| `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
+| `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `[0, 1]` |
 
-There are no defaults. Missing settings are rejected, while zero values are accepted. 
+_seesaw_ rejects unknown fields and multiple documents
 
-For each `asset`, you must choose a . . .
-- `primary_ticker` and `alternate_ticker`: These identify publically-tradable security pairs suitable for tax-loss harvesting. The primary is preferred for most purchases, but the alternate is used when harvesting losses from primary, and vice versa. Without an `alternate_ticker`, _seesaw_ will propose buys without suggesting tax-loss harvesting.
-
-**WARNING:** _seesaw_ does not ensure the pairs tickers suitability for wash-sale avoidance. Please review this yourself.
-
-- `target_allocation`: The target fraction of your portfolio dedicated to this pair of securities. Both the primary and alternate position allocation count towards this total. Each allocation must be greater than `0.0` and at most `1.0`. _seesaw_ ensures the sum of all `target_allocations` equals `1.0`
+**WARNING:** _seesaw_ does not ensure ticker pairs are suitable for wash-sale avoidance. Please review this yourself.
 
 ## Rebalance!
 

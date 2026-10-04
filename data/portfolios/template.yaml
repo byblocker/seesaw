@@ -1,10 +1,17 @@
 broker: YOUR_BROKER_NAME
 accountId: "YOUR_ACCOUNT_ID"
+is_taxable: true
 
-settings:
+rebalance:
   min_fractional_share_to_round: 0.7
-  max_pct_alloc_deviation_allowed: 0.02
+  max_pct_allocation_deviation: 0.02
   min_pct_loss_to_harvest: -0.005
+
+liquidation:
+  lot_selection: estimated_tax
+  max_pct_allocation_deviation: 0.02
+  cash_reserve: 0
+  max_excess_cash: 100
 
 assets:
   - primary_ticker: VOO

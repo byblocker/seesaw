@@ -59,7 +59,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write snapshot summary: %w", err)
 	}
 
-	orders, err := pkg.Rebalance(ctx, *snapshot, client, plan.Settings)
+	orders, err := pkg.Rebalance(ctx, *snapshot, client, plan.Rebalance)
 	if err != nil {
 		return err
 	}
