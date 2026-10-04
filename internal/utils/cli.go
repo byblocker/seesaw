@@ -40,6 +40,11 @@ func AskForSecret(prompt string) (string, error) {
 }
 
 func OpenUrl(url string) error {
+	prompt := fmt.Sprintf("Open in your browser:\n%s\nPress ENTER to continue: ", url)
+	if _, err := AskForInput(prompt); err != nil {
+		return err
+	}
+
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
