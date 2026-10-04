@@ -66,12 +66,12 @@ func SnapshotPortfolio(
 	}
 
 	return &models.AccountSnapshot{
-		Id:          plan.AccountId,
-		CreatedAt:   time.Now(),
-		BuyingPower: portfolio.BuyingPower,
-		TotalValue:  portfolio.TotalValue,
-		Tickers:     portfolio.Tickers,
-		Assets:      assets,
+		Id:         plan.AccountId,
+		CreatedAt:  time.Now(),
+		Balances:   portfolio.Balances,
+		TotalValue: portfolio.TotalValue,
+		Tickers:    portfolio.Tickers,
+		Assets:     assets,
 	}, nil
 }
 

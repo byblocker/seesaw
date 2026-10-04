@@ -10,8 +10,8 @@ type AccountSnapshot struct {
 	Id        string
 	CreatedAt time.Time
 
-	BuyingPower decimal.Decimal
-	TotalValue  decimal.Decimal
+	Balances   Balances
+	TotalValue decimal.Decimal
 
 	Tickers []string
 	Assets  []Asset

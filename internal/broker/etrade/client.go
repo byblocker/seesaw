@@ -52,9 +52,20 @@ func (client *Client) Portfolio(
 		return nil, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
 
-	portfolio, err := client.Holdings(ctx, selected)
+	holdings, err := client.Holdings(ctx, selected)
 	if err != nil {
 		return nil, err
+	}
+
+	balances, err := client.Balances(ctx, selected)
+	if err != nil {
+		return nil, err
+	}
+
+	portfolio := &models.Portfolio{
+		Balances:         balances,
+		TotalValue:       holdings.MarketValue.Add(balances.CashBalance),
+		PositionByTicker: holdings.PositionByTicker,
 	}
 
 	// Include any held tickers along with the planned tickers

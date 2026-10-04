@@ -38,7 +38,7 @@ func Rebalance(
 
 	brokerSettings := client.Settings()
 
-	balance := snapshot.BuyingPower
+	balance := snapshot.Balances.BuyingPower
 	maxValueDeviationAllowed := snapshot.TotalValue.Mul(
 		*settings.MaxPctAlocDeviation,
 	)

@@ -11,9 +11,15 @@ type Quote struct {
 	Bid decimal.Decimal
 }
 
+type Balances struct {
+	CashBalance      decimal.Decimal
+	BuyingPower      decimal.Decimal
+	WithdrawableCash decimal.Decimal
+}
+
 type Portfolio struct {
 	Tickers          []string
-	BuyingPower      decimal.Decimal
+	Balances         Balances
 	TotalValue       decimal.Decimal
 	PositionByTicker map[string]Position
 	RecentTx         RecentTxByTicker

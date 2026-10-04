@@ -22,7 +22,7 @@ func Snapshot(snapshot models.AccountSnapshot) string {
 	}
 
 	total := money(snapshot.TotalValue)
-	balance := money(snapshot.BuyingPower)
+	balance := money(snapshot.Balances.CashBalance)
 	moneyWidth := max(len(total), len(balance))
 	fmt.Fprintf(&output, "%-8s %*s\n%-8s %*s\n", "Balance:", moneyWidth, balance, "Total:", moneyWidth, total)
 	if divider != "" {

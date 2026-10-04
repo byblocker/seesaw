@@ -38,7 +38,6 @@ type accountPortfolioResponse struct {
 
 type portfolioPageResponse struct {
 	Totals struct {
-		Balance     decimal.Decimal `json:"cashBalance"`
 		MarketValue decimal.Decimal `json:"totalMarketValue"`
 	} `json:"totals"`
 	Portfolios []accountPortfolioResponse `json:"AccountPortfolio"`
@@ -58,7 +57,12 @@ type getPositionLotResponse struct {
 	} `json:"PositionLotsResponse"`
 }
 
-func (client *Client) Holdings(ctx context.Context, account Account) (*models.Portfolio, error) {
+type Holdings struct {
+	MarketValue      decimal.Decimal
+	PositionByTicker map[string]models.Position
+}
+
+func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings, error) {
 	if account.key == "" {
 		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
@@ -73,13 +77,13 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 		"view":           {"COMPLETE"},
 	}
 
-	portfolio := &models.Portfolio{
+	holdings := &Holdings{
 		PositionByTicker: make(map[string]models.Position),
 	}
 	var timer utils.Timer
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
-		timer.Start("Fetching holdings and cash balance")
+		timer.Start("Fetching holdings")
 		response, err := utils.FetchJSON[portfolioResponse](
 			ctx, client.httpClient, endpoint+"?"+query.Encode(),
 		)
@@ -94,8 +98,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 		}
 		if pagesFetched == 0 {
 			// Totals describe the account, not each page's positions.
-			portfolio.BuyingPower = data.Totals.Balance
-			portfolio.TotalValue = data.Totals.MarketValue.Add(data.Totals.Balance)
+			holdings.MarketValue = data.Totals.MarketValue
 		}
 
 		pagesFetched++
@@ -105,8 +108,8 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 		}
 
 		totalPages = max(totalPages, reportedPages)
-		positionsBeforePage := len(portfolio.PositionByTicker)
-		if err := client.parsePositions(ctx, account.key, data.Portfolios, portfolio.PositionByTicker); err != nil {
+		positionsBeforePage := len(holdings.PositionByTicker)
+		if err := client.parsePositions(ctx, account.key, data.Portfolios, holdings.PositionByTicker); err != nil {
 			return nil, fmt.Errorf("load portfolio page %d: %w", currentPage, err)
 		}
 
@@ -117,7 +120,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 			break
 		}
 
-		if nextPage <= currentPage || len(portfolio.PositionByTicker) == positionsBeforePage {
+		if nextPage <= currentPage || len(holdings.PositionByTicker) == positionsBeforePage {
 			return nil, fmt.Errorf("portfolio pagination made no progress on page %d (next %d)", currentPage, nextPage)
 		}
 
@@ -125,7 +128,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 		query.Set("pageNumber", strconv.Itoa(nextPage))
 	}
 
-	return portfolio, nil
+	return holdings, nil
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {
