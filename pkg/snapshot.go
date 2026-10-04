@@ -8,8 +8,6 @@ import (
 	"seesaw/pkg/models"
 	"slices"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 // Allocation ratios retain 19 decimal places to limit intermediate precision loss.
@@ -30,69 +28,53 @@ func SnapshotPortfolio(
 		return nil, fmt.Errorf("failed to retrieve portfolio: %w", err)
 	}
 
-	recentTx := portfolio.RecentTx
+	assets := make([]models.Asset, 0, len(plan.Assets)+1) // includes asset for unplanned positions
+	planned := collections.NewSet[string]()
+	for i := range plan.Assets {
+		assetPlan := &plan.Assets[i]
 
-	var assets []models.Asset
+		tickers := slices.Collect(assetPlan.Tickers())
+		planned.Add(tickers...)
 
-	for _, assetPlan := range plan.Assets {
-		positions := collections.ExtractMapByKeys(
-			portfolio.PositionByTicker,
-			assetPlan.Tickers(),
-		)
-		transactions := collections.ExtractMapByKeys(
-			recentTx,
-			assetPlan.Tickers(),
-		)
-		planned := assignAsset(
-			&assetPlan,
-			positions,
-			transactions,
-			portfolio.TotalValue,
-		)
-
-		assets = append(assets, planned)
+		assets = append(assets, assignAsset(assetPlan, tickers, portfolio))
 	}
 
-	// Extra positions should be uncommon, but still technically possible.
-	// Aggregate into a single unplanned asset for tax-loss harvesting.
-	if len(portfolio.PositionByTicker) > 0 {
-		unplanned := assignAsset(
-			nil,
-			portfolio.PositionByTicker,
-			recentTx,
-			portfolio.TotalValue,
-		)
-		assets = append(assets, unplanned)
+	var unplanned []string
+	for ticker := range portfolio.PositionByTicker {
+		if !planned.Contains(ticker) {
+			unplanned = append(unplanned, ticker)
+		}
+	}
+
+	if len(unplanned) > 0 {
+		assets = append(assets, assignAsset(nil, unplanned, portfolio))
 	}
 
 	return &models.AccountSnapshot{
-		Id:         plan.AccountId,
-		CreatedAt:  time.Now(),
-		Balances:   portfolio.Balances,
-		TotalValue: portfolio.TotalValue,
-		Tickers:    portfolio.Tickers,
-		Assets:     assets,
+		Id:        plan.AccountId,
+		CreatedAt: time.Now(),
+		Portfolio: portfolio,
+		Assets:    assets,
 	}, nil
 }
 
 func assignAsset(
 	plan *models.AssetPlan,
-	positions map[string]models.Position,
-	recentTx models.RecentTxByTicker,
-	portfolioValue decimal.Decimal,
+	tickers []string,
+	portfolio *models.Portfolio,
 ) models.Asset {
-	asset := models.Asset{Plan: plan, Positions: positions, RecentTx: recentTx}
-	for _, pos := range positions {
-		asset.Value = asset.Value.Add(pos.MarketValue)
+	asset := models.Asset{Plan: plan, Tickers: tickers}
+	for _, ticker := range tickers {
+		asset.Value = asset.Value.Add(portfolio.PositionByTicker[ticker].MarketValue)
 	}
 
-	if !portfolioValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(portfolioValue, allocationDecimalPlaces)
+	if !portfolio.TotalValue.IsZero() {
+		asset.Allocation, _ = asset.Value.QuoRem(portfolio.TotalValue, allocationDecimalPlaces)
 	}
 
 	if plan != nil {
 		asset.AllocDrift = asset.Allocation.Sub(plan.TargetAllocation)
-		expectedValue := portfolioValue.Mul(plan.TargetAllocation)
+		expectedValue := portfolio.TotalValue.Mul(plan.TargetAllocation)
 		asset.ValueDrift = asset.Value.Sub(expectedValue)
 	}
 

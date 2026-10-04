@@ -27,7 +27,10 @@ func Rebalance(
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
-	if snapshot.TotalValue.Cmp(decimal.Zero) <= 0 {
+	if snapshot.Portfolio == nil {
+		return nil, fmt.Errorf("snapshot is missing portfolio")
+	}
+	if snapshot.Portfolio.TotalValue.Cmp(decimal.Zero) <= 0 {
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
 
@@ -38,14 +41,14 @@ func Rebalance(
 
 	brokerSettings := client.Settings()
 
-	balance := snapshot.Balances.BuyingPower
-	maxValueDeviationAllowed := snapshot.TotalValue.Mul(
+	balance := snapshot.Portfolio.Balances.BuyingPower
+	maxValueDeviationAllowed := snapshot.Portfolio.TotalValue.Mul(
 		*settings.MaxPctAlocDeviation,
 	)
 
-	quotePerTicker := make(map[string]models.Quote, len(snapshot.Tickers))
-	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Tickers))
-	for _, ticker := range snapshot.Tickers {
+	quotePerTicker := make(map[string]models.Quote, len(snapshot.Portfolio.Tickers))
+	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Portfolio.Tickers))
+	for _, ticker := range snapshot.Portfolio.Tickers {
 		quote, err := client.Quote(ctx, ticker)
 		if err != nil {
 			return nil, err
@@ -60,7 +63,7 @@ func Rebalance(
 				strings.Join(slices.Collect(asset.Plan.Tickers()), " / "),
 				asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
 			for ticker := range asset.Plan.Tickers() {
-				if len(asset.RecentTx[ticker].Sells) > 0 {
+				if len(snapshot.Portfolio.RecentTx[ticker].Sells) > 0 {
 					utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", ticker)
 				}
 			}
@@ -69,11 +72,11 @@ func Rebalance(
 		}
 
 		harvestFunc := func(ticker string) models.SellProposal {
-			position, exists := asset.Positions[ticker]
+			position, exists := snapshot.Portfolio.PositionByTicker[ticker]
 			if !exists {
 				return models.SellProposal{}
 			}
-			if !rebalance.CanSell(asset, ticker) {
+			if !rebalance.CanSell(snapshot.Portfolio.RecentTx, ticker) {
 				utils.Verbosef(ctx, "Skip harvesting %s: recent purchases in the wash-sale window", ticker)
 				return models.SellProposal{}
 			}
@@ -96,7 +99,7 @@ func Rebalance(
 		if asset.Plan == nil {
 			// We should not force liquidation of unplanned positions while rebalancing,
 			// but we should eagerly harvest any tax-loss these positions have accrued.
-			for ticker := range asset.Positions {
+			for _, ticker := range asset.Tickers {
 
 				if sell := harvestFunc(ticker); len(sell.Lots) > 0 {
 					plan.Sells = append(plan.Sells, sell)
@@ -106,8 +109,8 @@ func Rebalance(
 			continue
 		}
 
-		sell := rebalance.SelectPosToSell(asset, harvestFunc)
-		buy := rebalance.SelectPosToBuy(asset, sell, quotePerTicker)
+		sell := rebalance.SelectPosToSell(asset, snapshot.Portfolio.RecentTx, harvestFunc)
+		buy := rebalance.SelectPosToBuy(asset, snapshot.Portfolio.RecentTx, sell, quotePerTicker)
 
 		if buy.Ticker == "" {
 			// This should rarely happen, but if we cannot maintain an asset's allocation

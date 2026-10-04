@@ -10,9 +10,7 @@ type Set[T comparable] map[T]struct{}
 
 func NewSet[T comparable](values ...T) Set[T] {
 	s := make(Set[T], len(values))
-	for _, value := range values {
-		s.Add(value)
-	}
+	s.Add(values...)
 
 	return s
 }
@@ -26,8 +24,10 @@ func SetFrom[T comparable](sequences ...iter.Seq[T]) Set[T] {
 	return s
 }
 
-func (s Set[T]) Add(value T) {
-	s[value] = struct{}{}
+func (s Set[T]) Add(values ...T) {
+	for _, value := range values {
+		s[value] = struct{}{}
+	}
 }
 
 func (s Set[T]) Contains(value T) bool {

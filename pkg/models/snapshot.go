@@ -10,17 +10,13 @@ type AccountSnapshot struct {
 	Id        string
 	CreatedAt time.Time
 
-	Balances   Balances
-	TotalValue decimal.Decimal
-
-	Tickers []string
-	Assets  []Asset
+	Portfolio *Portfolio
+	Assets    []Asset
 }
 
 type Asset struct {
-	Plan      *AssetPlan
-	Positions map[string]Position
-	RecentTx  RecentTxByTicker
+	Plan    *AssetPlan
+	Tickers []string
 
 	Allocation decimal.Decimal
 	AllocDrift decimal.Decimal
