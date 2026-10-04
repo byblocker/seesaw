@@ -68,7 +68,7 @@ type RebalanceSettings struct {
 	// Minimum remainder to round a whole-share purchase up.
 	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round"`
 	// Extra purchase allowance as a fraction of total portfolio value.
-	MaxPctAllocDeviationAllowed *decimal.Decimal `yaml:"max_pct_allocation_deviation"`
+	MaxPctAlocDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation"`
 	// Loss threshold expressed as a nonpositive fraction of the lot's cost.
 	MinPctLossToHarvest *decimal.Decimal `yaml:"min_pct_loss_to_harvest"`
 }
@@ -77,7 +77,7 @@ func (settings RebalanceSettings) Validate() error {
 	if settings.MinFractionalShareToRound == nil {
 		return fmt.Errorf("missing required rebalance.min_fractional_share_to_round")
 	}
-	if settings.MaxPctAllocDeviationAllowed == nil {
+	if settings.MaxPctAlocDeviation == nil {
 		return fmt.Errorf("missing required rebalance.max_pct_allocation_deviation")
 	}
 	if settings.MinPctLossToHarvest == nil {
@@ -88,7 +88,7 @@ func (settings RebalanceSettings) Validate() error {
 	if settings.MinFractionalShareToRound.IsNegative() || settings.MinFractionalShareToRound.GreaterThan(one) {
 		return fmt.Errorf("rebalance.min_fractional_share_to_round must be between 0 and 1")
 	}
-	if settings.MaxPctAllocDeviationAllowed.IsNegative() || settings.MaxPctAllocDeviationAllowed.GreaterThan(one) {
+	if settings.MaxPctAlocDeviation.IsNegative() || settings.MaxPctAlocDeviation.GreaterThan(one) {
 		return fmt.Errorf("rebalance.max_pct_allocation_deviation must be between 0 and 1")
 	}
 	if settings.MinPctLossToHarvest.LessThan(one.Neg()) || settings.MinPctLossToHarvest.IsPositive() {

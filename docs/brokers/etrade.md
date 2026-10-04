@@ -38,7 +38,7 @@ When _seesaw_ first authenticates for the day, _seesaw_ will open the browser to
 
 - ETRADE purchases use whole shares; the client settings reports `AllowFractionalShares: false`. ETRADE is actively supporting fractional shares but only for specific tickers.
 - Transaction history covers active accounts accessible through your ETRADE credentials. _seesaw_ cannot account for activity at other brokerages or in closed or inactive ETRADE accounts.
-- Portfolio requests do not paginate. The integration assumes the default response of up to 50 positions includes all holdings.
+- Portfolio requests follow the broker's pagination metadata to retrieve all holdings. Missing continuation metadata or repeated positions cause an error instead of returning an incomplete portfolio.
 
 ## Library usage
 

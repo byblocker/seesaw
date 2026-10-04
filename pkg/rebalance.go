@@ -40,7 +40,7 @@ func Rebalance(
 
 	balance := snapshot.BuyingPower
 	maxValueDeviationAllowed := snapshot.TotalValue.Mul(
-		*settings.MaxPctAllocDeviationAllowed,
+		*settings.MaxPctAlocDeviation,
 	)
 
 	quotePerTicker := make(map[string]models.Quote, len(snapshot.Tickers))

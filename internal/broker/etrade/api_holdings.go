@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
+	"strconv"
 	"strings"
 	"time"
 
@@ -28,16 +29,23 @@ type positionLotResponse struct {
 	UnrealizedPL decimal.Decimal `json:"totalGain"`
 }
 
+type accountPortfolioResponse struct {
+	Positions      []positionResponse `json:"Position"`
+	NextPageNo     string             `json:"nextPageNo"`
+	TotalNoOfPages int                `json:"totalNoOfPages"`
+	TotalPages     int                `json:"totalPages"`
+}
+
+type portfolioPageResponse struct {
+	Totals struct {
+		Balance     decimal.Decimal `json:"cashBalance"`
+		MarketValue decimal.Decimal `json:"totalMarketValue"`
+	} `json:"totals"`
+	Portfolios []accountPortfolioResponse `json:"AccountPortfolio"`
+}
+
 type portfolioResponse struct {
-	PortfolioResponse struct {
-		Totals struct {
-			Balance     decimal.Decimal `json:"cashBalance"`
-			MarketValue decimal.Decimal `json:"totalMarketValue"`
-		} `json:"totals"`
-		Portfolios []struct {
-			Positions []positionResponse `json:"Position"`
-		} `json:"AccountPortfolio"`
-	} `json:"PortfolioResponse"`
+	PortfolioResponse portfolioPageResponse `json:"PortfolioResponse"`
 }
 
 type getPositionLotResponse struct {
@@ -64,31 +72,92 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 		"totalsRequired": {"true"},
 		"view":           {"COMPLETE"},
 	}
-	endpoint += "?" + query.Encode()
-
-	var timer utils.Timer
-	timer.Start("Fetching holdings and cash balance")
-	response, err := utils.FetchJSON[portfolioResponse](
-		ctx, client.httpClient, endpoint,
-	)
-	timer.Stop(err)
-	if err != nil {
-		return nil, fmt.Errorf("fetch portfolio: %w", err)
-	}
-
-	data := response.PortfolioResponse
-	if len(data.Portfolios) == 0 {
-		return nil, fmt.Errorf("no portfolio returned for account %s", account.id)
-	}
 
 	portfolio := &models.Portfolio{
-		BuyingPower:      data.Totals.Balance,
-		TotalValue:       data.Totals.MarketValue.Add(data.Totals.Balance),
 		PositionByTicker: make(map[string]models.Position),
 	}
+	var timer utils.Timer
+	currentPage, pagesFetched, totalPages := 0, 0, 0
+	for {
+		timer.Start("Fetching holdings and cash balance")
+		response, err := utils.FetchJSON[portfolioResponse](
+			ctx, client.httpClient, endpoint+"?"+query.Encode(),
+		)
+		timer.Stop(err)
+		if err != nil {
+			return nil, fmt.Errorf("fetch portfolio page %d: %w", currentPage, err)
+		}
 
-	for _, accountPortfolio := range data.Portfolios {
-		for _, pos := range accountPortfolio.Positions {
+		data := response.PortfolioResponse
+		if len(data.Portfolios) == 0 {
+			return nil, fmt.Errorf("no portfolio returned for account %s on page %d", account.id, currentPage)
+		}
+		if pagesFetched == 0 {
+			// Totals describe the account, not each page's positions.
+			portfolio.BuyingPower = data.Totals.Balance
+			portfolio.TotalValue = data.Totals.MarketValue.Add(data.Totals.Balance)
+		}
+
+		pagesFetched++
+		nextPage, reportedPages, err := data.pagination()
+		if err != nil {
+			return nil, err
+		}
+
+		totalPages = max(totalPages, reportedPages)
+		positionsBeforePage := len(portfolio.PositionByTicker)
+		if err := client.parsePositions(ctx, account.key, data.Portfolios, portfolio.PositionByTicker); err != nil {
+			return nil, fmt.Errorf("load portfolio page %d: %w", currentPage, err)
+		}
+
+		if nextPage == 0 {
+			if totalPages > pagesFetched {
+				return nil, fmt.Errorf("incomplete portfolio: received %d of %d pages without a next page", pagesFetched, totalPages)
+			}
+			break
+		}
+
+		if nextPage <= currentPage || len(portfolio.PositionByTicker) == positionsBeforePage {
+			return nil, fmt.Errorf("portfolio pagination made no progress on page %d (next %d)", currentPage, nextPage)
+		}
+
+		currentPage = nextPage
+		query.Set("pageNumber", strconv.Itoa(nextPage))
+	}
+
+	return portfolio, nil
+}
+
+func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {
+	for _, accountPortfolio := range page.Portfolios {
+		totalPages = max(totalPages, accountPortfolio.TotalNoOfPages, accountPortfolio.TotalPages)
+		if accountPortfolio.NextPageNo == "" {
+			continue
+		}
+		pageNumber, err := strconv.Atoi(accountPortfolio.NextPageNo)
+		if err != nil || pageNumber < 0 {
+			return 0, 0, fmt.Errorf("invalid portfolio next page %q", accountPortfolio.NextPageNo)
+		}
+
+		if nextPage != 0 && pageNumber != 0 && nextPage != pageNumber {
+			return 0, 0, fmt.Errorf("conflicting portfolio next pages %d and %d", nextPage, pageNumber)
+		}
+
+		nextPage = max(nextPage, pageNumber)
+	}
+
+	return nextPage, totalPages, nil
+}
+
+func (client *Client) parsePositions(
+	ctx context.Context,
+	accountKey string,
+	pages []accountPortfolioResponse,
+	positions map[string]models.Position,
+) error {
+	var timer utils.Timer
+	for _, page := range pages {
+		for _, pos := range page.Positions {
 			position := models.Position{
 				Id:          pos.Id,
 				Ticker:      strings.TrimSpace(pos.Ticker),
@@ -96,18 +165,20 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*models.Po
 				Allocation:  pos.Allocation,
 				MarketValue: pos.MarketValue,
 			}
+			if _, exists := positions[position.Ticker]; exists {
+				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
+			}
 			timer.Start(fmt.Sprintf("Fetching tax lots for %s", position.Ticker))
-			position.Lots, err = client.getPositionLots(ctx, account.key, pos.Id)
+			lots, err := client.getPositionLots(ctx, accountKey, pos.Id)
 			timer.Stop(err)
 			if err != nil {
-				return nil, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
+				return fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 			}
-
-			portfolio.PositionByTicker[position.Ticker] = position
+			position.Lots = lots
+			positions[position.Ticker] = position
 		}
 	}
-
-	return portfolio, nil
+	return nil
 }
 
 func (client *Client) getPositionLots(
