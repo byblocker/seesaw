@@ -52,7 +52,7 @@ type getPositionLotResponse struct {
 		PositionLots []struct {
 			positionLotResponse
 			DateAcquired int64           `json:"acquiredDate"`
-			GainPercent  decimal.Decimal `json:"totalCostForGainPct"`
+			GainBasis    decimal.Decimal `json:"totalCostForGainPct"`
 		} `json:"PositionLot"`
 	} `json:"PositionLotsResponse"`
 }
@@ -206,7 +206,11 @@ func (client *Client) getPositionLots(
 
 	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
-		// ETRADE returns percentage points; the domain model uses a fraction.
+		var gainRatio decimal.Decimal
+		if lot.GainBasis.IsPositive() {
+			// totalCostForGainPct is the denominator, not a percentage.
+			gainRatio, _ = lot.UnrealizedPL.QuoRem(lot.GainBasis, 19)
+		}
 		lots = append(lots, models.PositionLot{
 			Id:           lot.Id,
 			Quantity:     lot.Quantity,
@@ -214,7 +218,7 @@ func (client *Client) getPositionLots(
 			TimeAcquired: time.UnixMilli(lot.DateAcquired),
 			MarketValue:  lot.MarketValue,
 			UnrealizedPL: lot.UnrealizedPL,
-			PLPct:        lot.GainPercent.Shift(-2),
+			PLPct:        gainRatio,
 		})
 	}
 

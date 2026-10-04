@@ -21,7 +21,7 @@ func HarvestTaxLoss(
 	}
 
 	for _, lot := range position.Lots {
-		if lot.PLPct.Cmp(minPctLossToHarvest) > 0 {
+		if !lot.PLPct.IsNegative() || lot.PLPct.Cmp(minPctLossToHarvest) > 0 {
 			continue
 		}
 
