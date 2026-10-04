@@ -89,6 +89,30 @@ _seesaw_ rejects unknown fields and multiple documents
 
 **WARNING:** _seesaw_ does not ensure ticker pairs are suitable for wash-sale avoidance. Please review this yourself.
 
+## User tax assumptions
+
+1. Create a personal copy of the template user config:
+```sh
+cp data/user.template.yaml data/user.yaml
+```
+
+2. Edit your local user config:
+
+```yaml
+tax:
+  short_term_gain_rate: 0.35
+  long_term_gain_rate: 0.20
+```
+
+| Field | Purpose |
+| --- | --- |
+| `tax.short_term_gain_rate` | Combined marginal tax rate used to estimate tax on short-term gains. |
+| `tax.long_term_gain_rate` | Combined marginal tax rate used to estimate tax on long-term gains. |
+
+Tax assumptions are shared across taxable portfolios. Both rates are required and are fractions between `[0, 1]`, including federal, state, and any additional taxes.
+
+Use `pkg.ParseUserConfig(reader)` to parse and validate. It rejects unknown fields and additional YAML documents.
+
 ## Rebalance!
 
 1. Pass your portfolio filename `data/portfolios/` without `.yaml`. _seesaw_ reads files relative to your working directory.

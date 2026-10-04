@@ -1,5 +1,5 @@
 .env
 
+data/user.yaml
 data/portfolios/*.yaml
-data/portfolios/*.yml
 !data/portfolios/template.yaml
