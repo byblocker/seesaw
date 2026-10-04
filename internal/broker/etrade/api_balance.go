@@ -13,7 +13,7 @@ import (
 type balanceResponse struct {
 	BalanceResponse struct {
 		Computed struct {
-			CashBalance      *decimal.Decimal `json:"cashBalance"`
+			NetCash          *decimal.Decimal `json:"netCash"`
 			BuyingPower      *decimal.Decimal `json:"cashBuyingPower"`
 			WithdrawableCash *decimal.Decimal `json:"cashAvailableForWithdrawal"`
 		} `json:"Computed"`
@@ -44,7 +44,7 @@ func (client *Client) Balances(ctx context.Context, account Account) (models.Bal
 		name  string
 		value *decimal.Decimal
 	}{
-		{"cashBalance", computed.CashBalance},
+		{"netCash", computed.NetCash},
 		{"cashBuyingPower", computed.BuyingPower},
 		{"cashAvailableForWithdrawal", computed.WithdrawableCash},
 	} {
@@ -54,7 +54,7 @@ func (client *Client) Balances(ctx context.Context, account Account) (models.Bal
 	}
 
 	return models.Balances{
-		CashBalance:      *computed.CashBalance,
+		CashBalance:      *computed.NetCash,
 		BuyingPower:      *computed.BuyingPower,
 		WithdrawableCash: *computed.WithdrawableCash,
 	}, nil
