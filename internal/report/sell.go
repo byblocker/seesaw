@@ -21,8 +21,8 @@ func formatSells(sells []models.SellProposal) (rows [][]string, proceeds, realiz
 }
 
 func formatSell(sell models.SellProposal, lot models.SellLot) []string {
-	proceeds := lot.Quantity.Mul(sell.Price)
-	realizedPL := lot.Quantity.Mul(sell.Price.Sub(lot.Lot.PricePaid))
+	proceeds := lot.Proceeds(sell.Price)
+	realizedPL := lot.RealizedPL(sell.Price)
 
 	return []string{
 		sell.Ticker,

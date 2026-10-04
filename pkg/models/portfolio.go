@@ -43,3 +43,17 @@ type PositionLot struct {
 	UnrealizedPL decimal.Decimal
 	PLPct        decimal.Decimal
 }
+
+func (lot PositionLot) IsLongTermAt(saleDate time.Time) bool {
+	acquiredYear, acquiredMonth, acquiredDay := lot.TimeAcquired.In(saleDate.Location()).Date()
+	soldYear, soldMonth, soldDay := saleDate.Date()
+
+	// The holding period starts the day after acquisition; the sale day counts.
+	// UTC date-only values keep time of day and DST out of the calculation.
+	holdingStart := time.Date(acquiredYear, acquiredMonth, acquiredDay+1, 0, 0, 0, 0, time.UTC)
+
+	// Shift the inclusive sale date back one year instead of advancing the start.
+	// This preserves the boundary when either year includes February 29.
+	saleOneYearEarlier := time.Date(soldYear-1, soldMonth, soldDay, 0, 0, 0, 0, time.UTC)
+	return !saleOneYearEarlier.Before(holdingStart)
+}
