@@ -3,10 +3,25 @@ package pkg
 import (
 	"fmt"
 	"io"
+	"os"
 	"seesaw/pkg/models"
 
 	"gopkg.in/yaml.v3"
 )
+
+func LoadUserConfig(path string) (*models.UserConfig, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening user config %s: %w", path, err)
+	}
+	defer file.Close()
+
+	config, err := ParseUserConfig(file)
+	if err != nil {
+		return nil, fmt.Errorf("loading user config %s: %w", path, err)
+	}
+	return config, nil
+}
 
 func ParseUserConfig(file io.Reader) (*models.UserConfig, error) {
 	config := &models.UserConfig{}

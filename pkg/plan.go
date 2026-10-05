@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"seesaw/internal/collections"
 	"seesaw/pkg/models"
 	"strings"
@@ -11,6 +12,20 @@ import (
 	"github.com/shopspring/decimal"
 	"gopkg.in/yaml.v3"
 )
+
+func LoadPortfolioPlan(path string) (*models.PortfolioPlan, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening portfolio plan %s: %w", path, err)
+	}
+	defer file.Close()
+
+	plan, err := ParsePortfolioPlan(file)
+	if err != nil {
+		return nil, fmt.Errorf("loading portfolio plan %s: %w", path, err)
+	}
+	return plan, nil
+}
 
 func ParsePortfolioPlan(file io.Reader) (*models.PortfolioPlan, error) {
 	data, err := io.ReadAll(file)

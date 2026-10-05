@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"path/filepath"
 	"seesaw/internal/report"
 	"seesaw/pkg"
+	"seesaw/pkg/models"
 
 	"github.com/spf13/cobra"
 )
@@ -35,15 +35,18 @@ func rebalance(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	pathToPlan := filepath.Join(portfolioDir, planName+".yaml")
-	file, err := os.Open(pathToPlan)
+	plan, err := pkg.LoadPortfolioPlan(pathToPlan)
 	if err != nil {
-		return fmt.Errorf("opening portfolio plan file %s: %w", pathToPlan, err)
+		return err
 	}
-	defer file.Close()
 
-	plan, err := pkg.ParsePortfolioPlan(file)
-	if err != nil {
-		return fmt.Errorf("loading config: %w", err)
+	var rates *models.TaxSettings
+	if *plan.IsTaxable {
+		user, err := pkg.LoadUserConfig("./data/user.yaml")
+		if err != nil {
+			return err
+		}
+		rates = &user.Tax
 	}
 
 	client, err := pkg.Connect(ctx, plan.Broker)
@@ -64,7 +67,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Orders(*orders, snapshot.Portfolio.Balances.BuyingPower)); err != nil {
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Orders(*orders, snapshot.Portfolio.Balances.BuyingPower, rates)); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
 	}
 	return nil

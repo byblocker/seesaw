@@ -111,6 +111,10 @@ tax:
 
 Tax assumptions are shared across taxable portfolios. Both rates are required and are fractions between `[0, 1]`, including federal, state, and any additional taxes.
 
+For taxable portfolios, `rebalance` loads these rates from `data/user.yaml` before connecting to the broker; non-taxable portfolios may omit this.
+
+Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
+
 Use `pkg.ParseUserConfig(reader)` to parse and validate. It rejects unknown fields and additional YAML documents.
 
 ## Rebalance!

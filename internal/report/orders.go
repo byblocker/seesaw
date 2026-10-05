@@ -10,7 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal) string {
+func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.TaxSettings) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
@@ -20,15 +20,24 @@ func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal) string {
 	}
 
 	plan = sortOrders(plan)
-	sellRows, proceeds, realizedPL := formatSells(plan.Sells)
+	sellRows, proceeds, realizedPL := formatSells(plan.Sells, rates)
 	buyRows, cost := formatBuys(plan.Buys)
-	writeTable(&output,
-		[]string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"},
-		append(sellRows, buyRows...), 3)
+	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
+	if rates != nil {
+		headers = append(headers, "Est. tax impact")
+		for i := range buyRows {
+			buyRows[i] = append(buyRows[i], "—")
+		}
+	}
+	writeTable(&output, headers, append(sellRows, buyRows...), 3)
 
 	remainingCash := buyingPower.Add(proceeds).Sub(cost)
 
-	writeOrderTotals(&output, realizedPL, remainingCash)
+	writeOrderTotals(&output, realizedPL, remainingCash, plan.Sells, rates)
+	if rates != nil && len(plan.Sells) > 0 {
+		output.WriteString("\nNegative tax impact is potential relief, assuming losses offset gains of the same holding period.\n")
+		output.WriteString("Estimates exclude annual netting, carryovers, and wash-sale adjustments; they are not tax due.\n")
+	}
 	return output.String()
 }
 
@@ -45,10 +54,28 @@ func sortOrders(plan pkg.RebalancePlan) pkg.RebalancePlan {
 	return plan
 }
 
-func writeOrderTotals(output *strings.Builder, realizedPL, remainingCash decimal.Decimal) {
+func writeOrderTotals(output *strings.Builder, realizedPL, remainingCash decimal.Decimal, sells []models.SellProposal, rates *models.TaxSettings) {
 	summaries := [][2]string{
 		{"Total P/L:", money(realizedPL)},
 		{"Remaining balance:", money(remainingCash)},
+	}
+
+	if rates != nil && len(sells) > 0 {
+		tax, relief := decimal.Zero, decimal.Zero
+		for _, sale := range sells {
+			for _, lot := range sale.Lots {
+				impact := lot.EstimatedTaxImpact(*rates)
+				if impact.IsNegative() {
+					relief = relief.Sub(impact)
+				} else {
+					tax = tax.Add(impact)
+				}
+			}
+		}
+		summaries = append(summaries,
+			[2]string{"Estimated tax on gains:", money(tax)},
+			[2]string{"Potential tax relief:", money(relief)},
+		)
 	}
 
 	var labelWidth, amountWidth int
