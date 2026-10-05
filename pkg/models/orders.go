@@ -36,33 +36,30 @@ func (p *SellProposal) Add(sell SellLot) {
 	p.RealizedPL = p.RealizedPL.Add(sell.RealizedPL())
 }
 
-type SaleCandidate struct {
+type SellLot struct {
 	Ticker       string
+	Quantity     decimal.Decimal
 	Lot          *PositionLot
 	Price        decimal.Decimal
 	GainPerShare decimal.Decimal
 	LongTerm     bool
 }
 
-func NewSaleCandidate(ticker string, lot *PositionLot, price decimal.Decimal, saleDate time.Time) SaleCandidate {
-	return SaleCandidate{
+func NewSellLot(ticker string, lot *PositionLot, price decimal.Decimal, saleDate time.Time) SellLot {
+	return SellLot{
 		Ticker: ticker, Lot: lot, Price: price,
+		Quantity:     lot.Quantity,
 		GainPerShare: price.Sub(lot.PricePaid),
 		LongTerm:     lot.IsLongTermAt(saleDate),
 	}
 }
 
-func (sale SaleCandidate) TaxImpactPerShare(rates TaxSettings) decimal.Decimal {
+func (sale SellLot) TaxImpactPerShare(rates TaxSettings) decimal.Decimal {
 	rate := rates.ShortTermGainRate
 	if sale.LongTerm {
 		rate = rates.LongTermGainRate
 	}
 	return sale.GainPerShare.Mul(*rate)
-}
-
-type SellLot struct {
-	SaleCandidate
-	Quantity decimal.Decimal
 }
 
 func (sell SellLot) Proceeds() decimal.Decimal {

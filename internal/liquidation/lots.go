@@ -12,7 +12,7 @@ import (
 
 type LiquidateCandidate struct {
 	Asset *models.Asset
-	Lots  []models.SaleCandidate
+	Lots  []models.SellLot
 }
 
 func RankLots(
@@ -50,10 +50,10 @@ func RankLots(
 					continue
 				}
 
-				group.Lots = append(group.Lots, models.NewSaleCandidate(ticker, lot, quote.Bid, saleDate))
+				group.Lots = append(group.Lots, models.NewSellLot(ticker, lot, quote.Bid, saleDate))
 			}
 		}
-		slices.SortFunc(group.Lots, func(a, b models.SaleCandidate) int {
+		slices.SortFunc(group.Lots, func(a, b models.SellLot) int {
 			return compareLots(a, b, selection, rates)
 		})
 		groups = append(groups, group)
@@ -77,7 +77,7 @@ func assetRank(asset *models.Asset) int {
 	return plannedAssetRank
 }
 
-func compareLots(a, b models.SaleCandidate, selection models.LotSelection, rates *models.TaxSettings) int {
+func compareLots(a, b models.SellLot, selection models.LotSelection, rates *models.TaxSettings) int {
 	if rates != nil {
 		if selection == models.EstimatedTax {
 			aTax, bTax := a.TaxImpactPerShare(*rates), b.TaxImpactPerShare(*rates)
