@@ -10,12 +10,15 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type LiquidateCandidate struct {
+	Asset *models.Asset
+	Lots  []LotCandidate
+}
+
 type LotCandidate struct {
 	Ticker            string
-	AssetIndex        int
 	Lot               *models.PositionLot
 	Price             decimal.Decimal
-	Unplanned         bool
 	LongTerm          bool
 	PotentialWashSale bool
 	Proceeds          decimal.Decimal
@@ -23,46 +26,24 @@ type LotCandidate struct {
 	EstimatedTax      decimal.Decimal // Optional
 }
 
-type LotSelector struct {
-	strategy     models.LotSelection
-	taxable      bool
-	saleDate     time.Time
-	taxEstimator *TaxEstimator
-}
-
-func NewLotSelector(
-	strategy models.LotSelection,
-	taxable bool,
-	rates models.TaxSettings,
-	saleDate time.Time,
-) (LotSelector, error) {
-	if strategy != models.EstimatedTax && strategy != models.MinTaxOrder {
-		return LotSelector{}, fmt.Errorf("unsupported lot selection %q", strategy)
-	}
-
-	selector := LotSelector{strategy: strategy, taxable: taxable, saleDate: saleDate}
-	if taxable && strategy == models.EstimatedTax {
-		estimator, err := NewTaxEstimator(rates, saleDate)
-		if err != nil {
-			return LotSelector{}, err
-		}
-
-		selector.taxEstimator = &estimator
-	}
-
-	return selector, nil
-}
-
-func (selector LotSelector) RankLots(
+func RankLots(
 	snapshot models.AccountSnapshot,
 	quotes map[string]models.Quote,
-) ([]LotCandidate, error) {
+	selection models.LotSelection,
+	rates *models.TaxSettings,
+	saleDate time.Time,
+) ([]LiquidateCandidate, error) {
+	if selection != models.EstimatedTax && selection != models.MinTaxOrder {
+		return nil, fmt.Errorf("unsupported lot selection %q", selection)
+	}
 	if snapshot.Portfolio == nil {
 		return nil, fmt.Errorf("snapshot is missing portfolio")
 	}
 
-	var candidates []LotCandidate
-	for assetIndex, asset := range snapshot.Assets {
+	groups := make([]LiquidateCandidate, 0, len(snapshot.Assets))
+	for i := range snapshot.Assets {
+		asset := &snapshot.Assets[i]
+		group := LiquidateCandidate{Asset: asset}
 		for _, ticker := range asset.Tickers {
 			position, held := snapshot.Portfolio.PositionByTicker[ticker]
 			if !held || position.Quantity.IsZero() {
@@ -83,50 +64,51 @@ func (selector LotSelector) RankLots(
 				sale := models.SellProposal{Ticker: ticker, Type: models.Market, Price: quote.Bid}
 				sale.Add(models.SellLot{Lot: *lot, Quantity: lot.Quantity})
 				candidate := LotCandidate{
-					Ticker: ticker, AssetIndex: assetIndex, Lot: lot, Price: quote.Bid,
-					Unplanned: asset.Plan == nil,
-					LongTerm:  lot.IsLongTermAt(selector.saleDate),
-					Proceeds:  sale.Proceeds, RealizedPL: sale.RealizedPL,
+					Ticker: ticker, Lot: lot, Price: quote.Bid,
+					LongTerm: lot.IsLongTermAt(saleDate),
+					Proceeds: sale.Proceeds, RealizedPL: sale.RealizedPL,
 				}
 
-				candidate.PotentialWashSale = selector.hasPotentialWashSale(sale, snapshot.Portfolio.RecentTx)
+				candidate.PotentialWashSale = rates != nil && hasPotentialWashSale(sale, snapshot.Portfolio.RecentTx)
 
-				if selector.taxEstimator != nil {
-					tax, err := selector.taxEstimator.Estimate(sale)
-					if err != nil {
-						return nil, fmt.Errorf("estimate tax for %s lot %d: %w", ticker, lot.Id, err)
-					}
-
-					candidate.EstimatedTax = tax
+				if rates != nil && selection == models.EstimatedTax {
+					candidate.EstimatedTax = EstimateTax(sale, *rates, saleDate)
 				}
 
-				candidates = append(candidates, candidate)
+				group.Lots = append(group.Lots, candidate)
 			}
 		}
+		slices.SortFunc(group.Lots, func(a, b LotCandidate) int {
+			return compareLots(a, b, selection, rates != nil)
+		})
+		groups = append(groups, group)
 	}
 
-	slices.SortFunc(candidates, selector.compare)
-	return candidates, nil
-}
-
-func (selector LotSelector) hasPotentialWashSale(sale models.SellProposal, recentTx models.RecentTxByTicker) bool {
-	return selector.taxable && sale.RealizedPL.IsNegative() && len(recentTx[sale.Ticker].Buys) > 0
-}
-
-func (selector LotSelector) compare(a, b LotCandidate) int {
-	if a.Unplanned != b.Unplanned {
-		if a.Unplanned {
+	slices.SortStableFunc(groups, func(a, b LiquidateCandidate) int {
+		if a.Asset.Plan == nil && b.Asset.Plan != nil {
 			return -1
 		}
-		return 1
-	}
-	if selector.taxable {
-		if selector.strategy == models.EstimatedTax {
-			// Cross multiplication compares tax per dollar without division rounding.
-			if order := a.EstimatedTax.Mul(b.Proceeds).Cmp(b.EstimatedTax.Mul(a.Proceeds)); order != 0 {
-				return order
-			}
+		if b.Asset.Plan == nil && a.Asset.Plan != nil {
+			return 1
 		}
+		return 0
+	})
+	return groups, nil
+}
+
+func hasPotentialWashSale(sale models.SellProposal, recentTx models.RecentTxByTicker) bool {
+	return sale.RealizedPL.IsNegative() && recentTx.HasRecentBuy(sale.Ticker)
+}
+
+func compareLots(a, b LotCandidate, selection models.LotSelection, taxable bool) int {
+	if taxable && selection == models.EstimatedTax {
+		// Cross multiplication compares tax per dollar without division rounding.
+		if order := a.EstimatedTax.Mul(b.Proceeds).Cmp(b.EstimatedTax.Mul(a.Proceeds)); order != 0 {
+			return order
+		}
+	}
+
+	if taxable {
 		if order := cmp.Compare(taxCategory(a), taxCategory(b)); order != 0 {
 			return order
 		}
@@ -134,9 +116,11 @@ func (selector LotSelector) compare(a, b LotCandidate) int {
 			return order
 		}
 	}
+
 	if order := cmp.Compare(a.Ticker, b.Ticker); order != 0 {
 		return order
 	}
+
 	return cmp.Compare(a.Lot.Id, b.Lot.Id)
 }
 

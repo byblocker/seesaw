@@ -4,10 +4,6 @@ import (
 	"seesaw/pkg/models"
 )
 
-func canBuy(recentTx models.RecentTxByTicker, ticker string) bool {
-	return ticker != "" && len(recentTx[ticker].Sells) == 0
-}
-
 func SelectPosToSell(
 	asset models.Asset,
 	recentTx models.RecentTxByTicker,
@@ -18,16 +14,16 @@ func SelectPosToSell(
 	}
 
 	primary, alternate := asset.Plan.PrimaryTicker, asset.Plan.AltTicker
-	if primary == alternate {
+	if primary == "" || alternate == "" || primary == alternate {
 		return models.SellProposal{}
 	}
 
 	var sellPrimary, sellAlt models.SellProposal
 
-	if canBuy(recentTx, primary) {
+	if !recentTx.HasRecentSell(primary) {
 		sellAlt = harvestPosition(alternate)
 	}
-	if canBuy(recentTx, alternate) {
+	if !recentTx.HasRecentSell(alternate) {
 		sellPrimary = harvestPosition(primary)
 	}
 
@@ -38,10 +34,6 @@ func SelectPosToSell(
 		return sellPrimary
 	}
 	return sellAlt
-}
-
-func CanSell(recentTx models.RecentTxByTicker, ticker string) bool {
-	return ticker != "" && len(recentTx[ticker].Buys) == 0
 }
 
 func SelectPosToBuy(
@@ -56,9 +48,9 @@ func SelectPosToBuy(
 		return BuyRequest{}
 	}
 
-	for _, ticker := range []string{asset.Plan.PrimaryTicker, asset.Plan.AltTicker} {
+	for ticker := range asset.Plan.Tickers() {
 		isBeingSold := len(sell.Lots) > 0 && ticker == sell.Ticker
-		if !isBeingSold && canBuy(recentTx, ticker) {
+		if !isBeingSold && !recentTx.HasRecentSell(ticker) {
 			return BuyRequest{
 				Ticker:     ticker,
 				ValueDrift: shortfall,

@@ -63,7 +63,7 @@ func Rebalance(
 				strings.Join(slices.Collect(asset.Plan.Tickers()), " / "),
 				asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
 			for ticker := range asset.Plan.Tickers() {
-				if len(snapshot.Portfolio.RecentTx[ticker].Sells) > 0 {
+				if snapshot.Portfolio.RecentTx.HasRecentSell(ticker) {
 					utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", ticker)
 				}
 			}
@@ -76,7 +76,7 @@ func Rebalance(
 			if !exists {
 				return models.SellProposal{}
 			}
-			if !rebalance.CanSell(snapshot.Portfolio.RecentTx, ticker) {
+			if snapshot.Portfolio.RecentTx.HasRecentBuy(ticker) {
 				utils.Verbosef(ctx, "Skip harvesting %s: recent purchases in the wash-sale window", ticker)
 				return models.SellProposal{}
 			}

@@ -7,6 +7,14 @@ type RecentTxByTicker map[string]struct {
 	Sells []Transaction
 }
 
+func (r RecentTxByTicker) HasRecentBuy(ticker string) bool {
+	return ticker != "" && len(r[ticker].Buys) > 0
+}
+
+func (r RecentTxByTicker) HasRecentSell(ticker string) bool {
+	return ticker != "" && len(r[ticker].Sells) > 0
+}
+
 func (r RecentTxByTicker) Add(transaction Transaction) {
 	history := r[transaction.Ticker]
 
