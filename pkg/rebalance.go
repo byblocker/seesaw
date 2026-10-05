@@ -9,6 +9,7 @@ import (
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -39,6 +40,9 @@ func Rebalance(
 		plan        RebalancePlan
 	)
 
+	// Seesaw does not look ahead for future transactions, so any tax-loss harvesting
+	// will be evaluated if sold today
+	saleDate := time.Now()
 	brokerSettings := client.Settings()
 
 	balance := snapshot.Portfolio.Balances.BuyingPower
@@ -85,6 +89,7 @@ func Rebalance(
 				position,
 				quotePerTicker[ticker].Bid,
 				*settings.MinPctLossToHarvest,
+				saleDate,
 			)
 			if len(candidate.Lots) == 0 {
 				utils.Verbosef(ctx, "No lots of %s meet the %s%% loss threshold",

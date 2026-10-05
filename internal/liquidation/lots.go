@@ -12,18 +12,7 @@ import (
 
 type LiquidateCandidate struct {
 	Asset *models.Asset
-	Lots  []LotCandidate
-}
-
-type LotCandidate struct {
-	Ticker            string
-	Lot               *models.PositionLot
-	Price             decimal.Decimal
-	LongTerm          bool
-	PotentialWashSale bool
-	Proceeds          decimal.Decimal
-	RealizedPL        decimal.Decimal
-	EstimatedTax      decimal.Decimal // Optional
+	Lots  []models.SaleCandidate
 }
 
 func RankLots(
@@ -61,58 +50,46 @@ func RankLots(
 					continue
 				}
 
-				sale := models.SellProposal{Ticker: ticker, Type: models.Market, Price: quote.Bid}
-				sale.Add(models.SellLot{Lot: *lot, Quantity: lot.Quantity})
-				candidate := LotCandidate{
-					Ticker: ticker, Lot: lot, Price: quote.Bid,
-					LongTerm: lot.IsLongTermAt(saleDate),
-					Proceeds: sale.Proceeds, RealizedPL: sale.RealizedPL,
-				}
-
-				candidate.PotentialWashSale = rates != nil && hasPotentialWashSale(sale, snapshot.Portfolio.RecentTx)
-
-				if rates != nil && selection == models.EstimatedTax {
-					candidate.EstimatedTax = EstimateTax(sale, *rates, saleDate)
-				}
-
-				group.Lots = append(group.Lots, candidate)
+				group.Lots = append(group.Lots, models.NewSaleCandidate(ticker, lot, quote.Bid, saleDate))
 			}
 		}
-		slices.SortFunc(group.Lots, func(a, b LotCandidate) int {
-			return compareLots(a, b, selection, rates != nil)
+		slices.SortFunc(group.Lots, func(a, b models.SaleCandidate) int {
+			return compareLots(a, b, selection, rates)
 		})
 		groups = append(groups, group)
 	}
 
 	slices.SortStableFunc(groups, func(a, b LiquidateCandidate) int {
-		if a.Asset.Plan == nil && b.Asset.Plan != nil {
-			return -1
-		}
-		if b.Asset.Plan == nil && a.Asset.Plan != nil {
-			return 1
-		}
-		return 0
+		return cmp.Compare(assetRank(a.Asset), assetRank(b.Asset))
 	})
 	return groups, nil
 }
 
-func hasPotentialWashSale(sale models.SellProposal, recentTx models.RecentTxByTicker) bool {
-	return sale.RealizedPL.IsNegative() && recentTx.HasRecentBuy(sale.Ticker)
+const (
+	unplannedAssetRank = iota
+	plannedAssetRank
+)
+
+func assetRank(asset *models.Asset) int {
+	if asset.Plan == nil {
+		return unplannedAssetRank
+	}
+	return plannedAssetRank
 }
 
-func compareLots(a, b LotCandidate, selection models.LotSelection, taxable bool) int {
-	if taxable && selection == models.EstimatedTax {
-		// Cross multiplication compares tax per dollar without division rounding.
-		if order := a.EstimatedTax.Mul(b.Proceeds).Cmp(b.EstimatedTax.Mul(a.Proceeds)); order != 0 {
+func compareLots(a, b models.SaleCandidate, selection models.LotSelection, rates *models.TaxSettings) int {
+	if rates != nil {
+		if selection == models.EstimatedTax {
+			aTax, bTax := a.TaxImpactPerShare(*rates), b.TaxImpactPerShare(*rates)
+			// Quantity cancels out of tax per dollar; cross multiplication avoids rounding.
+			if order := aTax.Mul(b.Price).Cmp(bTax.Mul(a.Price)); order != 0 {
+				return order
+			}
+		}
+		if order := cmp.Compare(taxCategory(a.GainPerShare, a.LongTerm), taxCategory(b.GainPerShare, b.LongTerm)); order != 0 {
 			return order
 		}
-	}
-
-	if taxable {
-		if order := cmp.Compare(taxCategory(a), taxCategory(b)); order != 0 {
-			return order
-		}
-		if order := a.RealizedPL.Mul(b.Proceeds).Cmp(b.RealizedPL.Mul(a.Proceeds)); order != 0 {
+		if order := a.GainPerShare.Mul(b.Price).Cmp(b.GainPerShare.Mul(a.Price)); order != 0 {
 			return order
 		}
 	}
@@ -132,16 +109,16 @@ const (
 	shortTermGainRank
 )
 
-func taxCategory(candidate LotCandidate) int {
-	sign := candidate.RealizedPL.Sign()
+func taxCategory(gain decimal.Decimal, longTerm bool) int {
+	sign := gain.Sign()
 	switch {
-	case sign < 0 && !candidate.LongTerm:
+	case sign < 0 && !longTerm:
 		return shortTermLossRank
 	case sign < 0:
 		return longTermLossRank
 	case sign == 0:
 		return breakEvenRank
-	case candidate.LongTerm:
+	case longTerm:
 		return longTermGainRank
 	default:
 		return shortTermGainRank

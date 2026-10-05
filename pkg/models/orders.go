@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -31,21 +32,49 @@ type SellProposal struct {
 
 func (p *SellProposal) Add(sell SellLot) {
 	p.Lots = append(p.Lots, sell)
-	p.Proceeds = p.Proceeds.Add(sell.Proceeds(p.Price))
-	p.RealizedPL = p.RealizedPL.Add(sell.RealizedPL(p.Price))
+	p.Proceeds = p.Proceeds.Add(sell.Proceeds())
+	p.RealizedPL = p.RealizedPL.Add(sell.RealizedPL())
+}
+
+type SaleCandidate struct {
+	Ticker       string
+	Lot          *PositionLot
+	Price        decimal.Decimal
+	GainPerShare decimal.Decimal
+	LongTerm     bool
+}
+
+func NewSaleCandidate(ticker string, lot *PositionLot, price decimal.Decimal, saleDate time.Time) SaleCandidate {
+	return SaleCandidate{
+		Ticker: ticker, Lot: lot, Price: price,
+		GainPerShare: price.Sub(lot.PricePaid),
+		LongTerm:     lot.IsLongTermAt(saleDate),
+	}
+}
+
+func (sale SaleCandidate) TaxImpactPerShare(rates TaxSettings) decimal.Decimal {
+	rate := rates.ShortTermGainRate
+	if sale.LongTerm {
+		rate = rates.LongTermGainRate
+	}
+	return sale.GainPerShare.Mul(*rate)
 }
 
 type SellLot struct {
-	Lot      PositionLot
+	SaleCandidate
 	Quantity decimal.Decimal
 }
 
-func (sell SellLot) Proceeds(price decimal.Decimal) decimal.Decimal {
-	return sell.Quantity.Mul(price)
+func (sell SellLot) Proceeds() decimal.Decimal {
+	return sell.Quantity.Mul(sell.Price)
 }
 
-func (sell SellLot) RealizedPL(price decimal.Decimal) decimal.Decimal {
-	return sell.Quantity.Mul(price.Sub(sell.Lot.PricePaid))
+func (sell SellLot) RealizedPL() decimal.Decimal {
+	return sell.Quantity.Mul(sell.GainPerShare)
+}
+
+func (sell SellLot) EstimatedTaxImpact(rates TaxSettings) decimal.Decimal {
+	return sell.Quantity.Mul(sell.TaxImpactPerShare(rates))
 }
 
 func (proposal SellProposal) Validate() error {
