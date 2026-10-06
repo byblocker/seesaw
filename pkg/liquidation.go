@@ -76,7 +76,7 @@ func Liquidate(
 		return nil, err
 	}
 
-	candidates, err := liquidation.RankLots(snapshot, quotes, settings.LotSelection, rates, saleDate)
+	candidates, err := liquidation.CollectLots(snapshot, quotes, saleDate)
 	if err != nil {
 		return nil, err
 	}

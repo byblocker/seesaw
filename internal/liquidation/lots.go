@@ -16,16 +16,11 @@ type LiquidationCandidate struct {
 	Value decimal.Decimal // Quoted value of all holdings, including fractional shares.
 }
 
-func RankLots(
+func CollectLots(
 	snapshot models.AccountSnapshot,
 	quotes map[string]models.Quote,
-	selection models.LotSelection,
-	rates *models.TaxSettings,
 	saleDate time.Time,
 ) ([]LiquidationCandidate, error) {
-	if selection != models.EstimatedTax && selection != models.MinTaxOrder {
-		return nil, fmt.Errorf("unsupported lot selection %q", selection)
-	}
 	if snapshot.Portfolio == nil {
 		return nil, fmt.Errorf("snapshot is missing portfolio")
 	}
@@ -56,13 +51,6 @@ func RankLots(
 				group.Value = group.Value.Add(sell.Proceeds())
 			}
 		}
-		slices.SortFunc(group.Lots, func(a, b models.SellLot) int {
-			aTax, bTax := decimal.Zero, decimal.Zero
-			if selection == models.EstimatedTax && rates != nil {
-				aTax, bTax = a.TaxImpactPerShare(*rates), b.TaxImpactPerShare(*rates)
-			}
-			return compareLots(a, b, aTax, bTax, rates != nil)
-		})
 		candidates = append(candidates, group)
 	}
 
