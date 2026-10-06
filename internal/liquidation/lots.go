@@ -57,7 +57,11 @@ func RankLots(
 			}
 		}
 		slices.SortFunc(group.Lots, func(a, b models.SellLot) int {
-			return compareLots(a, b, selection, rates)
+			aTax, bTax := decimal.Zero, decimal.Zero
+			if selection == models.EstimatedTax && rates != nil {
+				aTax, bTax = a.TaxImpactPerShare(*rates), b.TaxImpactPerShare(*rates)
+			}
+			return compareLots(a, b, aTax, bTax, rates != nil)
 		})
 		candidates = append(candidates, group)
 	}
@@ -80,10 +84,9 @@ func assetRank(asset *models.Asset) int {
 	return plannedAssetRank
 }
 
-func compareLots(a, b models.SellLot, selection models.LotSelection, rates *models.TaxSettings) int {
-	if rates != nil {
-		if selection == models.EstimatedTax {
-			aTax, bTax := a.TaxImpactPerShare(*rates), b.TaxImpactPerShare(*rates)
+func compareLots(a, b models.SellLot, aTax, bTax decimal.Decimal, taxable bool) int {
+	if taxable {
+		if !aTax.IsZero() || !bTax.IsZero() {
 			// Quantity cancels out of tax per dollar; cross multiplication avoids rounding.
 			if order := aTax.Mul(b.Price).Cmp(bTax.Mul(a.Price)); order != 0 {
 				return order

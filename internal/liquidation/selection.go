@@ -133,7 +133,7 @@ func prepareSaleSearch(
 		if order := cmp.Compare(assetRank(a.asset.candidate.Asset), assetRank(b.asset.candidate.Asset)); order != 0 {
 			return order
 		}
-		return compareLots(*a.sell, *b.sell, selection, rates)
+		return compareLots(*a.sell, *b.sell, a.taxPerShare, b.taxPerShare, rates != nil)
 	})
 	remaining := saleTotals{}
 	for i := len(search.lots) - 1; i >= 0; i-- {
