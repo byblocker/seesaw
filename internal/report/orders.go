@@ -20,7 +20,7 @@ func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.T
 	}
 
 	plan = sortOrders(plan)
-	sellRows, proceeds, realizedPL := formatSells(plan.Sells, rates)
+	sellRows, proceeds, realizedPL, _ := formatSells(plan.Sells, rates, nil)
 	buyRows, cost := formatBuys(plan.Buys)
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
 	if rates != nil {
@@ -33,7 +33,7 @@ func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.T
 
 	remainingCash := buyingPower.Add(proceeds).Sub(cost)
 
-	writeOrderTotals(&output, realizedPL, remainingCash, plan.Sells, rates)
+	writeSummaries(&output, orderSummaries(realizedPL, remainingCash, plan.Sells, rates))
 	if rates != nil && len(plan.Sells) > 0 {
 		output.WriteString("\nNegative tax impact is potential relief, assuming losses offset gains of the same holding period.\n")
 		output.WriteString("Estimates exclude annual netting, carryovers, and wash-sale adjustments; they are not tax due.\n")
@@ -54,7 +54,7 @@ func sortOrders(plan pkg.RebalancePlan) pkg.RebalancePlan {
 	return plan
 }
 
-func writeOrderTotals(output *strings.Builder, realizedPL, remainingCash decimal.Decimal, sells []models.SellProposal, rates *models.TaxSettings) {
+func orderSummaries(realizedPL, remainingCash decimal.Decimal, sells []models.SellProposal, rates *models.TaxSettings) [][2]string {
 	summaries := [][2]string{
 		{"Total P/L:", money(realizedPL)},
 		{"Remaining balance:", money(remainingCash)},
@@ -78,6 +78,10 @@ func writeOrderTotals(output *strings.Builder, realizedPL, remainingCash decimal
 		)
 	}
 
+	return summaries
+}
+
+func writeSummaries(output *strings.Builder, summaries [][2]string) {
 	var labelWidth, amountWidth int
 	for _, summary := range summaries {
 		labelWidth = max(labelWidth, len(summary[0]))

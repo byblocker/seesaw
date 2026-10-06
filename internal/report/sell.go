@@ -7,13 +7,17 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func formatSells(sells []models.SellProposal, rates *models.TaxSettings) (rows [][]string, proceeds, realizedPL decimal.Decimal) {
+func formatSells(sells []models.SellProposal, rates *models.TaxSettings, recentTx models.RecentTxByTicker) (rows [][]string, proceeds, realizedPL decimal.Decimal, washSale bool) {
 	rows = make([][]string, 0, len(sells))
 	for _, sell := range sells {
 		for _, lot := range sell.Lots {
 			row := formatSell(sell, lot)
 			if rates != nil {
 				row = append(row, money(lot.EstimatedTaxImpact(*rates)))
+				if lot.RealizedPL().IsNegative() && recentTx.HasRecentBuy(sell.Ticker) {
+					row[1] += " [WS]"
+					washSale = true
+				}
 			}
 			rows = append(rows, row)
 		}
@@ -21,7 +25,7 @@ func formatSells(sells []models.SellProposal, rates *models.TaxSettings) (rows [
 		proceeds = proceeds.Add(sell.Proceeds)
 		realizedPL = realizedPL.Add(sell.RealizedPL)
 	}
-	return rows, proceeds, realizedPL
+	return rows, proceeds, realizedPL, washSale
 }
 
 func formatSell(sell models.SellProposal, lot models.SellLot) []string {
