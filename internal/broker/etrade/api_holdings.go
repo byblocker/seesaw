@@ -209,7 +209,7 @@ func (client *Client) getPositionLots(
 		var gainRatio decimal.Decimal
 		if lot.GainBasis.IsPositive() {
 			// totalCostForGainPct is the denominator, not a percentage.
-			gainRatio, _ = lot.UnrealizedPL.QuoRem(lot.GainBasis, 19)
+			gainRatio, _ = lot.UnrealizedPL.QuoRem(lot.GainBasis, utils.DivisionDecimalPlaces)
 		}
 		lots = append(lots, models.PositionLot{
 			Id:           lot.Id,

@@ -2,12 +2,11 @@ package rebalance
 
 import (
 	"fmt"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
-
-const divisionDecimalPlaces int32 = 19
 
 type BuyRequest struct {
 	Ticker     string
@@ -47,7 +46,7 @@ func ProposeBuy(
 		valueToCover = balance
 	}
 
-	exact, _ := valueToCover.QuoRem(req.Price, divisionDecimalPlaces)
+	exact, _ := valueToCover.QuoRem(req.Price, utils.DivisionDecimalPlaces)
 	if allowFractionalShares {
 		return proposeQuantity(exact), nil
 	}

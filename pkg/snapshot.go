@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"seesaw/internal/collections"
 	"seesaw/internal/rebalance"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
 )
-
-// Allocation ratios retain 19 decimal places to limit intermediate precision loss.
-const allocationDecimalPlaces int32 = 19
 
 func SnapshotPortfolio(
 	ctx context.Context,
@@ -69,7 +67,7 @@ func assignAsset(
 	}
 
 	if !portfolio.TotalValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(portfolio.TotalValue, allocationDecimalPlaces)
+		asset.Allocation, _ = asset.Value.QuoRem(portfolio.TotalValue, utils.DivisionDecimalPlaces)
 	}
 
 	if plan != nil {

@@ -2,6 +2,7 @@ package liquidation
 
 import (
 	"fmt"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
@@ -25,7 +26,7 @@ func ClampSale(
 
 	precision := int32(0)
 	if allowFractionalShares {
-		precision = 19
+		precision = utils.DivisionDecimalPlaces
 	}
 
 	quantity, remainder := minProceeds.QuoRem(sell.Price, precision)
