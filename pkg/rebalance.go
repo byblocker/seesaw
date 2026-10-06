@@ -50,14 +50,10 @@ func Rebalance(
 		*settings.MaxPctAlocDeviation,
 	)
 
-	quotePerTicker := make(map[string]models.Quote, len(snapshot.Portfolio.Tickers))
 	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Portfolio.Tickers))
-	for _, ticker := range snapshot.Portfolio.Tickers {
-		quote, err := client.Quote(ctx, ticker)
-		if err != nil {
-			return nil, err
-		}
-		quotePerTicker[ticker] = quote
+	quotePerTicker, err := fetchQuotes(ctx, client, snapshot.Portfolio.Tickers)
+	if err != nil {
+		return nil, err
 	}
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
