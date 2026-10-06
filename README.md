@@ -111,7 +111,7 @@ tax:
 
 Tax assumptions are shared across taxable portfolios. Both rates are required and are fractions between `[0, 1]`, including federal, state, and any additional taxes.
 
-For taxable portfolios, `rebalance` loads these rates from `data/user.yaml` before connecting to the broker; non-taxable portfolios may omit this.
+For taxable portfolios, `rebalance` and `liquidate` load these rates from `data/user.yaml` before connecting to the broker; non-taxable portfolios may omit this.
 
 Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
@@ -163,6 +163,28 @@ go run . rebalance --portfolio < name of your portfolio > --verbose
 For any holdings outside of the planned positions, _seesaw_ will attempt to harvest any tax-loss; it does not force liquidation to reduce tax liability. Similarly, _seesaw_ will not force liquidation of overweight assets to reduce allocation.
 
 _seesaw_ uses recent purchases from the snapshot to help avoid wash sales; however, the available transaction history is limited to a single broker. Review its setup guide for coverage and limitations. Avoid wash-sales by ensuring different portfolios use different securities.
+
+## Liquidate!
+
+Request a withdrawal in your account's currency:
+
+```sh
+go run . liquidate --portfolio growth --amount 1000
+```
+
+_seesaw_ uses existing cash first, preserves your configured cash reserve, and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
+
+The planner stays within the funding and allocation limits. It prioritizes proceeds from unplanned holdings, then the smallest total sale proceeds. For `estimated_tax`, it next minimizes the combined estimated tax impact; `min_tax_order` uses the lot priority described above. Ranked lots resolve remaining ties.
+
+Review the proposed lots, cash available now, estimated sale proceeds, and remaining balance after withdrawal. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+
+The search stops with an error if no feasible plan exists or its search budget is exhausted. It does not return an unfinished proposal. Increase the budget when needed:
+
+```sh
+go run . liquidate --portfolio growth --amount 1000 --search-limit 2000000
+```
+
+The default search limit is 1,000,000 nodes. Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
 
 ## Library Usage
 
