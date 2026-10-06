@@ -12,6 +12,7 @@ import (
 
 type searchAsset struct {
 	candidate *LiquidationCandidate
+	weights   allocationWeights
 	saleLimit decimal.Decimal
 	sold      decimal.Decimal
 }
@@ -33,15 +34,14 @@ type saleTotals struct {
 }
 
 type saleSearch struct {
-	assets       []searchAsset
-	lots         []searchLot
-	funding      Funding
-	maxDeviation decimal.Decimal
-	totalValue   decimal.Decimal
-	found        bool
-	bestTotals   saleTotals
-	nodes        int
-	limit        int
+	assets     []searchAsset
+	lots       []searchLot
+	funding    Funding
+	totalValue decimal.Decimal
+	found      bool
+	bestTotals saleTotals
+	nodes      int
+	limit      int
 }
 
 func SelectWholeShareSales(
@@ -93,8 +93,8 @@ func prepareSaleSearch(
 	rates *models.TaxSettings,
 ) (*saleSearch, error) {
 	search := &saleSearch{
-		funding: funding, maxDeviation: maxDeviation,
-		assets: make([]searchAsset, len(groups)),
+		funding: funding,
+		assets:  make([]searchAsset, len(groups)),
 	}
 	lotCount := 0
 	for i := range groups {
@@ -105,9 +105,15 @@ func prepareSaleSearch(
 
 	search.funding.MaxTargetSale = decimal.Min(funding.MaxTargetSale, search.totalValue)
 	search.lots = make([]searchLot, 0, lotCount)
+	remainingValue := search.totalValue.Sub(search.funding.MaxTargetSale)
 	for i := range search.assets {
 		asset := &search.assets[i]
-		_, limit, err := selectionBounds(*asset, search.totalValue.Sub(search.funding.MaxTargetSale), maxDeviation)
+		weights, err := prepareAllocationWeights(asset.candidate.Asset, remainingValue, maxDeviation)
+		if err != nil {
+			return nil, err
+		}
+		asset.weights = weights
+		_, limit, err := selectionBounds(*asset, remainingValue)
 		if err != nil {
 			return nil, err
 		}
@@ -210,8 +216,9 @@ func evaluateSelection(search *saleSearch, totals saleTotals) {
 	if search.found && order <= 0 {
 		return
 	}
+	remainingValue := search.totalValue.Sub(totals.proceeds)
 	for _, asset := range search.assets {
-		minSale, maxSale, err := selectionBounds(asset, search.totalValue.Sub(totals.proceeds), search.maxDeviation)
+		minSale, maxSale, err := selectionBounds(asset, remainingValue)
 		if err != nil || asset.sold.LessThan(minSale) || asset.sold.GreaterThan(maxSale) {
 			return
 		}
@@ -235,10 +242,8 @@ func compareSaleTotals(a, b saleTotals) int {
 	return b.tax.Cmp(a.tax)
 }
 
-func selectionBounds(asset searchAsset, remaining, deviation decimal.Decimal) (decimal.Decimal, decimal.Decimal, error) {
-	valued := *asset.candidate.Asset
-	valued.Value = asset.candidate.Value
-	return AllocationSaleBounds(valued, remaining, deviation)
+func selectionBounds(asset searchAsset, remaining decimal.Decimal) (decimal.Decimal, decimal.Decimal, error) {
+	return asset.weights.saleBounds(asset.candidate.Asset, asset.candidate.Value, remaining)
 }
 
 func (search *saleSearch) remainingAt(lotIndex int) saleTotals {
