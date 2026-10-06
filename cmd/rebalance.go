@@ -10,6 +10,7 @@ import (
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 
 	"github.com/spf13/cobra"
 )
@@ -56,7 +57,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snapshot, err := pkg.SnapshotPortfolio(ctx, client, plan)
+	snapshot, err := portfolio.Snapshot(ctx, client, plan)
 	if err != nil {
 		return err
 	}

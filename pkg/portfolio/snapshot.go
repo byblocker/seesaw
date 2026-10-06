@@ -1,4 +1,4 @@
-package pkg
+package portfolio
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func SnapshotPortfolio(
+func Snapshot(
 	ctx context.Context,
 	client models.BrokerClient,
 	plan *models.PortfolioPlan,
