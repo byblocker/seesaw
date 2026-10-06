@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"seesaw/pkg/config"
+	"seesaw/pkg/models"
 	"seesaw/pkg/orders"
 	"slices"
 
@@ -49,10 +50,7 @@ func SelectWholeShareSales(
 	ctx context.Context,
 	groups []LiquidationCandidate,
 	funding Funding,
-	maxDeviation decimal.Decimal,
-	selection config.LotSelection,
-	rates *config.TaxSettings,
-	searchLimit int,
+	request models.LiquidationRequest,
 ) ([]orders.SellProposal, error) {
 	if funding.MinTargetSale.IsNegative() || funding.MaxTargetSale.LessThan(funding.MinTargetSale) {
 		return nil, fmt.Errorf("invalid sale funding bounds")
@@ -60,23 +58,23 @@ func SelectWholeShareSales(
 	if funding.MinTargetSale.IsZero() {
 		return nil, nil
 	}
-	if searchLimit <= 0 {
+	if request.SearchLimit <= 0 {
 		return nil, fmt.Errorf("search limit must be positive")
 	}
-	if selection != config.EstimatedTax && selection != config.MinTaxOrder {
-		return nil, fmt.Errorf("unsupported lot selection %q", selection)
+	if request.Settings.LotSelection != config.EstimatedTax && request.Settings.LotSelection != config.MinTaxOrder {
+		return nil, fmt.Errorf("unsupported lot selection %q", request.Settings.LotSelection)
 	}
-	if rates != nil && selection == config.EstimatedTax {
-		if err := rates.Validate(); err != nil {
+	if request.TaxRates != nil && request.Settings.LotSelection == config.EstimatedTax {
+		if err := request.TaxRates.Validate(); err != nil {
 			return nil, err
 		}
 	}
 
-	search, err := prepareSaleSearch(groups, funding, maxDeviation, selection, rates)
+	search, err := prepareSaleSearch(groups, funding, request)
 	if err != nil {
 		return nil, err
 	}
-	search.limit = searchLimit
+	search.limit = request.SearchLimit
 	if err := searchSales(ctx, search, 0, saleTotals{}); err != nil {
 		return nil, err
 	}
@@ -89,9 +87,7 @@ func SelectWholeShareSales(
 func prepareSaleSearch(
 	groups []LiquidationCandidate,
 	funding Funding,
-	maxDeviation decimal.Decimal,
-	selection config.LotSelection,
-	rates *config.TaxSettings,
+	request models.LiquidationRequest,
 ) (*saleSearch, error) {
 	search := &saleSearch{
 		funding: funding,
@@ -109,7 +105,7 @@ func prepareSaleSearch(
 	remainingValue := search.totalValue.Sub(search.funding.MaxTargetSale)
 	for i := range search.assets {
 		asset := &search.assets[i]
-		weights, err := prepareAllocationWeights(asset.candidate.Asset, remainingValue, maxDeviation)
+		weights, err := prepareAllocationWeights(asset.candidate.Asset, remainingValue, *request.Settings.MaxAllocationDeviation)
 		if err != nil {
 			return nil, err
 		}
@@ -122,8 +118,8 @@ func prepareSaleSearch(
 		for j := range asset.candidate.LotsToSell {
 			sell := &asset.candidate.LotsToSell[j]
 			lot := searchLot{sell: sell, asset: asset, available: sell.Quantity.Floor()}
-			if selection == config.EstimatedTax && rates != nil {
-				lot.taxPerShare = sell.TaxImpactPerShare(*rates)
+			if request.Settings.LotSelection == config.EstimatedTax && request.TaxRates != nil {
+				lot.taxPerShare = sell.TaxImpactPerShare(*request.TaxRates)
 			}
 			search.lots = append(search.lots, lot)
 		}
@@ -134,7 +130,7 @@ func prepareSaleSearch(
 		if order := cmp.Compare(assetRank(a.asset.candidate.Asset), assetRank(b.asset.candidate.Asset)); order != 0 {
 			return order
 		}
-		return compareLots(*a.sell, *b.sell, a.taxPerShare, b.taxPerShare, rates != nil)
+		return compareLots(*a.sell, *b.sell, a.taxPerShare, b.taxPerShare, request.TaxRates != nil)
 	})
 	remaining := saleTotals{}
 	for i := len(search.lots) - 1; i >= 0; i-- {

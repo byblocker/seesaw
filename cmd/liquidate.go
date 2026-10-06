@@ -8,6 +8,7 @@ import (
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
+	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"seesaw/pkg/trading"
 	"strings"
@@ -83,7 +84,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write snapshot summary: %w", err)
 	}
 
-	orders, err := trading.Liquidate(ctx, *snapshot, client, trading.LiquidationRequest{
+	orders, err := trading.Liquidate(ctx, *snapshot, client, models.LiquidationRequest{
 		Amount:      amount,
 		Settings:    plan.Liquidation,
 		TaxRates:    rates,

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/liquidation"
-	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/orders"
 	"seesaw/pkg/portfolio"
@@ -21,18 +20,11 @@ type LiquidationPlan struct {
 	ExpectedBalance decimal.Decimal
 }
 
-type LiquidationRequest struct {
-	Amount      decimal.Decimal
-	Settings    config.LiquidationSettings
-	TaxRates    *config.TaxSettings
-	SearchLimit int
-}
-
 func Liquidate(
 	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
-	request LiquidationRequest,
+	request models.LiquidationRequest,
 ) (*LiquidationPlan, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -94,10 +86,7 @@ func Liquidate(
 		ctx,
 		candidates,
 		funding,
-		*request.Settings.MaxAllocationDeviation,
-		request.Settings.LotSelection,
-		request.TaxRates,
-		request.SearchLimit,
+		request,
 	)
 	if err != nil {
 		return nil, err
