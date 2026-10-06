@@ -21,50 +21,56 @@ type LiquidationPlan struct {
 	ExpectedBalance decimal.Decimal
 }
 
+type LiquidationRequest struct {
+	Amount      decimal.Decimal
+	Settings    config.LiquidationSettings
+	TaxRates    *config.TaxSettings
+	SearchLimit int
+}
+
 func Liquidate(
 	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
-	settings config.LiquidationSettings,
-	requestAmount decimal.Decimal,
-	rates *config.TaxSettings,
-	searchLimit int,
+	request LiquidationRequest,
 ) (*LiquidationPlan, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := settings.Validate(); err != nil {
+	if err := request.Settings.Validate(); err != nil {
 		return nil, err
 	}
 	if snapshot.Portfolio == nil {
 		return nil, fmt.Errorf("snapshot is missing portfolio")
 	}
-	if rates != nil {
-		if err := rates.Validate(); err != nil {
+	if request.TaxRates != nil {
+		if err := request.TaxRates.Validate(); err != nil {
 			return nil, err
 		}
 	}
 
+	balances := snapshot.Portfolio.Balances
+
 	funding, err := liquidation.PlanFunding(
-		snapshot.Portfolio.Balances,
-		requestAmount,
-		*settings.CashReserve,
-		*settings.MaxExcessCash,
+		balances,
+		request.Amount,
+		*request.Settings.CashReserve,
+		*request.Settings.MaxExcessCash,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	plan := &LiquidationPlan{
-		RequestAmount:   requestAmount,
+		RequestAmount:   request.Amount,
 		AvailableCash:   funding.AvailableCash,
-		ExpectedBalance: snapshot.Portfolio.Balances.CashBalance.Sub(requestAmount),
+		ExpectedBalance: balances.CashBalance.Sub(request.Amount),
 	}
 	if funding.MinTargetSale.IsZero() {
 		return plan, nil
 	}
 
-	if searchLimit <= 0 {
+	if request.SearchLimit <= 0 {
 		return nil, fmt.Errorf("search limit must be positive")
 	}
 
@@ -83,14 +89,15 @@ func Liquidate(
 		"Selecting liquidation sales between $%s and $%s",
 		funding.MinTargetSale.StringFixed(2), funding.MaxTargetSale.StringFixed(2),
 	)
+
 	plan.Sells, err = liquidation.SelectWholeShareSales(
 		ctx,
 		candidates,
 		funding,
-		*settings.MaxAllocationDeviation,
-		settings.LotSelection,
-		rates,
-		searchLimit,
+		*request.Settings.MaxAllocationDeviation,
+		request.Settings.LotSelection,
+		request.TaxRates,
+		request.SearchLimit,
 	)
 	if err != nil {
 		return nil, err

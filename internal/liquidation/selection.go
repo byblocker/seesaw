@@ -101,7 +101,7 @@ func prepareSaleSearch(
 	for i := range groups {
 		search.assets[i].candidate = &groups[i]
 		search.totalValue = search.totalValue.Add(groups[i].Value)
-		lotCount += len(groups[i].Lots)
+		lotCount += len(groups[i].LotsToSell)
 	}
 
 	search.funding.MaxTargetSale = decimal.Min(funding.MaxTargetSale, search.totalValue)
@@ -119,8 +119,8 @@ func prepareSaleSearch(
 			return nil, err
 		}
 		asset.saleLimit = limit
-		for j := range asset.candidate.Lots {
-			sell := &asset.candidate.Lots[j]
+		for j := range asset.candidate.LotsToSell {
+			sell := &asset.candidate.LotsToSell[j]
 			lot := searchLot{sell: sell, asset: asset, available: sell.Quantity.Floor()}
 			if selection == config.EstimatedTax && rates != nil {
 				lot.taxPerShare = sell.TaxImpactPerShare(*rates)

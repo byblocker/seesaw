@@ -47,7 +47,12 @@ type SellLot struct {
 	LongTerm     bool
 }
 
-func NewSellLot(ticker string, lot *models.PositionLot, price decimal.Decimal, saleDate time.Time) SellLot {
+func NewSellLot(
+	ticker string,
+	lot *models.PositionLot,
+	price decimal.Decimal,
+	saleDate time.Time,
+) SellLot {
 	return SellLot{
 		Ticker: ticker, Lot: lot, Price: price,
 		Quantity:     lot.Quantity,

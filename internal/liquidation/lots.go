@@ -13,9 +13,9 @@ import (
 )
 
 type LiquidationCandidate struct {
-	Asset *portfolio.Asset
-	Lots  []orders.SellLot
-	Value decimal.Decimal // Quoted value of all holdings, including fractional shares.
+	Asset      *portfolio.Asset
+	LotsToSell []orders.SellLot
+	Value      decimal.Decimal
 }
 
 func CollectLots(
@@ -28,9 +28,11 @@ func CollectLots(
 	}
 
 	candidates := make([]LiquidationCandidate, 0, len(snapshot.Assets))
+
 	for i := range snapshot.Assets {
 		asset := &snapshot.Assets[i]
-		group := LiquidationCandidate{Asset: asset}
+		candidate := LiquidationCandidate{Asset: asset}
+
 		for _, ticker := range asset.Tickers {
 			position, held := snapshot.Portfolio.PositionByTicker[ticker]
 			if !held || position.Quantity.IsZero() {
@@ -49,11 +51,11 @@ func CollectLots(
 				}
 
 				sell := orders.NewSellLot(ticker, lot, quote.Bid, saleDate)
-				group.Lots = append(group.Lots, sell)
-				group.Value = group.Value.Add(sell.Proceeds())
+				candidate.LotsToSell = append(candidate.LotsToSell, sell)
+				candidate.Value = candidate.Value.Add(sell.Proceeds())
 			}
 		}
-		candidates = append(candidates, group)
+		candidates = append(candidates, candidate)
 	}
 
 	slices.SortStableFunc(candidates, func(a, b LiquidationCandidate) int {
