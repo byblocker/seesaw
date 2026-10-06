@@ -28,17 +28,16 @@ func Liquidation(plan trading.LiquidationPlan, rates *config.TaxSettings, recent
 		writeTable(&output, headers, formatted.rows, 3)
 	}
 
-	availableNow := decimal.Min(plan.Withdrawal, plan.AvailableCash)
+	availableNow := decimal.Min(plan.RequestAmount, plan.AvailableCash)
 	summaries := [][2]string{
-		{"Requested withdrawal:", money(plan.Withdrawal)},
+		{"Requested withdrawal:", money(plan.RequestAmount)},
 		{"Available now for this withdrawal:", money(availableNow)},
 		{"Estimated sale proceeds:", money(formatted.proceeds)},
 	}
-	// The planner's TotalProceeds includes existing cash less the withdrawal.
-	summaries = append(summaries, orderSummaries(formatted, plan.TotalProceeds)...)
+	summaries = append(summaries, orderSummaries(formatted, plan.ExpectedBalance)...)
 	writeSummaries(&output, summaries)
 
-	if availableNow.LessThan(plan.Withdrawal) {
+	if availableNow.LessThan(plan.RequestAmount) {
 		output.WriteString("\nThe full withdrawal is not available now; cash availability depends on settlement and broker restrictions.\n")
 	}
 	if formatted.washSale {

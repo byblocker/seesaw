@@ -15,10 +15,10 @@ import (
 )
 
 type LiquidationPlan struct {
-	Sells         []orders.SellProposal
-	Withdrawal    decimal.Decimal
-	AvailableCash decimal.Decimal
-	TotalProceeds decimal.Decimal
+	Sells           []orders.SellProposal
+	RequestAmount   decimal.Decimal
+	AvailableCash   decimal.Decimal
+	ExpectedBalance decimal.Decimal
 }
 
 func Liquidate(
@@ -26,7 +26,7 @@ func Liquidate(
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	settings config.LiquidationSettings,
-	withdrawal decimal.Decimal,
+	requestAmount decimal.Decimal,
 	rates *config.TaxSettings,
 	searchLimit int,
 ) (*LiquidationPlan, error) {
@@ -47,7 +47,7 @@ func Liquidate(
 
 	funding, err := liquidation.PlanFunding(
 		snapshot.Portfolio.Balances,
-		withdrawal,
+		requestAmount,
 		*settings.CashReserve,
 		*settings.MaxExcessCash,
 	)
@@ -56,9 +56,9 @@ func Liquidate(
 	}
 
 	plan := &LiquidationPlan{
-		Withdrawal:    withdrawal,
-		AvailableCash: funding.AvailableCash,
-		TotalProceeds: snapshot.Portfolio.Balances.CashBalance.Sub(withdrawal),
+		RequestAmount:   requestAmount,
+		AvailableCash:   funding.AvailableCash,
+		ExpectedBalance: snapshot.Portfolio.Balances.CashBalance.Sub(requestAmount),
 	}
 	if funding.MinTargetSale.IsZero() {
 		return plan, nil
@@ -97,7 +97,7 @@ func Liquidate(
 	}
 
 	for _, sale := range plan.Sells {
-		plan.TotalProceeds = plan.TotalProceeds.Add(sale.Proceeds)
+		plan.ExpectedBalance = plan.ExpectedBalance.Add(sale.Proceeds)
 	}
 
 	log.Printf("Liquidation planning complete: %d sell(s)", len(plan.Sells))
