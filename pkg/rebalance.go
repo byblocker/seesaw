@@ -50,8 +50,8 @@ func Rebalance(
 		*settings.MaxPctAlocDeviation,
 	)
 
-	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Portfolio.Tickers))
-	quotePerTicker, err := fetchQuotes(ctx, client, snapshot.Portfolio.Tickers)
+	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Portfolio.AllTickers))
+	quotePerTicker, err := fetchQuotes(ctx, client, snapshot.Portfolio.AllTickers)
 	if err != nil {
 		return nil, err
 	}

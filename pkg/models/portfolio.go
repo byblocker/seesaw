@@ -1,6 +1,8 @@
 package models
 
 import (
+	"maps"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -18,11 +20,15 @@ type Balances struct {
 }
 
 type Portfolio struct {
-	Tickers          []string
+	AllTickers       []string
 	Balances         Balances
 	TotalValue       decimal.Decimal
 	PositionByTicker map[string]Position
 	RecentTx         RecentTxByTicker
+}
+
+func (portfolio Portfolio) ActiveTickers() []string {
+	return slices.Collect(maps.Keys(portfolio.PositionByTicker))
 }
 
 type Position struct {

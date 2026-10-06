@@ -41,6 +41,7 @@ func Liquidate(
 			return nil, err
 		}
 	}
+
 	funding, err := liquidation.PlanFunding(
 		snapshot.Portfolio.Balances,
 		withdrawal,
@@ -50,6 +51,7 @@ func Liquidate(
 	if err != nil {
 		return nil, err
 	}
+
 	plan := &LiquidationPlan{
 		Withdrawal:    withdrawal,
 		AvailableCash: funding.AvailableCash,
@@ -58,20 +60,13 @@ func Liquidate(
 	if funding.MinTargetSale.IsZero() {
 		return plan, nil
 	}
+
 	if searchLimit <= 0 {
 		return nil, fmt.Errorf("search limit must be positive")
 	}
 
 	saleDate := time.Now()
-	var tickers []string
-	for _, asset := range snapshot.Assets {
-		for _, ticker := range asset.Tickers {
-			if snapshot.Portfolio.PositionByTicker[ticker].Quantity.IsPositive() {
-				tickers = append(tickers, ticker)
-			}
-		}
-	}
-	quotes, err := fetchQuotes(ctx, client, tickers)
+	quotes, err := fetchQuotes(ctx, client, snapshot.Portfolio.ActiveTickers())
 	if err != nil {
 		return nil, err
 	}
