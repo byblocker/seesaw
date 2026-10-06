@@ -27,6 +27,19 @@ type quoteResponse struct {
 	} `json:"QuoteResponse"`
 }
 
+func (client *Client) QuoteAll(ctx context.Context, tickers []string) (map[string]models.Quote, error) {
+	quotes := make(map[string]models.Quote, len(tickers))
+	for _, ticker := range tickers {
+		quote, err := client.Quote(ctx, ticker)
+		if err != nil {
+			return nil, fmt.Errorf("quote %s: %w", ticker, err)
+		}
+
+		quotes[ticker] = quote
+	}
+	return quotes, nil
+}
+
 func (client *Client) Quote(ctx context.Context, ticker string) (models.Quote, error) {
 	ticker = strings.TrimSpace(ticker)
 	if ticker == "" {

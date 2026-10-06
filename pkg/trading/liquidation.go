@@ -66,7 +66,7 @@ func Liquidate(
 	}
 
 	saleDate := time.Now()
-	quotes, err := fetchQuotes(ctx, client, snapshot.Portfolio.ActiveTickers())
+	quotes, err := client.QuoteAll(ctx, snapshot.Portfolio.ActiveTickers())
 	if err != nil {
 		return nil, err
 	}

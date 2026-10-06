@@ -51,7 +51,7 @@ func Rebalance(
 	)
 
 	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Portfolio.AllTickers))
-	quotePerTicker, err := fetchQuotes(ctx, client, snapshot.Portfolio.AllTickers)
+	quotePerTicker, err := client.QuoteAll(ctx, snapshot.Portfolio.AllTickers)
 	if err != nil {
 		return nil, err
 	}
