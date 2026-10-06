@@ -2,10 +2,11 @@ package rebalance
 
 import (
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 )
 
 func SelectPosToSell(
-	asset models.Asset,
+	asset portfolio.Asset,
 	recentTx models.RecentTxByTicker,
 	harvestPosition func(string) models.SellProposal,
 ) models.SellProposal {
@@ -37,7 +38,7 @@ func SelectPosToSell(
 }
 
 func SelectPosToBuy(
-	asset models.Asset,
+	asset portfolio.Asset,
 	recentTx models.RecentTxByTicker,
 	sell models.SellProposal,
 	quoteByTicker map[string]models.Quote,

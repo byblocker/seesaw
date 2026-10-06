@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"slices"
 	"time"
 
@@ -11,13 +12,13 @@ import (
 )
 
 type LiquidationCandidate struct {
-	Asset *models.Asset
+	Asset *portfolio.Asset
 	Lots  []models.SellLot
 	Value decimal.Decimal // Quoted value of all holdings, including fractional shares.
 }
 
 func CollectLots(
-	snapshot models.AccountSnapshot,
+	snapshot portfolio.Snapshot,
 	quotes map[string]models.Quote,
 	saleDate time.Time,
 ) ([]LiquidationCandidate, error) {
@@ -65,7 +66,7 @@ const (
 	plannedAssetRank
 )
 
-func assetRank(asset *models.Asset) int {
+func assetRank(asset *portfolio.Asset) int {
 	if asset.Plan == nil {
 		return unplannedAssetRank
 	}

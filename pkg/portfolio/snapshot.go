@@ -3,79 +3,42 @@ package portfolio
 import (
 	"context"
 	"fmt"
-	"seesaw/internal/collections"
-	"seesaw/internal/rebalance"
-	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
 )
 
-func Snapshot(
+const washSaleWindowDays = 31
+
+type Snapshot struct {
+	Id        string
+	CreatedAt time.Time
+	Portfolio *models.Portfolio
+	Assets    []Asset
+}
+
+func TakeSnapshot(
 	ctx context.Context,
 	client models.BrokerClient,
 	plan *config.Plan,
-) (*models.AccountSnapshot, error) {
+) (*Snapshot, error) {
 	portfolio, err := client.Portfolio(
 		ctx,
 		plan.AccountId,
-		rebalance.WashSaleWindowDays,
+		washSaleWindowDays,
 		slices.Collect(plan.Tickers()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve portfolio: %w", err)
 	}
 
-	assets := make([]models.Asset, 0, len(plan.Assets)+1) // includes asset for unplanned positions
-	planned := collections.NewSet[string]()
-	for i := range plan.Assets {
-		assetPlan := &plan.Assets[i]
+	assets := groupByAsset(plan.Assets, portfolio)
 
-		tickers := slices.Collect(assetPlan.Tickers())
-		planned.Add(tickers...)
-
-		assets = append(assets, assignAsset(assetPlan, tickers, portfolio))
-	}
-
-	var unplanned []string
-	for ticker := range portfolio.PositionByTicker {
-		if !planned.Contains(ticker) {
-			unplanned = append(unplanned, ticker)
-		}
-	}
-
-	if len(unplanned) > 0 {
-		assets = append(assets, assignAsset(nil, unplanned, portfolio))
-	}
-
-	return &models.AccountSnapshot{
+	return &Snapshot{
 		Id:        plan.AccountId,
 		CreatedAt: time.Now(),
 		Portfolio: portfolio,
 		Assets:    assets,
 	}, nil
-}
-
-func assignAsset(
-	plan *config.AssetPlan,
-	tickers []string,
-	portfolio *models.Portfolio,
-) models.Asset {
-	asset := models.Asset{Plan: plan, Tickers: tickers}
-	for _, ticker := range tickers {
-		asset.Value = asset.Value.Add(portfolio.PositionByTicker[ticker].MarketValue)
-	}
-
-	if !portfolio.TotalValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(portfolio.TotalValue, utils.DivisionDecimalPlaces)
-	}
-
-	if plan != nil {
-		asset.AllocDrift = asset.Allocation.Sub(plan.TargetAllocation)
-		expectedValue := portfolio.TotalValue.Mul(plan.TargetAllocation)
-		asset.ValueDrift = asset.Value.Sub(expectedValue)
-	}
-
-	return asset
 }

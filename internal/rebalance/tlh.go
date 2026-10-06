@@ -7,9 +7,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// Number of days before a future transaction no longer affects rebalancing
-const WashSaleWindowDays = 31
-
 func HarvestTaxLoss(
 	position models.Position,
 	bid,

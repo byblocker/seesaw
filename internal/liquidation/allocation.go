@@ -3,7 +3,7 @@ package liquidation
 import (
 	"fmt"
 	"seesaw/internal/utils"
-	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -14,7 +14,7 @@ type allocationWeights struct {
 	upper decimal.Decimal
 }
 
-func prepareAllocationWeights(asset *models.Asset, remainingInvestedValue, maxDeviation decimal.Decimal) (allocationWeights, error) {
+func prepareAllocationWeights(asset *portfolio.Asset, remainingInvestedValue, maxDeviation decimal.Decimal) (allocationWeights, error) {
 	one := decimal.NewFromInt(1)
 	if remainingInvestedValue.IsNegative() {
 		return allocationWeights{}, fmt.Errorf("remaining invested value must be nonnegative")
@@ -31,7 +31,7 @@ func prepareAllocationWeights(asset *models.Asset, remainingInvestedValue, maxDe
 	}, nil
 }
 
-func (weights allocationWeights) saleBounds(asset *models.Asset, value, remainingInvestedValue decimal.Decimal) (minSale, maxSale decimal.Decimal, err error) {
+func (weights allocationWeights) saleBounds(asset *portfolio.Asset, value, remainingInvestedValue decimal.Decimal) (minSale, maxSale decimal.Decimal, err error) {
 	if asset.Plan == nil {
 		return decimal.Zero, value, nil
 	}

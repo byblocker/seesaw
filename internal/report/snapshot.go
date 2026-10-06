@@ -3,11 +3,11 @@ package report
 import (
 	"fmt"
 	"seesaw/internal/utils"
-	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"strings"
 )
 
-func Snapshot(snapshot models.AccountSnapshot) string {
+func Snapshot(snapshot portfolio.Snapshot) string {
 	var output strings.Builder
 	account := snapshot.Id[len(snapshot.Id)-4:]
 

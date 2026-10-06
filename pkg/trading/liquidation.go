@@ -7,6 +7,7 @@ import (
 	"seesaw/internal/liquidation"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -21,7 +22,7 @@ type LiquidationPlan struct {
 
 func Liquidate(
 	ctx context.Context,
-	snapshot models.AccountSnapshot,
+	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	settings config.LiquidationSettings,
 	withdrawal decimal.Decimal,

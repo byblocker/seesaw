@@ -8,6 +8,7 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
 	"time"
@@ -22,7 +23,7 @@ type RebalancePlan struct {
 
 func Rebalance(
 	ctx context.Context,
-	snapshot models.AccountSnapshot,
+	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	settings config.RebalanceSettings,
 ) (*RebalancePlan, error) {

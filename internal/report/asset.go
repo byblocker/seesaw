@@ -1,14 +1,14 @@
 package report
 
 import (
-	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
-func writeAssets(output *strings.Builder, assets []models.Asset) string {
+func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 	headers := []string{"Asset", "Value", "Current", "Target", "Deviation"}
 	rows := make([][]string, 0, len(assets))
 	for _, asset := range assets {
@@ -17,7 +17,7 @@ func writeAssets(output *strings.Builder, assets []models.Asset) string {
 	return writeTable(output, headers, rows, 1)
 }
 
-func formatAsset(asset models.Asset) []string {
+func formatAsset(asset portfolio.Asset) []string {
 	label, target, deviation := "OTHER", "—", "—"
 	if asset.Plan != nil {
 		label = strings.Join(slices.Collect(asset.Plan.Tickers()), " / ")
