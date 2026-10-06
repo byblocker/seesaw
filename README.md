@@ -115,7 +115,7 @@ For taxable portfolios, `rebalance` and `liquidate` load these rates from `data/
 
 Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
-Use `pkg.ParseUserConfig(reader)` to parse and validate. It rejects unknown fields and additional YAML documents.
+Use `config.ParseUser(reader)` from `seesaw/pkg/config` to parse and validate. It rejects unknown fields and additional YAML documents.
 
 ## Rebalance!
 

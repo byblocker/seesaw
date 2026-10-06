@@ -1,4 +1,4 @@
-package pkg
+package config
 
 import (
 	"fmt"
@@ -9,21 +9,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func LoadUserConfig(path string) (*models.UserConfig, error) {
+func LoadUser(path string) (*models.UserConfig, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening user config %s: %w", path, err)
 	}
 	defer file.Close()
 
-	config, err := ParseUserConfig(file)
+	config, err := ParseUser(file)
 	if err != nil {
 		return nil, fmt.Errorf("loading user config %s: %w", path, err)
 	}
 	return config, nil
 }
 
-func ParseUserConfig(file io.Reader) (*models.UserConfig, error) {
+func ParseUser(file io.Reader) (*models.UserConfig, error) {
 	config := &models.UserConfig{}
 	decoder := yaml.NewDecoder(file)
 	decoder.KnownFields(true)

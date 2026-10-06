@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"seesaw/internal/report"
 	"seesaw/pkg"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"strings"
 
@@ -53,14 +54,14 @@ func liquidate(cmd *cobra.Command, args []string) error {
 
 	log.Print("Starting liquidation planning . . .")
 	ctx := cmd.Context()
-	plan, err := pkg.LoadPortfolioPlan(filepath.Join(portfolioDir, liquidationPlanName+".yaml"))
+	plan, err := config.LoadPlan(filepath.Join(portfolioDir, liquidationPlanName+".yaml"))
 	if err != nil {
 		return err
 	}
 
 	var rates *models.TaxSettings
 	if *plan.IsTaxable {
-		user, err := pkg.LoadUserConfig("./data/user.yaml")
+		user, err := config.LoadUser("./data/user.yaml")
 		if err != nil {
 			return err
 		}

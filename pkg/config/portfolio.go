@@ -1,4 +1,4 @@
-package pkg
+package config
 
 import (
 	"bytes"
@@ -13,21 +13,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func LoadPortfolioPlan(path string) (*models.PortfolioPlan, error) {
+func LoadPlan(path string) (*models.PortfolioPlan, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening portfolio plan %s: %w", path, err)
 	}
 	defer file.Close()
 
-	plan, err := ParsePortfolioPlan(file)
+	plan, err := ParsePlan(file)
 	if err != nil {
 		return nil, fmt.Errorf("loading portfolio plan %s: %w", path, err)
 	}
 	return plan, nil
 }
 
-func ParsePortfolioPlan(file io.Reader) (*models.PortfolioPlan, error) {
+func ParsePlan(file io.Reader) (*models.PortfolioPlan, error) {
 	data, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf(

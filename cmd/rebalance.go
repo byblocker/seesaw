@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"seesaw/internal/report"
 	"seesaw/pkg"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 
 	"github.com/spf13/cobra"
@@ -35,14 +36,14 @@ func rebalance(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
 	pathToPlan := filepath.Join(portfolioDir, planName+".yaml")
-	plan, err := pkg.LoadPortfolioPlan(pathToPlan)
+	plan, err := config.LoadPlan(pathToPlan)
 	if err != nil {
 		return err
 	}
 
 	var rates *models.TaxSettings
 	if *plan.IsTaxable {
-		user, err := pkg.LoadUserConfig("./data/user.yaml")
+		user, err := config.LoadUser("./data/user.yaml")
 		if err != nil {
 			return err
 		}
