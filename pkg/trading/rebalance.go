@@ -8,6 +8,7 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/orders"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
@@ -17,8 +18,8 @@ import (
 )
 
 type RebalancePlan struct {
-	Buys  []models.Buy
-	Sells []models.SellProposal
+	Buys  []orders.Buy
+	Sells []orders.SellProposal
 }
 
 func Rebalance(
@@ -71,14 +72,14 @@ func Rebalance(
 			utils.Verbosef(ctx, "Evaluating holdings outside the portfolio plan for tax losses")
 		}
 
-		harvestFunc := func(ticker string) models.SellProposal {
+		harvestFunc := func(ticker string) orders.SellProposal {
 			position, exists := snapshot.Portfolio.PositionByTicker[ticker]
 			if !exists {
-				return models.SellProposal{}
+				return orders.SellProposal{}
 			}
 			if snapshot.Portfolio.RecentTx.HasRecentBuy(ticker) {
 				utils.Verbosef(ctx, "Skip harvesting %s: recent purchases in the wash-sale window", ticker)
-				return models.SellProposal{}
+				return orders.SellProposal{}
 			}
 
 			candidate := rebalance.HarvestTaxLoss(

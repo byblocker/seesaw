@@ -1,18 +1,19 @@
-package models
+package orders
 
 import (
 	"fmt"
 	"seesaw/pkg/config"
+	"seesaw/pkg/models"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
-type OrderType string
+type Type string
 
 const (
-	Market OrderType = "MARKET"
-	Limit  OrderType = "LIMIT"
+	Market Type = "MARKET"
+	Limit  Type = "LIMIT"
 )
 
 type Buy struct {
@@ -24,7 +25,7 @@ type Buy struct {
 
 type SellProposal struct {
 	Ticker     string
-	Type       OrderType
+	Type       Type
 	Price      decimal.Decimal
 	Lots       []SellLot
 	Proceeds   decimal.Decimal
@@ -40,13 +41,13 @@ func (p *SellProposal) Add(sell SellLot) {
 type SellLot struct {
 	Ticker       string
 	Quantity     decimal.Decimal
-	Lot          *PositionLot
+	Lot          *models.PositionLot
 	Price        decimal.Decimal
 	GainPerShare decimal.Decimal
 	LongTerm     bool
 }
 
-func NewSellLot(ticker string, lot *PositionLot, price decimal.Decimal, saleDate time.Time) SellLot {
+func NewSellLot(ticker string, lot *models.PositionLot, price decimal.Decimal, saleDate time.Time) SellLot {
 	return SellLot{
 		Ticker: ticker, Lot: lot, Price: price,
 		Quantity:     lot.Quantity,

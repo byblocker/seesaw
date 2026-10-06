@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
+	"seesaw/pkg/orders"
 	"slices"
 
 	"github.com/shopspring/decimal"
@@ -19,7 +19,7 @@ type searchAsset struct {
 }
 
 type searchLot struct {
-	sell        *models.SellLot
+	sell        *orders.SellLot
 	asset       *searchAsset
 	available   decimal.Decimal
 	quantity    decimal.Decimal
@@ -53,7 +53,7 @@ func SelectWholeShareSales(
 	selection config.LotSelection,
 	rates *config.TaxSettings,
 	searchLimit int,
-) ([]models.SellProposal, error) {
+) ([]orders.SellProposal, error) {
 	if funding.MinTargetSale.IsNegative() || funding.MaxTargetSale.LessThan(funding.MinTargetSale) {
 		return nil, fmt.Errorf("invalid sale funding bounds")
 	}
@@ -268,8 +268,8 @@ func quantityBounds(search *saleSearch, lotIndex int, proceeds decimal.Decimal) 
 	return minQuantity, maxQuantity
 }
 
-func assembleSales(lots []searchLot) []models.SellProposal {
-	var proposals []models.SellProposal
+func assembleSales(lots []searchLot) []orders.SellProposal {
+	var proposals []orders.SellProposal
 	byTicker := make(map[string]int)
 	for _, lot := range lots {
 		if lot.best.IsZero() {
@@ -281,7 +281,7 @@ func assembleSales(lots []searchLot) []models.SellProposal {
 		if !exists {
 			index = len(proposals)
 			byTicker[sell.Ticker] = index
-			proposals = append(proposals, models.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: models.Market})
+			proposals = append(proposals, orders.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: orders.Market})
 		}
 		proposals[index].Add(sell)
 	}

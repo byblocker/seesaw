@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"seesaw/pkg/models"
+	"seesaw/pkg/orders"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"time"
@@ -13,7 +14,7 @@ import (
 
 type LiquidationCandidate struct {
 	Asset *portfolio.Asset
-	Lots  []models.SellLot
+	Lots  []orders.SellLot
 	Value decimal.Decimal // Quoted value of all holdings, including fractional shares.
 }
 
@@ -47,7 +48,7 @@ func CollectLots(
 					continue
 				}
 
-				sell := models.NewSellLot(ticker, lot, quote.Bid, saleDate)
+				sell := orders.NewSellLot(ticker, lot, quote.Bid, saleDate)
 				group.Lots = append(group.Lots, sell)
 				group.Value = group.Value.Add(sell.Proceeds())
 			}
@@ -73,7 +74,7 @@ func assetRank(asset *portfolio.Asset) int {
 	return plannedAssetRank
 }
 
-func compareLots(a, b models.SellLot, aTax, bTax decimal.Decimal, taxable bool) int {
+func compareLots(a, b orders.SellLot, aTax, bTax decimal.Decimal, taxable bool) int {
 	if taxable {
 		if !aTax.IsZero() || !bTax.IsZero() {
 			// Quantity cancels out of tax per dollar; cross multiplication avoids rounding.

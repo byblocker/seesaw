@@ -3,7 +3,7 @@ package rebalance
 import (
 	"fmt"
 	"seesaw/internal/utils"
-	"seesaw/pkg/models"
+	"seesaw/pkg/orders"
 
 	"github.com/shopspring/decimal"
 )
@@ -20,20 +20,20 @@ func ProposeBuy(
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
 	allowFractionalShares bool,
-) (models.Buy, error) {
+) (orders.Buy, error) {
 	if !req.Price.IsPositive() {
-		return models.Buy{}, fmt.Errorf("price must be positive")
+		return orders.Buy{}, fmt.Errorf("price must be positive")
 	}
 	if !req.ValueDrift.IsPositive() || !balance.IsPositive() {
-		return models.Buy{}, nil
+		return orders.Buy{}, nil
 	}
 
-	proposeQuantity := func(quantity decimal.Decimal) models.Buy {
+	proposeQuantity := func(quantity decimal.Decimal) orders.Buy {
 		if quantity.IsZero() {
-			return models.Buy{}
+			return orders.Buy{}
 		}
 
-		return models.Buy{
+		return orders.Buy{
 			Ticker:        req.Ticker,
 			Price:         req.Price,
 			Quantity:      quantity,

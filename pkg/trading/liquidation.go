@@ -7,6 +7,7 @@ import (
 	"seesaw/internal/liquidation"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/orders"
 	"seesaw/pkg/portfolio"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 )
 
 type LiquidationPlan struct {
-	Sells         []models.SellProposal
+	Sells         []orders.SellProposal
 	Withdrawal    decimal.Decimal
 	AvailableCash decimal.Decimal
 	TotalProceeds decimal.Decimal

@@ -3,7 +3,7 @@ package report
 import (
 	"fmt"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
+	"seesaw/pkg/orders"
 	"seesaw/pkg/trading"
 	"slices"
 	"strings"
@@ -44,12 +44,12 @@ func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *conf
 
 func sortOrders(plan trading.RebalancePlan) trading.RebalancePlan {
 	plan.Buys = slices.Clone(plan.Buys)
-	slices.SortFunc(plan.Buys, func(left, right models.Buy) int {
+	slices.SortFunc(plan.Buys, func(left, right orders.Buy) int {
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
 
 	plan.Sells = slices.Clone(plan.Sells)
-	slices.SortFunc(plan.Sells, func(left, right models.SellProposal) int {
+	slices.SortFunc(plan.Sells, func(left, right orders.SellProposal) int {
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
 	return plan
