@@ -20,7 +20,7 @@ func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.T
 	}
 
 	plan = sortOrders(plan)
-	sellRows, proceeds, realizedPL, _ := formatSells(plan.Sells, rates, nil)
+	sells := formatSells(plan.Sells, rates, nil)
 	buyRows, cost := formatBuys(plan.Buys)
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
 	if rates != nil {
@@ -29,12 +29,12 @@ func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.T
 			buyRows[i] = append(buyRows[i], "—")
 		}
 	}
-	writeTable(&output, headers, append(sellRows, buyRows...), 3)
+	writeTable(&output, headers, append(sells.rows, buyRows...), 3)
 
-	remainingCash := buyingPower.Add(proceeds).Sub(cost)
+	remainingCash := buyingPower.Add(sells.proceeds).Sub(cost)
 
-	writeSummaries(&output, orderSummaries(realizedPL, remainingCash, plan.Sells, rates))
-	if rates != nil && len(plan.Sells) > 0 {
+	writeSummaries(&output, orderSummaries(sells, remainingCash))
+	if sells.showTax {
 		output.WriteString("\nNegative tax impact is potential relief, assuming losses offset gains of the same holding period.\n")
 		output.WriteString("Estimates exclude annual netting, carryovers, and wash-sale adjustments; they are not tax due.\n")
 	}
@@ -54,27 +54,16 @@ func sortOrders(plan pkg.RebalancePlan) pkg.RebalancePlan {
 	return plan
 }
 
-func orderSummaries(realizedPL, remainingCash decimal.Decimal, sells []models.SellProposal, rates *models.TaxSettings) [][2]string {
+func orderSummaries(sells formattedSells, remainingCash decimal.Decimal) [][2]string {
 	summaries := [][2]string{
-		{"Total P/L:", money(realizedPL)},
+		{"Total P/L:", money(sells.realizedPL)},
 		{"Remaining balance:", money(remainingCash)},
 	}
 
-	if rates != nil && len(sells) > 0 {
-		tax, relief := decimal.Zero, decimal.Zero
-		for _, sale := range sells {
-			for _, lot := range sale.Lots {
-				impact := lot.EstimatedTaxImpact(*rates)
-				if impact.IsNegative() {
-					relief = relief.Sub(impact)
-				} else {
-					tax = tax.Add(impact)
-				}
-			}
-		}
+	if sells.showTax {
 		summaries = append(summaries,
-			[2]string{"Estimated tax on gains:", money(tax)},
-			[2]string{"Potential tax relief:", money(relief)},
+			[2]string{"Estimated tax on gains:", money(sells.tax)},
+			[2]string{"Potential tax relief:", money(sells.relief)},
 		)
 	}
 
