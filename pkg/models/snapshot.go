@@ -1,6 +1,7 @@
 package models
 
 import (
+	"seesaw/pkg/config"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -15,7 +16,7 @@ type AccountSnapshot struct {
 }
 
 type Asset struct {
-	Plan    *AssetPlan
+	Plan    *config.AssetPlan
 	Tickers []string
 
 	Allocation decimal.Decimal

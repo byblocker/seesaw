@@ -8,7 +8,6 @@ import (
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"seesaw/pkg/trading"
 	"strings"
@@ -61,7 +60,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var rates *models.TaxSettings
+	var rates *config.TaxSettings
 	if *plan.IsTaxable {
 		user, err := config.LoadUser("./data/user.yaml")
 		if err != nil {

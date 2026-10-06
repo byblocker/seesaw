@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
 	"slices"
@@ -10,7 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *models.TaxSettings) string {
+func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *config.TaxSettings) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 

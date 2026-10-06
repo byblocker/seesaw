@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/liquidation"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"time"
 
@@ -22,9 +23,9 @@ func Liquidate(
 	ctx context.Context,
 	snapshot models.AccountSnapshot,
 	client models.BrokerClient,
-	settings models.LiquidationSettings,
+	settings config.LiquidationSettings,
 	withdrawal decimal.Decimal,
-	rates *models.TaxSettings,
+	rates *config.TaxSettings,
 	searchLimit int,
 ) (*LiquidationPlan, error) {
 	if err := ctx.Err(); err != nil {

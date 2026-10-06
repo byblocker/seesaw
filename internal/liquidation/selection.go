@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
 
@@ -49,8 +50,8 @@ func SelectWholeShareSales(
 	groups []LiquidationCandidate,
 	funding Funding,
 	maxDeviation decimal.Decimal,
-	selection models.LotSelection,
-	rates *models.TaxSettings,
+	selection config.LotSelection,
+	rates *config.TaxSettings,
 	searchLimit int,
 ) ([]models.SellProposal, error) {
 	if funding.MinTargetSale.IsNegative() || funding.MaxTargetSale.LessThan(funding.MinTargetSale) {
@@ -62,10 +63,10 @@ func SelectWholeShareSales(
 	if searchLimit <= 0 {
 		return nil, fmt.Errorf("search limit must be positive")
 	}
-	if selection != models.EstimatedTax && selection != models.MinTaxOrder {
+	if selection != config.EstimatedTax && selection != config.MinTaxOrder {
 		return nil, fmt.Errorf("unsupported lot selection %q", selection)
 	}
-	if rates != nil && selection == models.EstimatedTax {
+	if rates != nil && selection == config.EstimatedTax {
 		if err := rates.Validate(); err != nil {
 			return nil, err
 		}
@@ -89,8 +90,8 @@ func prepareSaleSearch(
 	groups []LiquidationCandidate,
 	funding Funding,
 	maxDeviation decimal.Decimal,
-	selection models.LotSelection,
-	rates *models.TaxSettings,
+	selection config.LotSelection,
+	rates *config.TaxSettings,
 ) (*saleSearch, error) {
 	search := &saleSearch{
 		funding: funding,
@@ -121,7 +122,7 @@ func prepareSaleSearch(
 		for j := range asset.candidate.Lots {
 			sell := &asset.candidate.Lots[j]
 			lot := searchLot{sell: sell, asset: asset, available: sell.Quantity.Floor()}
-			if selection == models.EstimatedTax && rates != nil {
+			if selection == config.EstimatedTax && rates != nil {
 				lot.taxPerShare = sell.TaxImpactPerShare(*rates)
 			}
 			search.lots = append(search.lots, lot)

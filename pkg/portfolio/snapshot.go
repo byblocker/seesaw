@@ -6,6 +6,7 @@ import (
 	"seesaw/internal/collections"
 	"seesaw/internal/rebalance"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -14,7 +15,7 @@ import (
 func Snapshot(
 	ctx context.Context,
 	client models.BrokerClient,
-	plan *models.PortfolioPlan,
+	plan *config.Plan,
 ) (*models.AccountSnapshot, error) {
 	portfolio, err := client.Portfolio(
 		ctx,
@@ -57,7 +58,7 @@ func Snapshot(
 }
 
 func assignAsset(
-	plan *models.AssetPlan,
+	plan *config.AssetPlan,
 	tickers []string,
 	portfolio *models.Portfolio,
 ) models.Asset {

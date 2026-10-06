@@ -6,14 +6,13 @@ import (
 	"io"
 	"os"
 	"seesaw/internal/collections"
-	"seesaw/pkg/models"
 	"strings"
 
 	"github.com/shopspring/decimal"
 	"gopkg.in/yaml.v3"
 )
 
-func LoadPlan(path string) (*models.PortfolioPlan, error) {
+func LoadPlan(path string) (*Plan, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening portfolio plan %s: %w", path, err)
@@ -27,7 +26,7 @@ func LoadPlan(path string) (*models.PortfolioPlan, error) {
 	return plan, nil
 }
 
-func ParsePlan(file io.Reader) (*models.PortfolioPlan, error) {
+func ParsePlan(file io.Reader) (*Plan, error) {
 	data, err := io.ReadAll(file)
 	if err != nil {
 		return nil, fmt.Errorf(
@@ -35,7 +34,7 @@ func ParsePlan(file io.Reader) (*models.PortfolioPlan, error) {
 		)
 	}
 
-	plan := &models.PortfolioPlan{}
+	plan := &Plan{}
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(plan); err != nil {
@@ -70,7 +69,7 @@ func ParsePlan(file io.Reader) (*models.PortfolioPlan, error) {
 	return plan, nil
 }
 
-func normalizeAssets(assets []models.AssetPlan) error {
+func normalizeAssets(assets []AssetPlan) error {
 	totalAllocation := decimal.Zero
 	seenTickers := collections.NewSet[string]()
 

@@ -6,6 +6,7 @@ import (
 	"log"
 	"seesaw/internal/rebalance"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
@@ -23,7 +24,7 @@ func Rebalance(
 	ctx context.Context,
 	snapshot models.AccountSnapshot,
 	client models.BrokerClient,
-	settings models.RebalanceSettings,
+	settings config.RebalanceSettings,
 ) (*RebalancePlan, error) {
 	if err := settings.Validate(); err != nil {
 		return nil, err
@@ -40,8 +41,6 @@ func Rebalance(
 		plan        RebalancePlan
 	)
 
-	// Seesaw does not look ahead for future transactions, so any tax-loss harvesting
-	// will be evaluated if sold today
 	saleDate := time.Now()
 	brokerSettings := client.Settings()
 

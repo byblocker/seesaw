@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"seesaw/pkg/config"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -54,7 +55,7 @@ func NewSellLot(ticker string, lot *PositionLot, price decimal.Decimal, saleDate
 	}
 }
 
-func (sale SellLot) TaxImpactPerShare(rates TaxSettings) decimal.Decimal {
+func (sale SellLot) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal {
 	rate := rates.ShortTermGainRate
 	if sale.LongTerm {
 		rate = rates.LongTermGainRate
@@ -70,7 +71,7 @@ func (sell SellLot) RealizedPL() decimal.Decimal {
 	return sell.Quantity.Mul(sell.GainPerShare)
 }
 
-func (sell SellLot) EstimatedTaxImpact(rates TaxSettings) decimal.Decimal {
+func (sell SellLot) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
 	return sell.Quantity.Mul(sell.TaxImpactPerShare(rates))
 }
 

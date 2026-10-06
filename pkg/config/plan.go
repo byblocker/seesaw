@@ -1,4 +1,4 @@
-package models
+package config
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type PortfolioPlan struct {
+type Plan struct {
 	Broker      string              `yaml:"broker"`
 	AccountId   string              `yaml:"accountId"`
 	IsTaxable   *bool               `yaml:"is_taxable"`
@@ -19,7 +19,7 @@ type PortfolioPlan struct {
 	Assets      []AssetPlan         `yaml:"assets"`
 }
 
-func (plan *PortfolioPlan) Tickers() iter.Seq[string] {
+func (plan *Plan) Tickers() iter.Seq[string] {
 	return collections.FlatMap(slices.Values(plan.Assets), AssetPlan.Tickers)
 }
 

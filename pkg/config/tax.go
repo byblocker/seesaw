@@ -1,4 +1,4 @@
-package models
+package config
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type UserConfig struct {
+type User struct {
 	Tax TaxSettings `yaml:"tax"`
 }
 

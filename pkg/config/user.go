@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"seesaw/pkg/models"
 
 	"gopkg.in/yaml.v3"
 )
 
-func LoadUser(path string) (*models.UserConfig, error) {
+func LoadUser(path string) (*User, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("opening user config %s: %w", path, err)
@@ -23,8 +22,8 @@ func LoadUser(path string) (*models.UserConfig, error) {
 	return config, nil
 }
 
-func ParseUser(file io.Reader) (*models.UserConfig, error) {
-	config := &models.UserConfig{}
+func ParseUser(file io.Reader) (*User, error) {
+	config := &User{}
 	decoder := yaml.NewDecoder(file)
 	decoder.KnownFields(true)
 	if err := decoder.Decode(config); err != nil {
