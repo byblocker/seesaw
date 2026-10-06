@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"seesaw/internal/report"
 	"seesaw/pkg"
+	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"strings"
@@ -68,7 +69,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		rates = &user.Tax
 	}
 
-	client, err := pkg.Connect(ctx, plan.Broker)
+	client, err := broker.Connect(ctx, plan.Broker)
 	if err != nil {
 		return err
 	}

@@ -1,18 +1,18 @@
-package pkg
+package broker
 
 import (
 	"context"
-	"seesaw/internal/broker"
+	brokerimpl "seesaw/internal/broker"
 	"seesaw/internal/broker/etrade"
 	"seesaw/pkg/models"
 )
 
 type ETradeConfig = etrade.Config
 
-var ErrBrokerNotConfigured = broker.ErrNotConfigured
+var ErrBrokerNotConfigured = brokerimpl.ErrNotConfigured
 
 func Connect(ctx context.Context, name string) (models.BrokerClient, error) {
-	selectedBroker, err := broker.For(name)
+	selectedBroker, err := brokerimpl.For(name)
 	if err != nil {
 		return nil, err
 	}

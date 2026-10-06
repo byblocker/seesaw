@@ -188,7 +188,7 @@ The default search limit is 1,000,000 nodes. Like `rebalance`, this command only
 
 ## Library Usage
 
-Use `pkg.Connect(ctx, name)` with a saved configuration in your OS keyring, or see specific usage for a given broker:
+Use `broker.Connect(ctx, name)` from with a saved configuration in your OS keyring, or see specific usage for a given broker:
 - [ETRADE guide](docs/brokers/etrade.md#library-use)
 
 ## Development Choices
