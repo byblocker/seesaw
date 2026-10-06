@@ -1,15 +1,15 @@
 package report
 
 import (
-	"seesaw/pkg"
 	"seesaw/pkg/models"
+	"seesaw/pkg/trading"
 	"slices"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
-func Liquidation(plan pkg.LiquidationPlan, rates *models.TaxSettings, recentTx models.RecentTxByTicker) string {
+func Liquidation(plan trading.LiquidationPlan, rates *models.TaxSettings, recentTx models.RecentTxByTicker) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Liquidation\n\n")
 

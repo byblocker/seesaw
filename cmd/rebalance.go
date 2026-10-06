@@ -6,11 +6,11 @@ import (
 	"log"
 	"path/filepath"
 	"seesaw/internal/report"
-	"seesaw/pkg"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"seesaw/pkg/trading"
 
 	"github.com/spf13/cobra"
 )
@@ -65,7 +65,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write snapshot summary: %w", err)
 	}
 
-	orders, err := pkg.Rebalance(ctx, *snapshot, client, plan.Rebalance)
+	orders, err := trading.Rebalance(ctx, *snapshot, client, plan.Rebalance)
 	if err != nil {
 		return err
 	}

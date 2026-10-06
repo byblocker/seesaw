@@ -9,7 +9,9 @@ import (
 
 type ETradeConfig = etrade.Config
 
-var ErrBrokerNotConfigured = brokerimpl.ErrNotConfigured
+type ETradeClient = etrade.Client
+
+var ErrNotConfigured = brokerimpl.ErrNotConfigured
 
 func Connect(ctx context.Context, name string) (models.BrokerClient, error) {
 	selectedBroker, err := brokerimpl.For(name)
@@ -19,6 +21,6 @@ func Connect(ctx context.Context, name string) (models.BrokerClient, error) {
 	return selectedBroker.Connect(ctx)
 }
 
-func ConnectETrade(ctx context.Context, config ETradeConfig) (*etrade.Client, error) {
+func ConnectETrade(ctx context.Context, config ETradeConfig) (*ETradeClient, error) {
 	return etrade.NewClient(ctx, config)
 }

@@ -6,11 +6,11 @@ import (
 	"log"
 	"path/filepath"
 	"seesaw/internal/report"
-	"seesaw/pkg"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"seesaw/pkg/trading"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -84,7 +84,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write snapshot summary: %w", err)
 	}
 
-	orders, err := pkg.Liquidate(ctx, *snapshot, client, plan.Liquidation, amount, rates, liquidationSearchLimit)
+	orders, err := trading.Liquidate(ctx, *snapshot, client, plan.Liquidation, amount, rates, liquidationSearchLimit)
 	if err != nil {
 		return err
 	}

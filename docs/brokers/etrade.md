@@ -42,4 +42,4 @@ When _seesaw_ first authenticates for the day, _seesaw_ will open the browser to
 
 ## Library usage
 
-Supply a `broker.ETradeConfig` and connect via `broker.ConnectETrade(ctx, config)` from `seesaw/pkg/broker` to receive a valid `BrokerClient`. Populate the configuration from your own environment loader or secrets manager, as needed. _seesaw_ still uses OS keyring for OAuth token caching.
+Supply a `broker.ETradeConfig` and connect via `broker.ConnectETrade(ctx, config)` from `seesaw/pkg/broker` to receive a `*broker.ETradeClient`, which implements `models.BrokerClient`. Populate the configuration from your own environment loader or secrets manager, as needed. _seesaw_ still uses OS keyring for OAuth token caching.

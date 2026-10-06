@@ -2,15 +2,15 @@ package report
 
 import (
 	"fmt"
-	"seesaw/pkg"
 	"seesaw/pkg/models"
+	"seesaw/pkg/trading"
 	"slices"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
-func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.TaxSettings) string {
+func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *models.TaxSettings) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
@@ -41,7 +41,7 @@ func Orders(plan pkg.RebalancePlan, buyingPower decimal.Decimal, rates *models.T
 	return output.String()
 }
 
-func sortOrders(plan pkg.RebalancePlan) pkg.RebalancePlan {
+func sortOrders(plan trading.RebalancePlan) trading.RebalancePlan {
 	plan.Buys = slices.Clone(plan.Buys)
 	slices.SortFunc(plan.Buys, func(left, right models.Buy) int {
 		return strings.Compare(left.Ticker, right.Ticker)
