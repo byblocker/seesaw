@@ -10,9 +10,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type LiquidateCandidate struct {
+type LiquidationCandidate struct {
 	Asset *models.Asset
 	Lots  []models.SellLot
+	Value decimal.Decimal // Quoted value of all holdings, including fractional shares.
 }
 
 func RankLots(
@@ -21,7 +22,7 @@ func RankLots(
 	selection models.LotSelection,
 	rates *models.TaxSettings,
 	saleDate time.Time,
-) ([]LiquidateCandidate, error) {
+) ([]LiquidationCandidate, error) {
 	if selection != models.EstimatedTax && selection != models.MinTaxOrder {
 		return nil, fmt.Errorf("unsupported lot selection %q", selection)
 	}
@@ -29,10 +30,10 @@ func RankLots(
 		return nil, fmt.Errorf("snapshot is missing portfolio")
 	}
 
-	groups := make([]LiquidateCandidate, 0, len(snapshot.Assets))
+	candidates := make([]LiquidationCandidate, 0, len(snapshot.Assets))
 	for i := range snapshot.Assets {
 		asset := &snapshot.Assets[i]
-		group := LiquidateCandidate{Asset: asset}
+		group := LiquidationCandidate{Asset: asset}
 		for _, ticker := range asset.Tickers {
 			position, held := snapshot.Portfolio.PositionByTicker[ticker]
 			if !held || position.Quantity.IsZero() {
@@ -50,19 +51,21 @@ func RankLots(
 					continue
 				}
 
-				group.Lots = append(group.Lots, models.NewSellLot(ticker, lot, quote.Bid, saleDate))
+				sell := models.NewSellLot(ticker, lot, quote.Bid, saleDate)
+				group.Lots = append(group.Lots, sell)
+				group.Value = group.Value.Add(sell.Proceeds())
 			}
 		}
 		slices.SortFunc(group.Lots, func(a, b models.SellLot) int {
 			return compareLots(a, b, selection, rates)
 		})
-		groups = append(groups, group)
+		candidates = append(candidates, group)
 	}
 
-	slices.SortStableFunc(groups, func(a, b LiquidateCandidate) int {
+	slices.SortStableFunc(candidates, func(a, b LiquidationCandidate) int {
 		return cmp.Compare(assetRank(a.Asset), assetRank(b.Asset))
 	})
-	return groups, nil
+	return candidates, nil
 }
 
 const (
