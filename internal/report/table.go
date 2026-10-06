@@ -10,7 +10,8 @@ func writeTable(output *strings.Builder, headers []string, rows [][]string, text
 	widths, divider := measureTable(headers, rows)
 
 	writeTableRow(output, headers, widths, textColumns)
-	output.WriteString(divider + "\n")
+	output.WriteString(divider)
+	output.WriteByte('\n')
 
 	for index, row := range rows {
 		if index > 0 {
@@ -19,7 +20,8 @@ func writeTable(output *strings.Builder, headers []string, rows [][]string, text
 		writeTableRow(output, row, widths, textColumns)
 	}
 
-	output.WriteString(divider + "\n\n")
+	output.WriteString(divider)
+	output.WriteString("\n\n")
 	return divider
 }
 
