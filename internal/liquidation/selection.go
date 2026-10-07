@@ -7,6 +7,8 @@ import (
 
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+
+	"github.com/shopspring/decimal"
 )
 
 func PlanSales(
@@ -16,7 +18,7 @@ func PlanSales(
 	saleDate time.Time,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	search, err := prepSearch(
+	search, sells, err := prepSearch(
 		plan,
 		snapshot,
 		quotes,
@@ -35,21 +37,20 @@ func PlanSales(
 	return &models.LiquidationSelection{
 		Plan:            plan,
 		ExpectedBalance: plan.StartingCash.Sub(plan.Request.Amount).Add(search.bestTotals.proceeds),
-		Sells:           assembleSales(search.lots),
+		Sells:           assembleSales(sells, search.best),
 		Proceeds:        search.bestTotals.proceeds,
 	}, nil
 }
 
-func assembleSales(lots []searchLot) []models.SellProposal {
+func assembleSales(lots []models.SellLot, quantities []decimal.Decimal) []models.SellProposal {
 	var proposals []models.SellProposal
 	byTicker := make(map[string]int)
-	for _, lot := range lots {
-		if lot.best.IsZero() {
+	for i, sell := range lots {
+		if quantities[i].IsZero() {
 			continue
 		}
 
-		sell := lot.sell
-		sell.Quantity = lot.best
+		sell.Quantity = quantities[i]
 
 		index, exists := byTicker[sell.Ticker]
 		if !exists {
