@@ -16,11 +16,11 @@ func PlanSales(
 	saleDate time.Time,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	search, err := prepareSaleSearch(
+	search, err := prepSearch(
+		plan,
 		snapshot,
 		quotes,
 		saleDate,
-		plan,
 	)
 	if err != nil {
 		return nil, err
