@@ -82,7 +82,7 @@ func Liquidate(
 		funding.MinTargetSale.StringFixed(2), funding.MaxTargetSale.StringFixed(2),
 	)
 
-	plan.Sells, err = liquidation.SelectWholeShareSales(
+	selection, err := liquidation.SelectSales(
 		ctx,
 		candidates,
 		funding,
@@ -92,9 +92,8 @@ func Liquidate(
 		return nil, err
 	}
 
-	for _, sale := range plan.Sells {
-		plan.ExpectedBalance = plan.ExpectedBalance.Add(sale.Proceeds)
-	}
+	plan.Sells = selection.Sells
+	plan.ExpectedBalance = plan.ExpectedBalance.Add(selection.Proceeds)
 
 	log.Printf("Liquidation planning complete: %d sell(s)", len(plan.Sells))
 	return plan, nil

@@ -46,42 +46,50 @@ type saleSearch struct {
 	limit      int
 }
 
-func SelectWholeShareSales(
+type Selection struct {
+	Sells    []orders.SellProposal
+	Proceeds decimal.Decimal
+}
+
+func SelectSales(
 	ctx context.Context,
 	groups []LiquidationCandidate,
 	funding Funding,
 	request models.LiquidationRequest,
-) ([]orders.SellProposal, error) {
+) (Selection, error) {
 	if funding.MinTargetSale.IsNegative() || funding.MaxTargetSale.LessThan(funding.MinTargetSale) {
-		return nil, fmt.Errorf("invalid sale funding bounds")
+		return Selection{}, fmt.Errorf("invalid sale funding bounds")
 	}
 	if funding.MinTargetSale.IsZero() {
-		return nil, nil
+		return Selection{}, nil
 	}
 	if request.SearchLimit <= 0 {
-		return nil, fmt.Errorf("search limit must be positive")
+		return Selection{}, fmt.Errorf("search limit must be positive")
 	}
 	if request.Settings.LotSelection != config.EstimatedTax && request.Settings.LotSelection != config.MinTaxOrder {
-		return nil, fmt.Errorf("unsupported lot selection %q", request.Settings.LotSelection)
+		return Selection{}, fmt.Errorf("unsupported lot selection %q", request.Settings.LotSelection)
 	}
 	if request.TaxRates != nil && request.Settings.LotSelection == config.EstimatedTax {
 		if err := request.TaxRates.Validate(); err != nil {
-			return nil, err
+			return Selection{}, err
 		}
 	}
 
 	search, err := prepareSaleSearch(groups, funding, request)
 	if err != nil {
-		return nil, err
+		return Selection{}, err
 	}
 	search.limit = request.SearchLimit
 	if err := searchSales(ctx, search, 0, saleTotals{}); err != nil {
-		return nil, err
+		return Selection{}, err
 	}
 	if !search.found {
-		return nil, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
+		return Selection{}, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
 	}
-	return assembleSales(search.lots), nil
+	return Selection{
+		Sells:    assembleSales(search.lots),
+		Proceeds: search.bestTotals.proceeds,
+	}, nil
 }
 
 func prepareSaleSearch(
