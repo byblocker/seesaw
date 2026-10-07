@@ -31,14 +31,16 @@ func Liquidate(
 		}
 	}
 
-	balances := snapshot.Portfolio.Balances
-
-	plan, err := liquidation.PlanFunding(balances, request)
+	plan, err := liquidation.PlanFunding(snapshot.Portfolio.Balances, request)
 	if err != nil {
 		return nil, err
 	}
+
 	if plan.MinTargetSale.IsZero() {
-		return liquidation.SelectSales(ctx, nil, plan)
+		return &models.LiquidationSelection{
+			Plan:            plan,
+			ExpectedBalance: plan.StartingCash.Sub(request.Amount),
+		}, nil
 	}
 
 	if request.SearchLimit <= 0 {
@@ -51,19 +53,16 @@ func Liquidate(
 		return nil, err
 	}
 
-	candidates, err := liquidation.CollectLots(snapshot, quotes, saleDate)
-	if err != nil {
-		return nil, err
-	}
-
 	log.Printf(
 		"Selecting liquidation sales between $%s and $%s",
 		plan.MinTargetSale.StringFixed(2), plan.MaxTargetSale.StringFixed(2),
 	)
 
-	selection, err := liquidation.SelectSales(
+	selection, err := liquidation.PlanSales(
 		ctx,
-		candidates,
+		snapshot,
+		quotes,
+		saleDate,
 		plan,
 	)
 	if err != nil {

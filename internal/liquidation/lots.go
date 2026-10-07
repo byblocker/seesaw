@@ -5,34 +5,22 @@ import (
 	"fmt"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
-type LiquidationCandidate struct {
-	Asset      *portfolio.Asset
-	LotsToSell []models.SellLot
-	Value      decimal.Decimal
-}
-
-func CollectLots(
+func (search *saleSearch) collectLots(
 	snapshot portfolio.Snapshot,
 	quotes map[string]models.Quote,
 	saleDate time.Time,
-) ([]LiquidationCandidate, error) {
-	if snapshot.Portfolio == nil {
-		return nil, fmt.Errorf("snapshot is missing portfolio")
-	}
-
-	candidates := make([]LiquidationCandidate, 0, len(snapshot.Assets))
-
+) error {
+	search.assets = make([]searchAsset, len(snapshot.Assets))
 	for i := range snapshot.Assets {
-		asset := &snapshot.Assets[i]
-		candidate := LiquidationCandidate{Asset: asset}
+		asset := &search.assets[i]
+		asset.source = &snapshot.Assets[i]
 
-		for _, ticker := range asset.Tickers {
+		for _, ticker := range asset.source.Tickers {
 			position, held := snapshot.Portfolio.PositionByTicker[ticker]
 			if !held || position.Quantity.IsZero() {
 				continue
@@ -40,7 +28,7 @@ func CollectLots(
 
 			quote, quoted := quotes[ticker]
 			if !quoted || !quote.Bid.IsPositive() {
-				return nil, fmt.Errorf("missing bid price for %s", ticker)
+				return fmt.Errorf("missing bid price for %s", ticker)
 			}
 
 			for i := range position.Lots {
@@ -50,17 +38,16 @@ func CollectLots(
 				}
 
 				sell := models.NewSellLot(ticker, lot, quote.Bid, saleDate)
-				candidate.LotsToSell = append(candidate.LotsToSell, sell)
-				candidate.Value = candidate.Value.Add(sell.Proceeds())
+				search.lots = append(search.lots, searchLot{
+					sell: sell, asset: asset, available: sell.Quantity.Floor(),
+				})
+				asset.value = asset.value.Add(sell.Proceeds())
 			}
 		}
-		candidates = append(candidates, candidate)
+		search.totalValue = search.totalValue.Add(asset.value)
 	}
 
-	slices.SortStableFunc(candidates, func(a, b LiquidationCandidate) int {
-		return cmp.Compare(assetRank(a.Asset), assetRank(b.Asset))
-	})
-	return candidates, nil
+	return nil
 }
 
 const (
