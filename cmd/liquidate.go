@@ -84,7 +84,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write snapshot summary: %w", err)
 	}
 
-	orders, err := trading.Liquidate(ctx, *snapshot, client, models.LiquidationRequest{
+	selection, err := trading.Liquidate(ctx, *snapshot, client, models.LiquidationRequest{
 		Amount:      amount,
 		Settings:    plan.Liquidation,
 		TaxRates:    rates,
@@ -94,7 +94,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*orders, rates, snapshot.Portfolio.RecentTx)); err != nil {
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*selection, snapshot.Portfolio.RecentTx)); err != nil {
 		return fmt.Errorf("write liquidation summary: %w", err)
 	}
 	return nil

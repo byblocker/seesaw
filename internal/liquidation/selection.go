@@ -35,70 +35,75 @@ type saleTotals struct {
 }
 
 type saleSearch struct {
-	assets     []searchAsset
-	lots       []searchLot
-	funding    Funding
-	totalValue decimal.Decimal
-	found      bool
-	bestTotals saleTotals
-	nodes      int
-	limit      int
-}
-
-type Selection struct {
-	Sells    []models.SellProposal
-	Proceeds decimal.Decimal
+	assets        []searchAsset
+	lots          []searchLot
+	minTargetSale decimal.Decimal
+	maxTargetSale decimal.Decimal
+	totalValue    decimal.Decimal
+	found         bool
+	bestTotals    saleTotals
+	nodes         int
+	limit         int
 }
 
 func SelectSales(
 	ctx context.Context,
 	groups []LiquidationCandidate,
-	funding Funding,
-	request models.LiquidationRequest,
-) (Selection, error) {
-	if funding.MinTargetSale.IsNegative() || funding.MaxTargetSale.LessThan(funding.MinTargetSale) {
-		return Selection{}, fmt.Errorf("invalid sale funding bounds")
+	plan *models.LiquidationPlan,
+) (*models.LiquidationSelection, error) {
+	if plan == nil {
+		return nil, fmt.Errorf("liquidation plan is missing")
 	}
-	if funding.MinTargetSale.IsZero() {
-		return Selection{}, nil
+	request := plan.Request
+	if plan.MinTargetSale.IsNegative() || plan.MaxTargetSale.LessThan(plan.MinTargetSale) {
+		return nil, fmt.Errorf("invalid sale funding bounds")
+	}
+	if plan.MinTargetSale.IsZero() {
+		return &models.LiquidationSelection{
+			Plan:            plan,
+			ExpectedBalance: plan.StartingCash.Sub(request.Amount),
+		}, nil
 	}
 	if request.SearchLimit <= 0 {
-		return Selection{}, fmt.Errorf("search limit must be positive")
+		return nil, fmt.Errorf("search limit must be positive")
 	}
 	if request.Settings.LotSelection != config.EstimatedTax && request.Settings.LotSelection != config.MinTaxOrder {
-		return Selection{}, fmt.Errorf("unsupported lot selection %q", request.Settings.LotSelection)
+		return nil, fmt.Errorf("unsupported lot selection %q", request.Settings.LotSelection)
 	}
 	if request.TaxRates != nil && request.Settings.LotSelection == config.EstimatedTax {
 		if err := request.TaxRates.Validate(); err != nil {
-			return Selection{}, err
+			return nil, err
 		}
 	}
 
-	search, err := prepareSaleSearch(groups, funding, request)
+	search, err := prepareSaleSearch(groups, plan)
 	if err != nil {
-		return Selection{}, err
+		return nil, err
 	}
 	search.limit = request.SearchLimit
 	if err := searchSales(ctx, search, 0, saleTotals{}); err != nil {
-		return Selection{}, err
+		return nil, err
 	}
 	if !search.found {
-		return Selection{}, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
+		return nil, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
 	}
-	return Selection{
-		Sells:    assembleSales(search.lots),
-		Proceeds: search.bestTotals.proceeds,
+	return &models.LiquidationSelection{
+		Plan:            plan,
+		ExpectedBalance: plan.StartingCash.Sub(request.Amount).Add(search.bestTotals.proceeds),
+		Sells:           assembleSales(search.lots),
+		Proceeds:        search.bestTotals.proceeds,
 	}, nil
 }
 
 func prepareSaleSearch(
 	groups []LiquidationCandidate,
-	funding Funding,
-	request models.LiquidationRequest,
+	plan *models.LiquidationPlan,
 ) (*saleSearch, error) {
+	request := plan.Request
 	search := &saleSearch{
-		funding: funding,
-		assets:  make([]searchAsset, len(groups)),
+		minTargetSale: plan.MinTargetSale,
+		maxTargetSale: plan.MaxTargetSale,
+		assets:        make([]searchAsset, len(groups)),
 	}
 	lotCount := 0
 	for i := range groups {
@@ -107,9 +112,9 @@ func prepareSaleSearch(
 		lotCount += len(groups[i].LotsToSell)
 	}
 
-	search.funding.MaxTargetSale = decimal.Min(funding.MaxTargetSale, search.totalValue)
+	search.maxTargetSale = decimal.Min(plan.MaxTargetSale, search.totalValue)
 	search.lots = make([]searchLot, 0, lotCount)
-	remainingValue := search.totalValue.Sub(search.funding.MaxTargetSale)
+	remainingValue := search.totalValue.Sub(search.maxTargetSale)
 	for i := range search.assets {
 		asset := &search.assets[i]
 		weights, err := prepareAllocationWeights(asset.candidate.Asset, remainingValue, *request.Settings.MaxAllocationDeviation)
@@ -199,7 +204,7 @@ func searchSales(ctx context.Context, search *saleSearch, lotIndex int, totals s
 }
 
 func canImproveSelection(search *saleSearch, remaining, totals saleTotals) bool {
-	if totals.proceeds.Add(remaining.proceeds).LessThan(search.funding.MinTargetSale) {
+	if totals.proceeds.Add(remaining.proceeds).LessThan(search.minTargetSale) {
 		return false
 	}
 	if !search.found {
@@ -207,9 +212,9 @@ func canImproveSelection(search *saleSearch, remaining, totals saleTotals) bool 
 	}
 	possible := saleTotals{
 		tax:      totals.tax.Add(remaining.tax),
-		proceeds: decimal.Max(totals.proceeds, search.funding.MinTargetSale),
+		proceeds: decimal.Max(totals.proceeds, search.minTargetSale),
 		unplanned: totals.unplanned.Add(decimal.Min(
-			remaining.unplanned, search.funding.MaxTargetSale.Sub(totals.proceeds),
+			remaining.unplanned, search.maxTargetSale.Sub(totals.proceeds),
 		)),
 	}
 	return compareSaleTotals(possible, search.bestTotals) > 0
@@ -260,10 +265,10 @@ func (search *saleSearch) remainingAt(lotIndex int) saleTotals {
 func quantityBounds(search *saleSearch, lotIndex int, proceeds decimal.Decimal) (minQuantity, maxQuantity decimal.Decimal) {
 	lot := &search.lots[lotIndex]
 	asset, sell := lot.asset, lot.sell
-	capacity := decimal.Min(search.funding.MaxTargetSale.Sub(proceeds), asset.saleLimit.Sub(asset.sold))
+	capacity := decimal.Min(search.maxTargetSale.Sub(proceeds), asset.saleLimit.Sub(asset.sold))
 	maxQuantity, _ = capacity.QuoRem(sell.Price, 0)
 	maxQuantity = decimal.Min(maxQuantity, lot.available)
-	needed := search.funding.MinTargetSale.Sub(proceeds).Sub(search.remainingAt(lotIndex + 1).proceeds)
+	needed := search.minTargetSale.Sub(proceeds).Sub(search.remainingAt(lotIndex + 1).proceeds)
 	minQuantity, remainder := decimal.Max(decimal.Zero, needed).QuoRem(sell.Price, 0)
 	if remainder.IsPositive() {
 		minQuantity = minQuantity.Add(decimal.NewFromInt(1))

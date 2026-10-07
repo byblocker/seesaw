@@ -8,23 +8,14 @@ import (
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
-
-type LiquidationPlan struct {
-	Sells           []models.SellProposal
-	RequestAmount   decimal.Decimal
-	AvailableCash   decimal.Decimal
-	ExpectedBalance decimal.Decimal
-}
 
 func Liquidate(
 	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	request models.LiquidationRequest,
-) (*LiquidationPlan, error) {
+) (*models.LiquidationSelection, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -42,23 +33,12 @@ func Liquidate(
 
 	balances := snapshot.Portfolio.Balances
 
-	funding, err := liquidation.PlanFunding(
-		balances,
-		request.Amount,
-		*request.Settings.CashReserve,
-		*request.Settings.MaxExcessCash,
-	)
+	plan, err := liquidation.PlanFunding(balances, request)
 	if err != nil {
 		return nil, err
 	}
-
-	plan := &LiquidationPlan{
-		RequestAmount:   request.Amount,
-		AvailableCash:   funding.AvailableCash,
-		ExpectedBalance: balances.CashBalance.Sub(request.Amount),
-	}
-	if funding.MinTargetSale.IsZero() {
-		return plan, nil
+	if plan.MinTargetSale.IsZero() {
+		return liquidation.SelectSales(ctx, nil, plan)
 	}
 
 	if request.SearchLimit <= 0 {
@@ -78,22 +58,18 @@ func Liquidate(
 
 	log.Printf(
 		"Selecting liquidation sales between $%s and $%s",
-		funding.MinTargetSale.StringFixed(2), funding.MaxTargetSale.StringFixed(2),
+		plan.MinTargetSale.StringFixed(2), plan.MaxTargetSale.StringFixed(2),
 	)
 
 	selection, err := liquidation.SelectSales(
 		ctx,
 		candidates,
-		funding,
-		request,
+		plan,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	plan.Sells = selection.Sells
-	plan.ExpectedBalance = plan.ExpectedBalance.Add(selection.Proceeds)
-
-	log.Printf("Liquidation planning complete: %d sell(s)", len(plan.Sells))
-	return plan, nil
+	log.Printf("Liquidation planning complete: %d sell(s)", len(selection.Sells))
+	return selection, nil
 }

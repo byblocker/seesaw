@@ -8,21 +8,21 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Funding struct {
-	AvailableCash decimal.Decimal
-	MinTargetSale decimal.Decimal
-	MaxTargetSale decimal.Decimal
-}
-
 func PlanFunding(
 	balances models.Balances,
-	withdrawal, reserve, maxExcess decimal.Decimal,
-) (Funding, error) {
+	request models.LiquidationRequest,
+) (*models.LiquidationPlan, error) {
+	if err := request.Settings.Validate(); err != nil {
+		return nil, err
+	}
+	withdrawal := request.Amount
+	reserve := *request.Settings.CashReserve
+	maxExcess := *request.Settings.MaxExcessCash
 	if !withdrawal.IsPositive() {
-		return Funding{}, fmt.Errorf("withdrawal must be positive")
+		return nil, fmt.Errorf("withdrawal must be positive")
 	}
 	if reserve.IsNegative() || maxExcess.IsNegative() {
-		return Funding{}, fmt.Errorf("cash reserve and maximum excess cash must be nonnegative")
+		return nil, fmt.Errorf("cash reserve and maximum excess cash must be nonnegative")
 	}
 
 	cashAboveReserve := utils.ClampNonNegative(balances.CashBalance.Sub(reserve))
@@ -31,7 +31,9 @@ func PlanFunding(
 	minTargetSale := utils.ClampNonNegative(withdrawal.Add(reserve).Sub(balances.CashBalance))
 	maxTargetSale := minTargetSale.Add(maxExcess)
 
-	return Funding{
+	return &models.LiquidationPlan{
+		Request:       request,
+		StartingCash:  balances.CashBalance,
 		AvailableCash: availableCash,
 		MinTargetSale: minTargetSale,
 		MaxTargetSale: maxTargetSale,

@@ -1,20 +1,20 @@
 package report
 
 import (
-	"seesaw/pkg/config"
 	"seesaw/pkg/models"
-	"seesaw/pkg/trading"
 	"slices"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
-func Liquidation(plan trading.LiquidationPlan, rates *config.TaxSettings, recentTx models.RecentTxByTicker) string {
+func Liquidation(selection models.LiquidationSelection, recentTx models.RecentTxByTicker) string {
+	plan := selection.Plan
+	rates := plan.Request.TaxRates
 	var output strings.Builder
 	output.WriteString("\nSuggested Liquidation\n\n")
 
-	sells := slices.Clone(plan.Sells)
+	sells := slices.Clone(selection.Sells)
 	slices.SortFunc(sells, func(a, b models.SellProposal) int { return strings.Compare(a.Ticker, b.Ticker) })
 	formatted := formatSells(sells, rates, recentTx)
 	if len(formatted.rows) == 0 {
@@ -27,16 +27,16 @@ func Liquidation(plan trading.LiquidationPlan, rates *config.TaxSettings, recent
 		writeTable(&output, headers, formatted.rows, 3)
 	}
 
-	availableNow := decimal.Min(plan.RequestAmount, plan.AvailableCash)
+	availableNow := decimal.Min(plan.Request.Amount, plan.AvailableCash)
 	summaries := [][2]string{
-		{"Requested withdrawal:", money(plan.RequestAmount)},
+		{"Requested withdrawal:", money(plan.Request.Amount)},
 		{"Available now for this withdrawal:", money(availableNow)},
-		{"Estimated sale proceeds:", money(formatted.proceeds)},
+		{"Estimated sale proceeds:", money(selection.Proceeds)},
 	}
-	summaries = append(summaries, orderSummaries(formatted, plan.ExpectedBalance)...)
+	summaries = append(summaries, orderSummaries(formatted, selection.ExpectedBalance)...)
 	writeSummaries(&output, summaries)
 
-	if availableNow.LessThan(plan.RequestAmount) {
+	if availableNow.LessThan(plan.Request.Amount) {
 		output.WriteString("\nThe full withdrawal is not available now; cash availability depends on settlement and broker restrictions.\n")
 	}
 	if formatted.washSale {
