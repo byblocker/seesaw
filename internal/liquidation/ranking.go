@@ -4,22 +4,9 @@ import (
 	"cmp"
 
 	"seesaw/pkg/models"
-	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
 )
-
-const (
-	unplannedAssetRank = iota
-	plannedAssetRank
-)
-
-func assetRank(asset *portfolio.Asset) int {
-	if asset.Plan == nil {
-		return unplannedAssetRank
-	}
-	return plannedAssetRank
-}
 
 func compareLots(a, b models.SellLot, aTax, bTax decimal.Decimal, taxable bool) int {
 	if taxable {

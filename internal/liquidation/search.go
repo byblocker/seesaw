@@ -3,41 +3,33 @@ package liquidation
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
-	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
 )
 
 type searchAsset struct {
-	source    *portfolio.Asset
-	value     decimal.Decimal
-	minWeight decimal.Decimal
-	maxWeight decimal.Decimal
-	saleLimit decimal.Decimal
-	sold      decimal.Decimal
+	isUnplanned bool
+	value       decimal.Decimal
+	minWeight   decimal.Decimal
+	maxWeight   decimal.Decimal
+	saleLimit   decimal.Decimal
+	sold        decimal.Decimal
 }
 
-func (asset *searchAsset) saleBounds(remainingInvestedValue decimal.Decimal) (minSale, maxSale decimal.Decimal, err error) {
-	if asset.source.Plan == nil {
-		return decimal.Zero, asset.value, nil
+func (asset *searchAsset) saleBounds(remainingInvestedValue decimal.Decimal) (minSale, maxSale decimal.Decimal) {
+	if asset.isUnplanned {
+		return decimal.Zero, asset.value
 	}
 	minRemaining := remainingInvestedValue.Mul(asset.minWeight)
 	maxRemaining := remainingInvestedValue.Mul(asset.maxWeight)
 
-	if asset.value.LessThan(minRemaining) {
-		return decimal.Zero, decimal.Zero, fmt.Errorf(
-			"%s cannot meet its minimum allocation without purchases", strings.Join(asset.source.Tickers, " / "),
-		)
-	}
-
 	minSale = utils.ClampNonNegative(asset.value.Sub(maxRemaining))
 	maxSale = asset.value.Sub(minRemaining)
 
-	return minSale, maxSale, nil
+	return minSale, maxSale
 }
 
 type searchLot struct {
@@ -96,7 +88,7 @@ func (search *saleSearch) visit(ctx context.Context, lotIndex int, totals saleTo
 		next := totals
 		next.proceeds = next.proceeds.Add(amount)
 		next.tax = next.tax.Add(quantity.Mul(lot.taxPerShare))
-		if asset.source.Plan == nil {
+		if asset.isUnplanned {
 			next.unplanned = next.unplanned.Add(amount)
 		}
 		err := search.visit(ctx, lotIndex+1, next)
@@ -133,8 +125,8 @@ func (search *saleSearch) consider(totals saleTotals) {
 	}
 	remainingValue := search.totalValue.Sub(totals.proceeds)
 	for _, asset := range search.assets {
-		minSale, maxSale, err := asset.saleBounds(remainingValue)
-		if err != nil || asset.sold.LessThan(minSale) || asset.sold.GreaterThan(maxSale) {
+		minSale, maxSale := asset.saleBounds(remainingValue)
+		if asset.sold.LessThan(minSale) || asset.sold.GreaterThan(maxSale) {
 			return
 		}
 	}

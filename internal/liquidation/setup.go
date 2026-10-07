@@ -1,9 +1,9 @@
 package liquidation
 
 import (
-	"cmp"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"seesaw/internal/utils"
@@ -28,9 +28,9 @@ func prepSearch(
 
 	for i := range snapshot.Assets {
 		asset := &search.assets[i]
-		asset.source = &snapshot.Assets[i]
 		if err := search.collectAssetLots(
 			asset,
+			snapshot.Assets[i].Tickers,
 			snapshot.Portfolio,
 			quotes,
 			saleDate,
@@ -47,7 +47,7 @@ func prepSearch(
 	remainingValue := search.totalValue.Sub(search.maxTargetSale)
 	maxDeviation := *plan.Request.Settings.MaxAllocationDeviation
 	for i := range search.assets {
-		if err := search.assets[i].setSaleLimit(remainingValue, maxDeviation); err != nil {
+		if err := search.assets[i].setSaleLimit(&snapshot.Assets[i], remainingValue, maxDeviation); err != nil {
 			return nil, err
 		}
 	}
@@ -61,8 +61,11 @@ func prepSearch(
 	// Descending quantities in global preference order resolve equal scores on
 	// the first visit, allowing later branches with equal bounds to be pruned.
 	slices.SortStableFunc(search.lots, func(a, b searchLot) int {
-		if order := cmp.Compare(assetRank(a.asset.source), assetRank(b.asset.source)); order != 0 {
-			return order
+		if a.asset.isUnplanned != b.asset.isUnplanned {
+			if a.asset.isUnplanned {
+				return -1
+			}
+			return 1
 		}
 		return compareLots(a.sell, b.sell, a.taxPerShare, b.taxPerShare, plan.Request.TaxRates != nil)
 	})
@@ -76,11 +79,12 @@ func prepSearch(
 
 func (search *saleSearch) collectAssetLots(
 	asset *searchAsset,
+	tickers []string,
 	holdings *models.Portfolio,
 	quotes map[string]models.Quote,
 	saleDate time.Time,
 ) error {
-	for _, ticker := range asset.source.Tickers {
+	for _, ticker := range tickers {
 		position, held := holdings.PositionByTicker[ticker]
 		if !held || position.Quantity.IsZero() {
 			continue
@@ -107,16 +111,19 @@ func (search *saleSearch) collectAssetLots(
 	return nil
 }
 
-func (asset *searchAsset) setSaleLimit(remainingValue, maxDeviation decimal.Decimal) error {
+func (asset *searchAsset) setSaleLimit(source *portfolio.Asset, remainingValue, maxDeviation decimal.Decimal) error {
 	one := decimal.NewFromInt(1)
-	if asset.source.Plan != nil {
-		target := asset.source.Plan.TargetAllocation
+	asset.isUnplanned = source.Plan == nil
+	if !asset.isUnplanned {
+		target := source.Plan.TargetAllocation
 		asset.minWeight = utils.ClampNonNegative(target.Sub(maxDeviation))
 		asset.maxWeight = decimal.Min(one, target.Add(maxDeviation))
 	}
-	_, limit, err := asset.saleBounds(remainingValue)
-	if err != nil {
-		return err
+	_, limit := asset.saleBounds(remainingValue)
+	if limit.IsNegative() {
+		return fmt.Errorf(
+			"%s cannot meet its minimum allocation without purchases", strings.Join(source.Tickers, " / "),
+		)
 	}
 	asset.saleLimit = limit
 	return nil
@@ -129,7 +136,7 @@ func (lot *searchLot) setTaxEstimate(rates config.TaxSettings) {
 func (lot *searchLot) accumulateRemainingSales(remaining *saleTotals) {
 	amount := lot.available.Mul(lot.sell.Price)
 	remaining.proceeds = remaining.proceeds.Add(amount)
-	if lot.asset.source.Plan == nil {
+	if lot.asset.isUnplanned {
 		remaining.unplanned = remaining.unplanned.Add(amount)
 	}
 	// Taking every remaining loss and no gains is an optimistic tax bound.
