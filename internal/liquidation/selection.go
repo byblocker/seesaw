@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
-	"seesaw/pkg/orders"
 	"slices"
 
 	"github.com/shopspring/decimal"
@@ -20,7 +19,7 @@ type searchAsset struct {
 }
 
 type searchLot struct {
-	sell        *orders.SellLot
+	sell        *models.SellLot
 	asset       *searchAsset
 	available   decimal.Decimal
 	quantity    decimal.Decimal
@@ -47,7 +46,7 @@ type saleSearch struct {
 }
 
 type Selection struct {
-	Sells    []orders.SellProposal
+	Sells    []models.SellProposal
 	Proceeds decimal.Decimal
 }
 
@@ -272,8 +271,8 @@ func quantityBounds(search *saleSearch, lotIndex int, proceeds decimal.Decimal) 
 	return minQuantity, maxQuantity
 }
 
-func assembleSales(lots []searchLot) []orders.SellProposal {
-	var proposals []orders.SellProposal
+func assembleSales(lots []searchLot) []models.SellProposal {
+	var proposals []models.SellProposal
 	byTicker := make(map[string]int)
 	for _, lot := range lots {
 		if lot.best.IsZero() {
@@ -285,7 +284,7 @@ func assembleSales(lots []searchLot) []orders.SellProposal {
 		if !exists {
 			index = len(proposals)
 			byTicker[sell.Ticker] = index
-			proposals = append(proposals, orders.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: orders.Market})
+			proposals = append(proposals, models.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: models.Market})
 		}
 		proposals[index].Add(sell)
 	}

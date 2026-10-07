@@ -2,25 +2,24 @@ package rebalance
 
 import (
 	"seesaw/pkg/models"
-	"seesaw/pkg/orders"
 	"seesaw/pkg/portfolio"
 )
 
 func SelectPosToSell(
 	asset portfolio.Asset,
 	recentTx models.RecentTxByTicker,
-	harvestPosition func(string) orders.SellProposal,
-) orders.SellProposal {
+	harvestPosition func(string) models.SellProposal,
+) models.SellProposal {
 	if asset.Plan == nil {
-		return orders.SellProposal{}
+		return models.SellProposal{}
 	}
 
 	primary, alternate := asset.Plan.PrimaryTicker, asset.Plan.AltTicker
 	if primary == "" || alternate == "" || primary == alternate {
-		return orders.SellProposal{}
+		return models.SellProposal{}
 	}
 
-	var sellPrimary, sellAlt orders.SellProposal
+	var sellPrimary, sellAlt models.SellProposal
 
 	if !recentTx.HasRecentSell(primary) {
 		sellAlt = harvestPosition(alternate)
@@ -41,7 +40,7 @@ func SelectPosToSell(
 func SelectPosToBuy(
 	asset portfolio.Asset,
 	recentTx models.RecentTxByTicker,
-	sell orders.SellProposal,
+	sell models.SellProposal,
 	quoteByTicker map[string]models.Quote,
 ) BuyRequest {
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)

@@ -2,7 +2,6 @@ package rebalance
 
 import (
 	"seesaw/pkg/models"
-	"seesaw/pkg/orders"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -13,10 +12,10 @@ func HarvestTaxLoss(
 	bid,
 	minPctLossToHarvest decimal.Decimal,
 	saleDate time.Time,
-) orders.SellProposal {
-	proposal := orders.SellProposal{
+) models.SellProposal {
+	proposal := models.SellProposal{
 		Ticker: position.Ticker,
-		Type:   orders.Market,
+		Type:   models.Market,
 		Price:  bid,
 	}
 
@@ -26,7 +25,7 @@ func HarvestTaxLoss(
 			continue
 		}
 
-		proposal.Add(orders.NewSellLot(position.Ticker, lot, bid, saleDate))
+		proposal.Add(models.NewSellLot(position.Ticker, lot, bid, saleDate))
 	}
 
 	return proposal

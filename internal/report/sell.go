@@ -4,7 +4,6 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
-	"seesaw/pkg/orders"
 
 	"github.com/shopspring/decimal"
 )
@@ -16,7 +15,7 @@ type formattedSells struct {
 	washSale, showTax    bool
 }
 
-func formatSells(sells []orders.SellProposal, rates *config.TaxSettings, recentTx models.RecentTxByTicker) formattedSells {
+func formatSells(sells []models.SellProposal, rates *config.TaxSettings, recentTx models.RecentTxByTicker) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
