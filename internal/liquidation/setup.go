@@ -51,7 +51,7 @@ func prepSearch(
 		}
 	}
 
-	if plan.Request.Settings.LotSelection == config.EstimatedTax && plan.Request.TaxRates != nil {
+	if plan.Request.TaxRates != nil {
 		for i := range search.lots {
 			search.lots[i].setTaxEstimate(*plan.Request.TaxRates)
 		}
@@ -66,7 +66,7 @@ func prepSearch(
 			}
 			return 1
 		}
-		return compareLots(a.sell, b.sell, a.taxPerShare, b.taxPerShare, plan.Request.TaxRates != nil)
+		return compareLots(a.sell, b.sell, a.taxPerShare, b.taxPerShare)
 	})
 
 	var remaining saleTotals

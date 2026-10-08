@@ -53,7 +53,6 @@ rebalance:
   min_pct_loss_to_harvest: -0.005
 
 liquidation:
-  lot_selection: estimated_tax
   max_pct_allocation_deviation: 0.02
   cash_reserve: 0
   max_excess_cash: 100
@@ -77,7 +76,6 @@ All fields below are required except `assets[].alternate_ticker`. Values have no
 | `rebalance.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
 | `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
 | `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
-| `liquidation.lot_selection` | Select lots by estimated tax cost or a fixed priority: short-term losses, long-term losses, long-term gains, then short-term gains. | `estimated_tax` or  `min_tax_order` |
 | `liquidation.max_pct_allocation_deviation` | If liquidating, how low may an asset deviate from its target deviation | `[0, 1]` |
 | `liquidation.cash_reserve` | Minimum balance for this account | Non-negative number |
 | `liquidation.max_excess_cash` | Maximum balance above requested liquidation amount |  Non-negative number |
@@ -174,7 +172,7 @@ go run . liquidate --portfolio growth --amount 1000
 
 _seesaw_ uses existing cash first, preserves your configured cash reserve, and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
-The planner stays within the funding and allocation limits. It prioritizes proceeds from unplanned holdings, then the smallest total sale proceeds. For `estimated_tax`, it next minimizes the combined estimated tax impact; `min_tax_order` uses the lot priority described above. Ranked lots resolve remaining ties.
+The planner stays within the funding and allocation limits. It prioritizes proceeds from unplanned holdings, then the smallest total sale proceeds. For taxable portfolios, it next minimizes the combined estimated tax impact. Lots ranked by estimated tax per dollar resolve remaining ties.
 
 Review the proposed lots, cash available now, estimated sale proceeds, and remaining balance after withdrawal. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 

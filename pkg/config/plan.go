@@ -97,28 +97,13 @@ func (settings RebalanceSettings) Validate() error {
 	return nil
 }
 
-type LotSelection string
-
-const (
-	// Rank lots by estimated tax-cost per dollar raised using user supplied tax rates.
-	EstimatedTax LotSelection = "estimated_tax"
-
-	// Rank lots in this order:  short-term losses, long-term losses, long-term gains,
-	// then short-term gains without requiring user tax rates.
-	MinTaxOrder LotSelection = "min_tax_order"
-)
-
 type LiquidationSettings struct {
-	LotSelection           LotSelection     `yaml:"lot_selection"`
 	MaxAllocationDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation"`
 	CashReserve            *decimal.Decimal `yaml:"cash_reserve"`
 	MaxExcessCash          *decimal.Decimal `yaml:"max_excess_cash"`
 }
 
 func (settings LiquidationSettings) Validate() error {
-	if settings.LotSelection != EstimatedTax && settings.LotSelection != MinTaxOrder {
-		return fmt.Errorf("liquidation.lot_selection must be estimated_tax or min_tax_order")
-	}
 	if settings.MaxAllocationDeviation == nil {
 		return fmt.Errorf("missing required liquidation.max_pct_allocation_deviation")
 	}

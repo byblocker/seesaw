@@ -8,7 +8,6 @@ rebalance:
   min_pct_loss_to_harvest: -0.005
 
 liquidation:
-  lot_selection: estimated_tax
   max_pct_allocation_deviation: 0.02
   cash_reserve: 0
   max_excess_cash: 100
