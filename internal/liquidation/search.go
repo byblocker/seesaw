@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"seesaw/internal/utils"
+	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
@@ -15,6 +16,7 @@ type searchAsset struct {
 	minWeight   decimal.Decimal
 	maxWeight   decimal.Decimal
 	saleLimit   decimal.Decimal
+	sold        decimal.Decimal
 }
 
 func (asset *searchAsset) saleBounds(remainingInvestedValue decimal.Decimal) (minSale, maxSale decimal.Decimal) {
@@ -31,9 +33,11 @@ func (asset *searchAsset) saleBounds(remainingInvestedValue decimal.Decimal) (mi
 }
 
 type searchLot struct {
-	assetIndex  int
-	price       decimal.Decimal
+	sell        models.SellLot
+	asset       *searchAsset
 	available   decimal.Decimal
+	quantity    decimal.Decimal
+	best        decimal.Decimal
 	taxPerShare decimal.Decimal
 	remaining   saleTotals
 }
@@ -50,9 +54,6 @@ type saleSearch struct {
 	minTargetSale decimal.Decimal
 	maxTargetSale decimal.Decimal
 	totalValue    decimal.Decimal
-	sold          []decimal.Decimal
-	quantities    []decimal.Decimal
-	best          []decimal.Decimal
 	found         bool
 	bestTotals    saleTotals
 	nodes         int
@@ -75,15 +76,15 @@ func (search *saleSearch) visit(ctx context.Context, lotIndex int, totals saleTo
 		return nil
 	}
 
-	lot := search.lots[lotIndex]
-	asset := search.assets[lot.assetIndex]
+	lot := &search.lots[lotIndex]
+	asset := lot.asset
 	minQuantity, maxQuantity := search.quantityBounds(lotIndex, totals.proceeds)
 	one := decimal.NewFromInt(1)
 	for quantity := maxQuantity; quantity.GreaterThanOrEqual(minQuantity); quantity = quantity.Sub(one) {
-		amount := quantity.Mul(lot.price)
-		search.quantities[lotIndex] = quantity
-		previousSold := search.sold[lot.assetIndex]
-		search.sold[lot.assetIndex] = previousSold.Add(amount)
+		amount := quantity.Mul(lot.sell.Price)
+		lot.quantity = quantity
+		previousSold := asset.sold
+		asset.sold = previousSold.Add(amount)
 		next := totals
 		next.proceeds = next.proceeds.Add(amount)
 		next.tax = next.tax.Add(quantity.Mul(lot.taxPerShare))
@@ -91,7 +92,7 @@ func (search *saleSearch) visit(ctx context.Context, lotIndex int, totals saleTo
 			next.unplanned = next.unplanned.Add(amount)
 		}
 		err := search.visit(ctx, lotIndex+1, next)
-		search.sold[lot.assetIndex] = previousSold
+		asset.sold = previousSold
 		if err != nil {
 			return err
 		}
@@ -123,13 +124,16 @@ func (search *saleSearch) consider(totals saleTotals) {
 		return
 	}
 	remainingValue := search.totalValue.Sub(totals.proceeds)
-	for i, asset := range search.assets {
+	for _, asset := range search.assets {
 		minSale, maxSale := asset.saleBounds(remainingValue)
-		if search.sold[i].LessThan(minSale) || search.sold[i].GreaterThan(maxSale) {
+		if asset.sold.LessThan(minSale) || asset.sold.GreaterThan(maxSale) {
 			return
 		}
 	}
-	copy(search.best, search.quantities)
+	for i := range search.lots {
+		lot := &search.lots[i]
+		lot.best = lot.quantity
+	}
 	search.found = true
 	search.bestTotals = totals
 }
@@ -153,13 +157,13 @@ func (search *saleSearch) remainingAt(lotIndex int) saleTotals {
 }
 
 func (search *saleSearch) quantityBounds(lotIndex int, proceeds decimal.Decimal) (minQuantity, maxQuantity decimal.Decimal) {
-	lot := search.lots[lotIndex]
-	asset := search.assets[lot.assetIndex]
-	capacity := decimal.Min(search.maxTargetSale.Sub(proceeds), asset.saleLimit.Sub(search.sold[lot.assetIndex]))
-	maxQuantity, _ = capacity.QuoRem(lot.price, 0)
+	lot := &search.lots[lotIndex]
+	asset := lot.asset
+	capacity := decimal.Min(search.maxTargetSale.Sub(proceeds), asset.saleLimit.Sub(asset.sold))
+	maxQuantity, _ = capacity.QuoRem(lot.sell.Price, 0)
 	maxQuantity = decimal.Min(maxQuantity, lot.available)
 	needed := search.minTargetSale.Sub(proceeds).Sub(search.remainingAt(lotIndex + 1).proceeds)
-	minQuantity, remainder := decimal.Max(decimal.Zero, needed).QuoRem(lot.price, 0)
+	minQuantity, remainder := decimal.Max(decimal.Zero, needed).QuoRem(lot.sell.Price, 0)
 	if remainder.IsPositive() {
 		minQuantity = minQuantity.Add(decimal.NewFromInt(1))
 	}

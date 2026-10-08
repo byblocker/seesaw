@@ -8,7 +8,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func compareLots(a, b models.SellLot, aTax, bTax decimal.Decimal, taxable bool) int {
+func compareLots(
+	a, b models.SellLot,
+	aTax, bTax decimal.Decimal,
+	taxable bool,
+) int {
 	if taxable {
 		if !aTax.IsZero() || !bTax.IsZero() {
 			// Quantity cancels out of tax per dollar; cross multiplication avoids rounding.

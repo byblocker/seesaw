@@ -7,8 +7,6 @@ import (
 
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-
-	"github.com/shopspring/decimal"
 )
 
 func PlanSales(
@@ -18,7 +16,7 @@ func PlanSales(
 	saleDate time.Time,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	search, sells, err := prepSearch(
+	search, err := prepSearch(
 		plan,
 		snapshot,
 		quotes,
@@ -34,32 +32,34 @@ func PlanSales(
 		return nil, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
 	}
 
-	return &models.LiquidationSelection{
-		Plan:            plan,
-		ExpectedBalance: plan.StartingCash.Sub(plan.Request.Amount).Add(search.bestTotals.proceeds),
-		Sells:           assembleSales(sells, search.best),
-		Proceeds:        search.bestTotals.proceeds,
-	}, nil
-}
-
-func assembleSales(lots []models.SellLot, quantities []decimal.Decimal) []models.SellProposal {
-	var proposals []models.SellProposal
-	byTicker := make(map[string]int)
-	for i, sell := range lots {
-		if quantities[i].IsZero() {
+	byTicker := make(map[string]models.SellProposal)
+	tickers := []string{}
+	for _, lot := range search.lots {
+		if lot.best.IsZero() {
 			continue
 		}
 
-		sell.Quantity = quantities[i]
+		sell := lot.sell
+		sell.Quantity = lot.best
 
-		index, exists := byTicker[sell.Ticker]
+		proposal, exists := byTicker[sell.Ticker]
 		if !exists {
-			index = len(proposals)
-			byTicker[sell.Ticker] = index
-			proposals = append(proposals, models.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: models.Market})
+			proposal = models.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: models.Market}
+			tickers = append(tickers, sell.Ticker)
 		}
-
-		proposals[index].Add(sell)
+		proposal.Add(sell)
+		byTicker[sell.Ticker] = proposal
 	}
-	return proposals
+
+	var proposals []models.SellProposal
+	for _, ticker := range tickers {
+		proposals = append(proposals, byTicker[ticker])
+	}
+
+	return &models.LiquidationSelection{
+		Plan:            plan,
+		ExpectedBalance: plan.StartingCash.Sub(plan.Request.Amount).Add(search.bestTotals.proceeds),
+		Sells:           proposals,
+		Proceeds:        search.bestTotals.proceeds,
+	}, nil
 }
