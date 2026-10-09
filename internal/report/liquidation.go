@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
@@ -36,6 +37,17 @@ func Liquidation(selection models.LiquidationSelection, recentTx models.RecentTx
 	summaries = append(summaries, orderSummaries(formatted, selection.ExpectedBalance)...)
 	writeSummaries(&output, summaries)
 
+	if len(selection.AllocationWarnings) > 0 {
+		output.WriteString("\nThese assets end up outside their allocation band after this sale:\n")
+		for _, warning := range selection.AllocationWarnings {
+			fmt.Fprintf(&output, "  %s: %s (allowed %s to %s)\n",
+				warning.Asset,
+				percentage(warning.Allocation),
+				percentage(warning.MinAllocAllowed),
+				percentage(warning.MaxAllocAllowed),
+			)
+		}
+	}
 	if availableNow.LessThan(plan.Request.Amount) {
 		output.WriteString("\nThe full withdrawal is not available now; cash availability depends on settlement and broker restrictions.\n")
 	}

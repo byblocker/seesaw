@@ -22,8 +22,16 @@ type LiquidationPlan struct {
 }
 
 type LiquidationSelection struct {
-	Plan            *LiquidationPlan
-	Sells           []SellProposal
-	Proceeds        decimal.Decimal
-	ExpectedBalance decimal.Decimal
+	Plan               *LiquidationPlan
+	Sells              []SellProposal
+	Proceeds           decimal.Decimal
+	ExpectedBalance    decimal.Decimal
+	AllocationWarnings []AllocationWarning
+}
+
+type AllocationWarning struct {
+	Asset           string
+	Allocation      decimal.Decimal
+	MinAllocAllowed decimal.Decimal
+	MaxAllocAllowed decimal.Decimal
 }

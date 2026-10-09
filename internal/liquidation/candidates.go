@@ -34,7 +34,6 @@ type sellableAsset struct {
 	currentValue    decimal.Decimal
 	minAllocAllowed decimal.Decimal
 	maxAllocAllowed decimal.Decimal
-	saleLimit       decimal.Decimal
 }
 
 func (p *sellablePosition) saleProceeds(count int64) decimal.Decimal {
@@ -81,13 +80,15 @@ func (p *sellablePosition) splitSaleAcrossLots(count int64, saleDate time.Time) 
 	return sales
 }
 
-func (a *sellableAsset) maxSaleAllowed(totalValueAfterSale decimal.Decimal) decimal.Decimal {
+func (a *sellableAsset) shortfallBelowMin(sold, totalValueAfterSale decimal.Decimal) decimal.Decimal {
 	if !a.isPlanned {
-		return a.currentValue
+		return decimal.Zero
 	}
 
+	valueAfterSale := a.currentValue.Sub(sold)
 	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
-	return a.currentValue.Sub(minValueAllowed)
+
+	return utils.ClampNonNegative(minValueAllowed.Sub(valueAfterSale))
 }
 
 func (a *sellableAsset) isAllocationAllowed(sold, totalValueAfterSale decimal.Decimal) bool {

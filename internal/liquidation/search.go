@@ -18,6 +18,7 @@ type saleSearch struct {
 	minSale                  decimal.Decimal
 	maxSale                  decimal.Decimal
 	totalValue               decimal.Decimal
+	totalValueAfterRequest   decimal.Decimal
 	bestCaseRemainingByDepth []saleTotals
 	nodeLimit                int
 	visitedNodes             int
@@ -46,15 +47,7 @@ func newSaleSearch(
 	}
 
 	search.maxSale = decimal.Min(plan.MaxTargetSale, search.totalValue)
-
-	totalValueAfterMaxSale := search.totalValue.Sub(search.maxSale)
-	for i := range assets {
-		asset := &assets[i]
-		asset.saleLimit = asset.maxSaleAllowed(totalValueAfterMaxSale)
-		if asset.saleLimit.IsNegative() {
-			return nil, fmt.Errorf("%s cannot meet its minimum allocation without purchases", asset.label)
-		}
-	}
+	search.totalValueAfterRequest = search.totalValue.Sub(search.minSale)
 
 	for i := len(positions) - 1; i >= 0; i-- {
 		position := &positions[i]
@@ -63,6 +56,14 @@ func newSaleSearch(
 		estimatedTax := position.estimateTaxSellingOnlyLosses()
 		estimatedProceeds := position.saleProceeds(position.sellableShares)
 		search.bestCaseRemainingByDepth[i] = remaining.withSale(estimatedProceeds, estimatedTax)
+	}
+
+	sellableValue := search.bestCaseRemainingByDepth[0].proceeds
+	if sellableValue.LessThan(search.minSale) {
+		return nil, fmt.Errorf(
+			"whole-share holdings can raise at most $%s of the $%s needed",
+			sellableValue.StringFixed(2), search.minSale.StringFixed(2),
+		)
 	}
 
 	return search, nil
@@ -113,8 +114,9 @@ func (search *saleSearch) canBeatBest(depth int, soldSoFar saleTotals) bool {
 		return true
 	}
 	bestCaseTotals := saleTotals{
-		proceeds: decimal.Max(soldSoFar.proceeds, search.minSale),
-		tax:      soldSoFar.tax.Add(bestCaseRemaining.tax),
+		shortfallBelowMin: search.shortfallBelowMin(search.chosenSharesByPosition[:depth]),
+		proceeds:          decimal.Max(soldSoFar.proceeds, search.minSale),
+		tax:               soldSoFar.tax.Add(bestCaseRemaining.tax),
 	}
 	return bestCaseTotals.compare(search.bestTotals) > 0
 }
@@ -122,11 +124,8 @@ func (search *saleSearch) canBeatBest(depth int, soldSoFar saleTotals) bool {
 func (search *saleSearch) shareCountRange(depth int, proceedsSoFar decimal.Decimal) (fewest, most int64) {
 	position := &search.positions[depth]
 
-	soldFromAsset := search.soldFrom(position.asset, depth)
 	fundingRoom := search.maxSale.Sub(proceedsSoFar)
-	assetRoom := position.asset.saleLimit.Sub(soldFromAsset)
-	saleRoom := decimal.Min(fundingRoom, assetRoom)
-	most = min(sharesAffordable(saleRoom, position.bid), position.sellableShares)
+	most = min(sharesAffordable(fundingRoom, position.bid), position.sellableShares)
 
 	stillNeeded := search.minSale.Sub(proceedsSoFar)
 	laterPositionsCanRaise := search.bestCaseRemainingByDepth[depth+1].proceeds
@@ -137,16 +136,9 @@ func (search *saleSearch) shareCountRange(depth int, proceedsSoFar decimal.Decim
 }
 
 func (search *saleSearch) recordIfBest(sold saleTotals) {
+	sold.shortfallBelowMin = search.shortfallBelowMin(search.chosenSharesByPosition)
 	if search.found && sold.compare(search.bestTotals) <= 0 {
 		return
-	}
-
-	totalValueAfterSale := search.totalValue.Sub(sold.proceeds)
-	for i := range search.assets {
-		asset := &search.assets[i]
-		if !asset.isAllocationAllowed(search.soldFrom(asset, len(search.positions)), totalValueAfterSale) {
-			return
-		}
 	}
 
 	search.found = true
@@ -154,11 +146,49 @@ func (search *saleSearch) recordIfBest(sold saleTotals) {
 	search.bestSharesByPosition = append(search.bestSharesByPosition[:0], search.chosenSharesByPosition...)
 }
 
-func (search *saleSearch) soldFrom(asset *sellableAsset, decidedPositions int) decimal.Decimal {
+func (search *saleSearch) shortfallBelowMin(sharesByPosition []int64) decimal.Decimal {
+	shortfall := decimal.Zero
+	for i := range search.assets {
+		asset := &search.assets[i]
+		sold := search.soldFrom(asset, sharesByPosition)
+		shortfall = shortfall.Add(asset.shortfallBelowMin(sold, search.totalValueAfterRequest))
+	}
+
+	return shortfall
+}
+
+func (search *saleSearch) allocationWarnings() []models.AllocationWarning {
+	totalValueAfterSale := search.totalValue.Sub(search.bestTotals.proceeds)
+	if !totalValueAfterSale.IsPositive() {
+		return nil
+	}
+
+	var warnings []models.AllocationWarning
+	for i := range search.assets {
+		asset := &search.assets[i]
+		sold := search.soldFrom(asset, search.bestSharesByPosition)
+		if asset.isAllocationAllowed(sold, totalValueAfterSale) {
+			continue
+		}
+
+		valueAfterSale := asset.currentValue.Sub(sold)
+		warnings = append(warnings, models.AllocationWarning{
+			Asset:           asset.label,
+			Allocation:      valueAfterSale.Div(totalValueAfterSale),
+			MinAllocAllowed: asset.minAllocAllowed,
+			MaxAllocAllowed: asset.maxAllocAllowed,
+		})
+	}
+
+	return warnings
+}
+
+func (search *saleSearch) soldFrom(asset *sellableAsset, sharesByPosition []int64) decimal.Decimal {
 	sold := decimal.Zero
-	for i, position := range search.positions[:decidedPositions] {
+	for i, shares := range sharesByPosition {
+		position := &search.positions[i]
 		if position.asset == asset {
-			sold = sold.Add(position.saleProceeds(search.chosenSharesByPosition[i]))
+			sold = sold.Add(position.saleProceeds(shares))
 		}
 	}
 

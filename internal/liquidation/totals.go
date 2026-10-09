@@ -7,8 +7,9 @@ import (
 )
 
 type saleTotals struct {
-	proceeds decimal.Decimal
-	tax      decimal.Decimal
+	shortfallBelowMin decimal.Decimal
+	proceeds          decimal.Decimal
+	tax               decimal.Decimal
 }
 
 func (totals saleTotals) withSale(proceeds, tax decimal.Decimal) saleTotals {
@@ -24,6 +25,7 @@ func (totals saleTotals) taxOwed() decimal.Decimal {
 
 func (totals saleTotals) compare(other saleTotals) int {
 	return cmp.Or(
+		preferLess(totals.shortfallBelowMin, other.shortfallBelowMin),
 		preferLess(totals.taxOwed(), other.taxOwed()),
 		preferLess(totals.proceeds, other.proceeds),
 	)

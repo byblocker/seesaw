@@ -36,7 +36,10 @@ func PlanSales(
 		return nil, err
 	}
 	if !search.found {
-		return nil, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
+		return nil, fmt.Errorf(
+			"no whole-share sale raises between $%s and $%s; increase liquidation.max_excess_cash",
+			search.minSale.StringFixed(2), search.maxSale.StringFixed(2),
+		)
 	}
 
 	var proposals []models.SellProposal
@@ -58,9 +61,10 @@ func PlanSales(
 
 	proceeds := search.bestTotals.proceeds
 	return &models.LiquidationSelection{
-		Plan:            plan,
-		ExpectedBalance: plan.StartingCash.Sub(plan.Request.Amount).Add(proceeds),
-		Sells:           proposals,
-		Proceeds:        proceeds,
+		Plan:               plan,
+		ExpectedBalance:    plan.StartingCash.Sub(plan.Request.Amount).Add(proceeds),
+		Sells:              proposals,
+		Proceeds:           proceeds,
+		AllocationWarnings: search.allocationWarnings(),
 	}, nil
 }
