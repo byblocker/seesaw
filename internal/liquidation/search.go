@@ -62,11 +62,7 @@ func newSaleSearch(
 
 		estimatedTax := position.estimateTaxSellingOnlyLosses()
 		estimatedProceeds := position.saleProceeds(position.sellableShares)
-		search.bestCaseRemainingByDepth[i] = remaining.withSale(
-			estimatedProceeds,
-			estimatedTax,
-			position.asset.isPlanned,
-		)
+		search.bestCaseRemainingByDepth[i] = remaining.withSale(estimatedProceeds, estimatedTax)
 	}
 
 	return search, nil
@@ -100,7 +96,7 @@ func (search *saleSearch) visit(ctx context.Context, depth int, soldSoFar saleTo
 
 		estimatedTax := position.estimateSaleTax(shares)
 		estimatedProceeds := position.saleProceeds(shares)
-		next := soldSoFar.withSale(estimatedProceeds, estimatedTax, position.asset.isPlanned)
+		next := soldSoFar.withSale(estimatedProceeds, estimatedTax)
 		if err := search.visit(ctx, depth+1, next); err != nil {
 			return err
 		}
@@ -117,9 +113,8 @@ func (search *saleSearch) canBeatBest(depth int, soldSoFar saleTotals) bool {
 		return true
 	}
 	bestCaseTotals := saleTotals{
-		unplannedProceeds: soldSoFar.unplannedProceeds.Add(decimal.Min(bestCaseRemaining.unplannedProceeds, search.maxSale.Sub(soldSoFar.proceeds))),
-		proceeds:          decimal.Max(soldSoFar.proceeds, search.minSale),
-		tax:               soldSoFar.tax.Add(bestCaseRemaining.tax),
+		proceeds: decimal.Max(soldSoFar.proceeds, search.minSale),
+		tax:      soldSoFar.tax.Add(bestCaseRemaining.tax),
 	}
 	return bestCaseTotals.compare(search.bestTotals) > 0
 }

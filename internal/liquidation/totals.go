@@ -7,35 +7,26 @@ import (
 )
 
 type saleTotals struct {
-	proceeds          decimal.Decimal
-	unplannedProceeds decimal.Decimal
-	tax               decimal.Decimal
+	proceeds decimal.Decimal
+	tax      decimal.Decimal
 }
 
-func (totals saleTotals) withSale(
-	proceeds, tax decimal.Decimal,
-	isPlanned bool,
-) saleTotals {
+func (totals saleTotals) withSale(proceeds, tax decimal.Decimal) saleTotals {
 	totals.proceeds = totals.proceeds.Add(proceeds)
 	totals.tax = totals.tax.Add(tax)
-
-	if !isPlanned {
-		totals.unplannedProceeds = totals.unplannedProceeds.Add(proceeds)
-	}
-
 	return totals
+}
+
+func (totals saleTotals) taxOwed() decimal.Decimal {
+	// Floor tax at zero to prevent overharvesting tax-losses
+	return decimal.Max(totals.tax, decimal.Zero)
 }
 
 func (totals saleTotals) compare(other saleTotals) int {
 	return cmp.Or(
-		preferMore(totals.unplannedProceeds, other.unplannedProceeds),
+		preferLess(totals.taxOwed(), other.taxOwed()),
 		preferLess(totals.proceeds, other.proceeds),
-		preferLess(totals.tax, other.tax),
 	)
-}
-
-func preferMore(value, other decimal.Decimal) int {
-	return value.Cmp(other)
 }
 
 func preferLess(value, other decimal.Decimal) int {
