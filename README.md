@@ -76,9 +76,9 @@ All fields below are required except `assets[].alternate_ticker`. Values have no
 | `rebalance.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
 | `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
 | `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
-| `liquidation.max_pct_allocation_deviation` | If liquidating, how low may an asset deviate from its target deviation | `[0, 1]` |
+| `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 | `liquidation.cash_reserve` | Minimum balance for this account | Non-negative number |
-| `liquidation.max_excess_cash` | Maximum balance above requested liquidation amount |  Non-negative number |
+| `liquidation.max_excess_cash` | Maximum sale proceeds above the requested amount. Whole-share sales rarely land on the exact amount; a larger value gives the planner more room to lower estimated tax. | Non-negative number |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
 | `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `[0, 1]` |
@@ -172,11 +172,17 @@ go run . liquidate --portfolio growth --amount 1000
 
 _seesaw_ uses existing cash first, preserves your configured cash reserve, and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
-The planner stays within the funding and allocation limits. It prioritizes proceeds from unplanned holdings, then the smallest total sale proceeds. For taxable portfolios, it next minimizes the combined estimated tax impact. Lots ranked by estimated tax per dollar resolve remaining ties.
+Sale proceeds stay between the amount you need and that amount plus `liquidation.max_excess_cash`. Within that range, the planner chooses sales in this order of priority:
 
-Review the proposed lots, cash available now, estimated sale proceeds, and remaining balance after withdrawal. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+1. Keep every asset at or above its minimum allocation. When that is impossible, fall short by as few dollars as possible.
+2. For taxable portfolios, owe the least estimated tax. Losses offset gains in the same sale, but the planner does not sell extra loss lots only to harvest them.
+3. Raise the amount closest to your request.
 
-The search stops with an error if no feasible plan exists or its search budget is exhausted. It does not return an unfinished proposal. Increase the budget when needed:
+Remaining ties prefer holdings outside your plan, then lots with the lowest estimated tax per dollar. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance.
+
+Review the proposed lots, cash available now, estimated sale proceeds, and remaining balance after withdrawal. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+
+The search stops with an error if your whole-share holdings cannot raise the amount needed, if no combination of whole shares lands within `liquidation.max_excess_cash` of it, or if its search budget is exhausted. It does not return an unfinished proposal. Increase the budget when needed:
 
 ```sh
 go run . liquidate --portfolio growth --amount 1000 --search-limit 2000000
