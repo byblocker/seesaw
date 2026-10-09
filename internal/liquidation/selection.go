@@ -16,50 +16,51 @@ func PlanSales(
 	saleDate time.Time,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	search, err := prepSearch(
-		plan,
+	positions, assets, err := collectPositions(
 		snapshot,
 		quotes,
 		saleDate,
+		plan.Request.Settings,
+		plan.Request.TaxRates,
 	)
 	if err != nil {
 		return nil, err
 	}
-	if err := search.visit(ctx, 0, saleTotals{}); err != nil {
+
+	search, err := newSaleSearch(positions, assets, plan)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := search.run(ctx); err != nil {
 		return nil, err
 	}
 	if !search.found {
 		return nil, fmt.Errorf("no whole-share liquidation meets the funding and allocation limits")
 	}
 
-	byTicker := make(map[string]models.SellProposal)
-	tickers := []string{}
-	for _, lot := range search.lots {
-		if lot.best.IsZero() {
+	var proposals []models.SellProposal
+	for i, shares := range search.bestSharesByPosition {
+		if shares == 0 {
 			continue
 		}
-
-		sell := lot.sell
-		sell.Quantity = lot.best
-
-		proposal, exists := byTicker[sell.Ticker]
-		if !exists {
-			proposal = models.SellProposal{Ticker: sell.Ticker, Price: sell.Price, Type: models.Market}
-			tickers = append(tickers, sell.Ticker)
+		position := &positions[i]
+		proposal := models.SellProposal{
+			Ticker: position.ticker,
+			Price:  position.bid,
+			Type:   models.Market,
 		}
-		proposal.Add(sell)
-		byTicker[sell.Ticker] = proposal
+		for _, sale := range position.splitSaleAcrossLots(shares, saleDate) {
+			proposal.Add(sale)
+		}
+		proposals = append(proposals, proposal)
 	}
 
-	var proposals []models.SellProposal
-	for _, ticker := range tickers {
-		proposals = append(proposals, byTicker[ticker])
-	}
-
+	proceeds := search.bestTotals.proceeds
 	return &models.LiquidationSelection{
 		Plan:            plan,
-		ExpectedBalance: plan.StartingCash.Sub(plan.Request.Amount).Add(search.bestTotals.proceeds),
+		ExpectedBalance: plan.StartingCash.Sub(plan.Request.Amount).Add(proceeds),
 		Sells:           proposals,
-		Proceeds:        search.bestTotals.proceeds,
+		Proceeds:        proceeds,
 	}, nil
 }

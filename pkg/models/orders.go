@@ -26,18 +26,18 @@ type SellProposal struct {
 	Ticker     string
 	Type       OrderType
 	Price      decimal.Decimal
-	Lots       []SellLot
+	Lots       []LotSale
 	Proceeds   decimal.Decimal
 	RealizedPL decimal.Decimal
 }
 
-func (p *SellProposal) Add(sell SellLot) {
-	p.Lots = append(p.Lots, sell)
-	p.Proceeds = p.Proceeds.Add(sell.Proceeds())
-	p.RealizedPL = p.RealizedPL.Add(sell.RealizedPL())
+func (p *SellProposal) Add(sale LotSale) {
+	p.Lots = append(p.Lots, sale)
+	p.Proceeds = p.Proceeds.Add(sale.Proceeds())
+	p.RealizedPL = p.RealizedPL.Add(sale.RealizedPL())
 }
 
-type SellLot struct {
+type LotSale struct {
 	Ticker       string
 	Quantity     decimal.Decimal
 	Lot          *PositionLot
@@ -46,13 +46,13 @@ type SellLot struct {
 	LongTerm     bool
 }
 
-func NewSellLot(
+func NewLotSale(
 	ticker string,
 	lot *PositionLot,
 	price decimal.Decimal,
 	saleDate time.Time,
-) SellLot {
-	return SellLot{
+) LotSale {
+	return LotSale{
 		Ticker: ticker, Lot: lot, Price: price,
 		Quantity:     lot.Quantity,
 		GainPerShare: price.Sub(lot.PricePaid),
@@ -60,7 +60,7 @@ func NewSellLot(
 	}
 }
 
-func (sale SellLot) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal {
+func (sale LotSale) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal {
 	rate := rates.ShortTermGainRate
 	if sale.LongTerm {
 		rate = rates.LongTermGainRate
@@ -68,16 +68,16 @@ func (sale SellLot) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal 
 	return sale.GainPerShare.Mul(*rate)
 }
 
-func (sell SellLot) Proceeds() decimal.Decimal {
-	return sell.Quantity.Mul(sell.Price)
+func (sale LotSale) Proceeds() decimal.Decimal {
+	return sale.Quantity.Mul(sale.Price)
 }
 
-func (sell SellLot) RealizedPL() decimal.Decimal {
-	return sell.Quantity.Mul(sell.GainPerShare)
+func (sale LotSale) RealizedPL() decimal.Decimal {
+	return sale.Quantity.Mul(sale.GainPerShare)
 }
 
-func (sell SellLot) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
-	return sell.Quantity.Mul(sell.TaxImpactPerShare(rates))
+func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
+	return sale.Quantity.Mul(sale.TaxImpactPerShare(rates))
 }
 
 func (proposal SellProposal) Validate() error {

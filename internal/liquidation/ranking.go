@@ -1,21 +1,30 @@
 package liquidation
 
-import (
-	"cmp"
+import "cmp"
 
-	"seesaw/pkg/models"
-
-	"github.com/shopspring/decimal"
-)
-
-// compareLots orders lots by estimated tax per dollar raised, then by ticker and lot.
-func compareLots(a, b models.SellLot, aTax, bTax decimal.Decimal) int {
-	// Quantity cancels out of tax per dollar; cross multiplication avoids rounding.
-	if order := aTax.Mul(b.Price).Cmp(bTax.Mul(a.Price)); order != 0 {
+func compareLots(left, right sellableLot) int {
+	if order := left.taxPerShare.Cmp(right.taxPerShare); order != 0 {
 		return order
 	}
-	if order := cmp.Compare(a.Ticker, b.Ticker); order != 0 {
+	return cmp.Compare(left.lot.Id, right.lot.Id)
+}
+
+func comparePositions(left, right sellablePosition) int {
+	leftAsset, rightAsset := left.asset, right.asset
+
+	// Order unplanned assets before planned ones.
+	if leftAsset.isPlanned != rightAsset.isPlanned {
+		if leftAsset.isPlanned {
+			return 1
+		}
+		return -1
+	}
+
+	// Order by the cheapest lot's tax per dollar incurred
+	leftTaxPerDollar := left.lots[0].taxPerShare.Mul(right.bid)
+	rightTaxPerDollar := right.lots[0].taxPerShare.Mul(left.bid)
+	if order := leftTaxPerDollar.Cmp(rightTaxPerDollar); order != 0 {
 		return order
 	}
-	return cmp.Compare(a.Lot.Id, b.Lot.Id)
+	return rightAsset.currentValue.Cmp(leftAsset.currentValue)
 }

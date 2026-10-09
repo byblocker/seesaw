@@ -4,168 +4,190 @@ import (
 	"context"
 	"fmt"
 
-	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
 
-type searchAsset struct {
-	isUnplanned bool
-	value       decimal.Decimal
-	minWeight   decimal.Decimal
-	maxWeight   decimal.Decimal
-	saleLimit   decimal.Decimal
-	sold        decimal.Decimal
-}
-
-func (asset *searchAsset) saleBounds(remainingInvestedValue decimal.Decimal) (minSale, maxSale decimal.Decimal) {
-	if asset.isUnplanned {
-		return decimal.Zero, asset.value
-	}
-	minRemaining := remainingInvestedValue.Mul(asset.minWeight)
-	maxRemaining := remainingInvestedValue.Mul(asset.maxWeight)
-
-	minSale = utils.ClampNonNegative(asset.value.Sub(maxRemaining))
-	maxSale = asset.value.Sub(minRemaining)
-
-	return minSale, maxSale
-}
-
-type searchLot struct {
-	sell        models.SellLot
-	asset       *searchAsset
-	available   decimal.Decimal
-	quantity    decimal.Decimal
-	best        decimal.Decimal
-	taxPerShare decimal.Decimal
-	remaining   saleTotals
-}
-
-type saleTotals struct {
-	proceeds  decimal.Decimal
-	unplanned decimal.Decimal
-	tax       decimal.Decimal
-}
-
+// Search depth-first branch and bound over how many shares to sell of each
+// position, which are visited in preference order with share counts descending.
+// The first plan found wins ties and later plans must be strictly better.
 type saleSearch struct {
-	assets        []searchAsset
-	lots          []searchLot
-	minTargetSale decimal.Decimal
-	maxTargetSale decimal.Decimal
-	totalValue    decimal.Decimal
-	found         bool
-	bestTotals    saleTotals
-	nodes         int
-	limit         int
+	positions                []sellablePosition
+	assets                   []sellableAsset
+	minSale                  decimal.Decimal
+	maxSale                  decimal.Decimal
+	totalValue               decimal.Decimal
+	bestCaseRemainingByDepth []saleTotals
+	nodeLimit                int
+	visitedNodes             int
+
+	chosenSharesByPosition []int64
+	bestSharesByPosition   []int64
+	bestTotals             saleTotals
+	found                  bool
 }
 
-func (search *saleSearch) visit(ctx context.Context, lotIndex int, totals saleTotals) error {
+func newSaleSearch(
+	positions []sellablePosition,
+	assets []sellableAsset,
+	plan *models.LiquidationPlan,
+) (*saleSearch, error) {
+	search := &saleSearch{
+		positions:                positions,
+		assets:                   assets,
+		minSale:                  plan.MinTargetSale,
+		nodeLimit:                plan.Request.SearchLimit,
+		bestCaseRemainingByDepth: make([]saleTotals, len(positions)+1),
+		chosenSharesByPosition:   make([]int64, len(positions)),
+	}
+	for _, asset := range assets {
+		search.totalValue = search.totalValue.Add(asset.currentValue)
+	}
+
+	search.maxSale = decimal.Min(plan.MaxTargetSale, search.totalValue)
+
+	totalValueAfterMaxSale := search.totalValue.Sub(search.maxSale)
+	for i := range assets {
+		asset := &assets[i]
+		asset.saleLimit = asset.maxSaleAllowed(totalValueAfterMaxSale)
+		if asset.saleLimit.IsNegative() {
+			return nil, fmt.Errorf("%s cannot meet its minimum allocation without purchases", asset.label)
+		}
+	}
+
+	for i := len(positions) - 1; i >= 0; i-- {
+		position := &positions[i]
+		remaining := search.bestCaseRemainingByDepth[i+1]
+
+		estimatedTax := position.estimateTaxSellingOnlyLosses()
+		estimatedProceeds := position.saleProceeds(position.sellableShares)
+		search.bestCaseRemainingByDepth[i] = remaining.withSale(
+			estimatedProceeds,
+			estimatedTax,
+			position.asset.isPlanned,
+		)
+	}
+
+	return search, nil
+}
+
+func (search *saleSearch) run(ctx context.Context) error {
+	return search.visit(ctx, 0, saleTotals{})
+}
+
+func (search *saleSearch) visit(ctx context.Context, depth int, soldSoFar saleTotals) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	search.nodes++
-	if search.nodes > search.limit {
+
+	search.visitedNodes++
+	if search.visitedNodes > search.nodeLimit {
 		return fmt.Errorf("liquidation search limit reached; increase the limit or narrow the request")
 	}
-	if !search.canImprove(lotIndex, totals) {
+	if !search.canBeatBest(depth, soldSoFar) {
 		return nil
 	}
-	if lotIndex == len(search.lots) {
-		search.consider(totals)
+	if depth == len(search.positions) {
+		search.recordIfBest(soldSoFar)
 		return nil
 	}
 
-	lot := &search.lots[lotIndex]
-	asset := lot.asset
-	minQuantity, maxQuantity := search.quantityBounds(lotIndex, totals.proceeds)
-	one := decimal.NewFromInt(1)
-	for quantity := maxQuantity; quantity.GreaterThanOrEqual(minQuantity); quantity = quantity.Sub(one) {
-		amount := quantity.Mul(lot.sell.Price)
-		lot.quantity = quantity
-		previousSold := asset.sold
-		asset.sold = previousSold.Add(amount)
-		next := totals
-		next.proceeds = next.proceeds.Add(amount)
-		next.tax = next.tax.Add(quantity.Mul(lot.taxPerShare))
-		if asset.isUnplanned {
-			next.unplanned = next.unplanned.Add(amount)
-		}
-		err := search.visit(ctx, lotIndex+1, next)
-		asset.sold = previousSold
-		if err != nil {
+	position := &search.positions[depth]
+	fewest, most := search.shareCountRange(depth, soldSoFar.proceeds)
+	for shares := most; shares >= fewest; shares-- {
+		search.chosenSharesByPosition[depth] = shares
+
+		estimatedTax := position.estimateSaleTax(shares)
+		estimatedProceeds := position.saleProceeds(shares)
+		next := soldSoFar.withSale(estimatedProceeds, estimatedTax, position.asset.isPlanned)
+		if err := search.visit(ctx, depth+1, next); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (search *saleSearch) canImprove(lotIndex int, totals saleTotals) bool {
-	remaining := search.remainingAt(lotIndex)
-	if totals.proceeds.Add(remaining.proceeds).LessThan(search.minTargetSale) {
+func (search *saleSearch) canBeatBest(depth int, soldSoFar saleTotals) bool {
+	bestCaseRemaining := search.bestCaseRemainingByDepth[depth]
+	if soldSoFar.proceeds.Add(bestCaseRemaining.proceeds).LessThan(search.minSale) {
 		return false
 	}
 	if !search.found {
 		return true
 	}
-	possible := saleTotals{
-		tax:      totals.tax.Add(remaining.tax),
-		proceeds: decimal.Max(totals.proceeds, search.minTargetSale),
-		unplanned: totals.unplanned.Add(decimal.Min(
-			remaining.unplanned, search.maxTargetSale.Sub(totals.proceeds),
-		)),
+	bestCaseTotals := saleTotals{
+		unplannedProceeds: soldSoFar.unplannedProceeds.Add(decimal.Min(bestCaseRemaining.unplannedProceeds, search.maxSale.Sub(soldSoFar.proceeds))),
+		proceeds:          decimal.Max(soldSoFar.proceeds, search.minSale),
+		tax:               soldSoFar.tax.Add(bestCaseRemaining.tax),
 	}
-	return compareSaleTotals(possible, search.bestTotals) > 0
+	return bestCaseTotals.compare(search.bestTotals) > 0
 }
 
-func (search *saleSearch) consider(totals saleTotals) {
-	order := compareSaleTotals(totals, search.bestTotals)
-	if search.found && order <= 0 {
+func (search *saleSearch) shareCountRange(depth int, proceedsSoFar decimal.Decimal) (fewest, most int64) {
+	position := &search.positions[depth]
+
+	soldFromAsset := search.soldFrom(position.asset, depth)
+	fundingRoom := search.maxSale.Sub(proceedsSoFar)
+	assetRoom := position.asset.saleLimit.Sub(soldFromAsset)
+	saleRoom := decimal.Min(fundingRoom, assetRoom)
+	most = min(sharesAffordable(saleRoom, position.bid), position.sellableShares)
+
+	stillNeeded := search.minSale.Sub(proceedsSoFar)
+	laterPositionsCanRaise := search.bestCaseRemainingByDepth[depth+1].proceeds
+	shortfall := stillNeeded.Sub(laterPositionsCanRaise)
+	fewest = sharesNeeded(shortfall, position.bid)
+
+	return fewest, most
+}
+
+func (search *saleSearch) recordIfBest(sold saleTotals) {
+	if search.found && sold.compare(search.bestTotals) <= 0 {
 		return
 	}
-	remainingValue := search.totalValue.Sub(totals.proceeds)
-	for _, asset := range search.assets {
-		minSale, maxSale := asset.saleBounds(remainingValue)
-		if asset.sold.LessThan(minSale) || asset.sold.GreaterThan(maxSale) {
+
+	totalValueAfterSale := search.totalValue.Sub(sold.proceeds)
+	for i := range search.assets {
+		asset := &search.assets[i]
+		if !asset.isAllocationAllowed(search.soldFrom(asset, len(search.positions)), totalValueAfterSale) {
 			return
 		}
 	}
-	for i := range search.lots {
-		lot := &search.lots[i]
-		lot.best = lot.quantity
-	}
+
 	search.found = true
-	search.bestTotals = totals
+	search.bestTotals = sold
+	search.bestSharesByPosition = append(search.bestSharesByPosition[:0], search.chosenSharesByPosition...)
 }
 
-// compareSaleTotals prefers more unplanned proceeds, fewer total proceeds, then lower tax.
-func compareSaleTotals(a, b saleTotals) int {
-	if order := a.unplanned.Cmp(b.unplanned); order != 0 {
-		return order
+func (search *saleSearch) soldFrom(asset *sellableAsset, decidedPositions int) decimal.Decimal {
+	sold := decimal.Zero
+	for i, position := range search.positions[:decidedPositions] {
+		if position.asset == asset {
+			sold = sold.Add(position.saleProceeds(search.chosenSharesByPosition[i]))
+		}
 	}
-	if order := b.proceeds.Cmp(a.proceeds); order != 0 {
-		return order
-	}
-	return b.tax.Cmp(a.tax)
+
+	return sold
 }
 
-func (search *saleSearch) remainingAt(lotIndex int) saleTotals {
-	if lotIndex == len(search.lots) {
-		return saleTotals{}
+func sharesAffordable(amount, price decimal.Decimal) int64 {
+	if !amount.IsPositive() {
+		return 0
 	}
-	return search.lots[lotIndex].remaining
+
+	shares, _ := amount.QuoRem(price, 0)
+	return shares.IntPart()
 }
 
-func (search *saleSearch) quantityBounds(lotIndex int, proceeds decimal.Decimal) (minQuantity, maxQuantity decimal.Decimal) {
-	lot := &search.lots[lotIndex]
-	asset := lot.asset
-	capacity := decimal.Min(search.maxTargetSale.Sub(proceeds), asset.saleLimit.Sub(asset.sold))
-	maxQuantity, _ = capacity.QuoRem(lot.sell.Price, 0)
-	maxQuantity = decimal.Min(maxQuantity, lot.available)
-	needed := search.minTargetSale.Sub(proceeds).Sub(search.remainingAt(lotIndex + 1).proceeds)
-	minQuantity, remainder := decimal.Max(decimal.Zero, needed).QuoRem(lot.sell.Price, 0)
+func sharesNeeded(amount, price decimal.Decimal) int64 {
+	if !amount.IsPositive() {
+		return 0
+	}
+
+	shares, remainder := amount.QuoRem(price, 0)
 	if remainder.IsPositive() {
-		minQuantity = minQuantity.Add(decimal.NewFromInt(1))
+		return shares.IntPart() + 1
 	}
-	return minQuantity, maxQuantity
+
+	return shares.IntPart()
 }

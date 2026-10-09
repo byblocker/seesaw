@@ -25,7 +25,7 @@ func HarvestTaxLoss(
 			continue
 		}
 
-		proposal.Add(models.NewSellLot(position.Ticker, lot, bid, saleDate))
+		proposal.Add(models.NewLotSale(position.Ticker, lot, bid, saleDate))
 	}
 
 	return proposal
