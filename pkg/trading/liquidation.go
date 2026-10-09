@@ -19,32 +19,20 @@ func Liquidate(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := request.Settings.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		return nil, err
 	}
 	if snapshot.Portfolio == nil {
 		return nil, fmt.Errorf("snapshot is missing portfolio")
 	}
-	if request.TaxRates != nil {
-		if err := request.TaxRates.Validate(); err != nil {
-			return nil, err
-		}
-	}
 
-	plan, err := liquidation.PlanFunding(snapshot.Portfolio.Balances, request)
-	if err != nil {
-		return nil, err
-	}
+	plan := liquidation.PlanFunding(snapshot.Portfolio.Balances, request)
 
 	if plan.MinTargetSale.IsZero() {
 		return &models.LiquidationSelection{
 			Plan:            plan,
 			ExpectedBalance: plan.StartingCash.Sub(request.Amount),
 		}, nil
-	}
-
-	if request.SearchLimit <= 0 {
-		return nil, fmt.Errorf("search limit must be positive")
 	}
 
 	saleDate := time.Now()
