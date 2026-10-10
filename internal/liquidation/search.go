@@ -11,6 +11,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// How close to the request a branch's proceeds must be to be explored.
+var pctProceedsTolerance = decimal.NewFromFloat(0.01)
+
 // Search depth-first branch and bound over how many shares to sell of each
 // position, which are visited in preference order with share counts descending.
 // The first plan found wins ties and later plans must be strictly better.
@@ -21,6 +24,7 @@ type saleSearch struct {
 	maxSale                  decimal.Decimal
 	totalValue               decimal.Decimal
 	totalValueAfterRequest   decimal.Decimal
+	proceedsTolerance        decimal.Decimal
 	maxProceedsByDepth       []decimal.Decimal
 	lotsCheapestFirstByDepth [][]saleTotals
 	nodeLimit                int
@@ -41,6 +45,7 @@ func newSaleSearch(
 		positions:                positions,
 		assets:                   assets,
 		minSale:                  plan.MinTargetSale,
+		proceedsTolerance:        plan.Request.Amount.Mul(pctProceedsTolerance),
 		nodeLimit:                plan.Request.SearchLimit,
 		maxProceedsByDepth:       make([]decimal.Decimal, len(positions)+1),
 		lotsCheapestFirstByDepth: make([][]saleTotals, len(positions)+1),
@@ -119,7 +124,7 @@ func (search *saleSearch) canBeatBest(depth int, soldSoFar saleTotals) bool {
 	}
 	bestCaseTotals := saleTotals{
 		shortfallBelowMin: search.smallestShortfallBelowMin(depth, soldSoFar.proceeds),
-		proceeds:          decimal.Max(soldSoFar.proceeds, search.minSale),
+		proceeds:          decimal.Max(soldSoFar.proceeds, search.minSale).Add(search.proceedsTolerance),
 		tax:               soldSoFar.tax.Add(search.lowestTaxToRaise(depth, soldSoFar.proceeds)),
 	}
 	return bestCaseTotals.compare(search.bestTotals) > 0
@@ -140,20 +145,34 @@ func (search *saleSearch) shareCountRange(depth int, proceedsSoFar decimal.Decim
 }
 
 func (search *saleSearch) lowestTaxToRaise(depth int, proceedsSoFar decimal.Decimal) decimal.Decimal {
-	shortfall := search.minSale.Sub(proceedsSoFar)
+	stillNeeded := search.minSale.Sub(proceedsSoFar)
+	fundingRoom := search.maxSale.Sub(proceedsSoFar)
 
 	tax := decimal.Zero
+	raised := decimal.Zero
 	for _, lot := range search.lotsCheapestFirstByDepth[depth] {
-		isLoss := lot.tax.IsNegative()
-		if !isLoss && lot.proceeds.GreaterThan(shortfall) {
+		limit := stillNeeded
+		if lot.tax.IsNegative() {
+			limit = fundingRoom
+		}
+
+		available := limit.Sub(raised)
+		if !available.IsPositive() {
 			break
+		}
+		if lot.proceeds.GreaterThan(available) {
+			return tax.Add(taxOnPartOfLot(lot, available))
 		}
 
 		tax = tax.Add(lot.tax)
-		shortfall = shortfall.Sub(lot.proceeds)
+		raised = raised.Add(lot.proceeds)
 	}
 
 	return tax
+}
+
+func taxOnPartOfLot(lot saleTotals, proceeds decimal.Decimal) decimal.Decimal {
+	return lot.tax.Mul(proceeds).DivRound(lot.proceeds, 30).RoundFloor(8)
 }
 
 func (search *saleSearch) recordIfBest(sold saleTotals) {
