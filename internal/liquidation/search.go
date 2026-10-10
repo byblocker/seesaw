@@ -3,7 +3,9 @@ package liquidation
 import (
 	"context"
 	"fmt"
+	"slices"
 
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
@@ -19,7 +21,8 @@ type saleSearch struct {
 	maxSale                  decimal.Decimal
 	totalValue               decimal.Decimal
 	totalValueAfterRequest   decimal.Decimal
-	bestCaseRemainingByDepth []saleTotals
+	maxProceedsByDepth       []decimal.Decimal
+	lotsCheapestFirstByDepth [][]saleTotals
 	nodeLimit                int
 	visitedNodes             int
 
@@ -39,7 +42,8 @@ func newSaleSearch(
 		assets:                   assets,
 		minSale:                  plan.MinTargetSale,
 		nodeLimit:                plan.Request.SearchLimit,
-		bestCaseRemainingByDepth: make([]saleTotals, len(positions)+1),
+		maxProceedsByDepth:       make([]decimal.Decimal, len(positions)+1),
+		lotsCheapestFirstByDepth: make([][]saleTotals, len(positions)+1),
 		chosenSharesByPosition:   make([]int64, len(positions)),
 	}
 	for _, asset := range assets {
@@ -51,14 +55,15 @@ func newSaleSearch(
 
 	for i := len(positions) - 1; i >= 0; i-- {
 		position := &positions[i]
-		remaining := search.bestCaseRemainingByDepth[i+1]
+		positionProceeds := position.saleProceeds(position.sellableShares)
+		search.maxProceedsByDepth[i] = search.maxProceedsByDepth[i+1].Add(positionProceeds)
 
-		estimatedTax := position.estimateTaxSellingOnlyLosses()
-		estimatedProceeds := position.saleProceeds(position.sellableShares)
-		search.bestCaseRemainingByDepth[i] = remaining.withSale(estimatedProceeds, estimatedTax)
+		lots := append(slices.Clone(search.lotsCheapestFirstByDepth[i+1]), position.lotSaleTotals()...)
+		slices.SortStableFunc(lots, compareTaxPerDollar)
+		search.lotsCheapestFirstByDepth[i] = lots
 	}
 
-	sellableValue := search.bestCaseRemainingByDepth[0].proceeds
+	sellableValue := search.maxProceedsByDepth[0]
 	if sellableValue.LessThan(search.minSale) {
 		return nil, fmt.Errorf(
 			"whole-share holdings can raise at most $%s of the $%s needed",
@@ -106,17 +111,16 @@ func (search *saleSearch) visit(ctx context.Context, depth int, soldSoFar saleTo
 }
 
 func (search *saleSearch) canBeatBest(depth int, soldSoFar saleTotals) bool {
-	bestCaseRemaining := search.bestCaseRemainingByDepth[depth]
-	if soldSoFar.proceeds.Add(bestCaseRemaining.proceeds).LessThan(search.minSale) {
+	if soldSoFar.proceeds.Add(search.maxProceedsByDepth[depth]).LessThan(search.minSale) {
 		return false
 	}
 	if !search.found {
 		return true
 	}
 	bestCaseTotals := saleTotals{
-		shortfallBelowMin: search.shortfallBelowMin(search.chosenSharesByPosition[:depth]),
+		shortfallBelowMin: search.smallestShortfallBelowMin(depth, soldSoFar.proceeds),
 		proceeds:          decimal.Max(soldSoFar.proceeds, search.minSale),
-		tax:               soldSoFar.tax.Add(bestCaseRemaining.tax),
+		tax:               soldSoFar.tax.Add(search.lowestTaxToRaise(depth, soldSoFar.proceeds)),
 	}
 	return bestCaseTotals.compare(search.bestTotals) > 0
 }
@@ -128,11 +132,28 @@ func (search *saleSearch) shareCountRange(depth int, proceedsSoFar decimal.Decim
 	most = min(sharesAffordable(fundingRoom, position.bid), position.sellableShares)
 
 	stillNeeded := search.minSale.Sub(proceedsSoFar)
-	laterPositionsCanRaise := search.bestCaseRemainingByDepth[depth+1].proceeds
+	laterPositionsCanRaise := search.maxProceedsByDepth[depth+1]
 	shortfall := stillNeeded.Sub(laterPositionsCanRaise)
 	fewest = sharesNeeded(shortfall, position.bid)
 
 	return fewest, most
+}
+
+func (search *saleSearch) lowestTaxToRaise(depth int, proceedsSoFar decimal.Decimal) decimal.Decimal {
+	shortfall := search.minSale.Sub(proceedsSoFar)
+
+	tax := decimal.Zero
+	for _, lot := range search.lotsCheapestFirstByDepth[depth] {
+		isLoss := lot.tax.IsNegative()
+		if !isLoss && lot.proceeds.GreaterThan(shortfall) {
+			break
+		}
+
+		tax = tax.Add(lot.tax)
+		shortfall = shortfall.Sub(lot.proceeds)
+	}
+
+	return tax
 }
 
 func (search *saleSearch) recordIfBest(sold saleTotals) {
@@ -155,6 +176,42 @@ func (search *saleSearch) shortfallBelowMin(sharesByPosition []int64) decimal.De
 	}
 
 	return shortfall
+}
+
+func (search *saleSearch) smallestShortfallBelowMin(depth int, proceedsSoFar decimal.Decimal) decimal.Decimal {
+	shortfall := decimal.Zero
+	roomLeft := decimal.Zero
+	for i := range search.assets {
+		asset := &search.assets[i]
+		sold := search.soldFrom(asset, search.chosenSharesByPosition[:depth])
+		unsold := search.unsoldValue(asset, depth)
+		shortfall = shortfall.Add(asset.shortfallBelowMin(sold, search.totalValueAfterRequest))
+
+		if !asset.isPlanned {
+			roomLeft = roomLeft.Add(unsold)
+			continue
+		}
+
+		room := utils.ClampNonNegative(asset.roomAboveMin(search.totalValueAfterRequest).Sub(sold))
+		roomLeft = roomLeft.Add(decimal.Min(room, unsold))
+	}
+
+	stillNeeded := search.minSale.Sub(proceedsSoFar)
+	forcedShortfall := utils.ClampNonNegative(stillNeeded.Sub(roomLeft))
+
+	return shortfall.Add(forcedShortfall)
+}
+
+func (search *saleSearch) unsoldValue(asset *sellableAsset, depth int) decimal.Decimal {
+	unsold := decimal.Zero
+	for i := depth; i < len(search.positions); i++ {
+		position := &search.positions[i]
+		if position.asset == asset {
+			unsold = unsold.Add(position.saleProceeds(position.sellableShares))
+		}
+	}
+
+	return unsold
 }
 
 func (search *saleSearch) allocationWarnings() []models.AllocationWarning {

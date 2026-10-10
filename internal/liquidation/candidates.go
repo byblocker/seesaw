@@ -50,14 +50,20 @@ func (p *sellablePosition) estimateSaleTax(count int64) decimal.Decimal {
 	return tax
 }
 
-func (p *sellablePosition) estimateTaxSellingOnlyLosses() decimal.Decimal {
-	tax := decimal.Zero
+func (p *sellablePosition) lotSaleTotals() []saleTotals {
+	var totals []saleTotals
 	for _, lot := range p.lots {
-		if lot.taxPerShare.IsNegative() {
-			tax = tax.Add(lot.taxPerShare.Mul(decimal.NewFromInt(lot.wholeShares)))
+		if lot.wholeShares == 0 {
+			continue
 		}
+
+		shares := decimal.NewFromInt(lot.wholeShares)
+		totals = append(totals, saleTotals{
+			proceeds: p.bid.Mul(shares),
+			tax:      lot.taxPerShare.Mul(shares),
+		})
 	}
-	return tax
+	return totals
 }
 
 func (p *sellablePosition) splitSaleAcrossLots(count int64, saleDate time.Time) []models.LotSale {
@@ -85,10 +91,12 @@ func (a *sellableAsset) shortfallBelowMin(sold, totalValueAfterSale decimal.Deci
 		return decimal.Zero
 	}
 
-	valueAfterSale := a.currentValue.Sub(sold)
-	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
+	return utils.ClampNonNegative(sold.Sub(a.roomAboveMin(totalValueAfterSale)))
+}
 
-	return utils.ClampNonNegative(minValueAllowed.Sub(valueAfterSale))
+func (a *sellableAsset) roomAboveMin(totalValueAfterSale decimal.Decimal) decimal.Decimal {
+	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
+	return a.currentValue.Sub(minValueAllowed)
 }
 
 func (a *sellableAsset) isAllocationAllowed(sold, totalValueAfterSale decimal.Decimal) bool {

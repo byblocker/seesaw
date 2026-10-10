@@ -9,6 +9,12 @@ func compareLots(left, right sellableLot) int {
 	return cmp.Compare(left.lot.Id, right.lot.Id)
 }
 
+func compareTaxPerDollar(left, right saleTotals) int {
+	leftTaxPerDollar := left.tax.Mul(right.proceeds)
+	rightTaxPerDollar := right.tax.Mul(left.proceeds)
+	return leftTaxPerDollar.Cmp(rightTaxPerDollar)
+}
+
 func comparePositions(left, right sellablePosition) int {
 	leftAsset, rightAsset := left.asset, right.asset
 
