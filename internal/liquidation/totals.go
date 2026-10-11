@@ -25,9 +25,14 @@ func (totals saleTotals) taxOwed() decimal.Decimal {
 
 func (totals saleTotals) compare(other saleTotals) int {
 	return cmp.Or(
+		// Keep assets at their minimum allocation; when impossible, miss by the fewest dollars.
 		preferLess(totals.shortfallBelowMin, other.shortfallBelowMin),
+		// Then owe the least tax. Losses beyond zero count for nothing, so extra loss lots are never sold.
 		preferLess(totals.taxOwed(), other.taxOwed()),
+		// Then raise the amount closest to the request instead of selling more than needed.
 		preferLess(totals.proceeds, other.proceeds),
+		// Among equally close plans, use up fewer losses, leaving them for future gains.
+		preferLess(totals.tax, other.tax),
 	)
 }
 
