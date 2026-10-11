@@ -29,6 +29,11 @@ type saleSearch struct {
 	nodeLimit                int
 	visitedNodes             int
 
+	// Indexed by depth, then asset: what positions from depth onward could still sell.
+	unsoldByDepth [][]decimal.Decimal
+	// Indexed by depth, then asset: what the positions before depth sell. withShares fills row depth+1.
+	soldByDepth [][]decimal.Decimal
+
 	chosenSharesByPosition []int64
 	bestSharesByPosition   []int64
 	bestTotals             saleTotals
@@ -48,6 +53,8 @@ func newSaleSearch(
 		nodeLimit:                plan.Request.SearchLimit,
 		maxProceedsByDepth:       make([]decimal.Decimal, len(positions)+1),
 		lotsCheapestFirstByDepth: make([][]saleTotals, len(positions)+1),
+		unsoldByDepth:            make([][]decimal.Decimal, len(positions)+1),
+		soldByDepth:              make([][]decimal.Decimal, len(positions)+1),
 		chosenSharesByPosition:   make([]int64, len(positions)),
 	}
 	for _, asset := range assets {
@@ -56,11 +63,23 @@ func newSaleSearch(
 
 	search.maxSale = decimal.Min(plan.MaxTargetSale, search.totalValue)
 	search.totalValueAfterRequest = search.totalValue.Sub(search.minSale)
+	for i := range assets {
+		assets[i].setValueBounds(search.totalValueAfterRequest)
+	}
+
+	for depth := range search.soldByDepth {
+		search.soldByDepth[depth] = make([]decimal.Decimal, len(assets))
+	}
+	search.unsoldByDepth[len(positions)] = make([]decimal.Decimal, len(assets))
 
 	for i := len(positions) - 1; i >= 0; i-- {
 		position := &positions[i]
 		positionProceeds := position.saleProceeds(position.sellableShares)
 		search.maxProceedsByDepth[i] = search.maxProceedsByDepth[i+1].Add(positionProceeds)
+
+		unsold := slices.Clone(search.unsoldByDepth[i+1])
+		unsold[position.asset.index] = unsold[position.asset.index].Add(positionProceeds)
+		search.unsoldByDepth[i] = unsold
 
 		lots := append(slices.Clone(search.lotsCheapestFirstByDepth[i+1]), position.lotSaleTotals()...)
 		slices.SortStableFunc(lots, compareTaxPerDollar)
@@ -110,7 +129,10 @@ func (search *saleSearch) visit(
 }
 
 func (search *saleSearch) recordIfBest(sold saleTotals) {
-	sold.shortfallBelowMin = search.shortfallBelowMin(search.chosenSharesByPosition)
+	sold.shortfallBelowMin = decimal.Zero
+	for i, soldFromAsset := range search.soldByDepth[len(search.positions)] {
+		sold.shortfallBelowMin = sold.shortfallBelowMin.Add(search.assets[i].shortfallBelowMin(soldFromAsset))
+	}
 	if search.found && sold.compare(search.bestTotals) <= 0 {
 		return
 	}
@@ -133,12 +155,13 @@ func (search *saleSearch) countNode(ctx context.Context) error {
 	return nil
 }
 
+// Recount the shortfall from scratch. The search keeps running totals instead; this stays as their reference.
 func (search *saleSearch) shortfallBelowMin(sharesByPosition []int64) decimal.Decimal {
 	shortfall := decimal.Zero
 	for i := range search.assets {
 		asset := &search.assets[i]
 		sold := search.soldFrom(asset, sharesByPosition)
-		shortfall = shortfall.Add(asset.shortfallBelowMin(sold, search.totalValueAfterRequest))
+		shortfall = shortfall.Add(asset.shortfallBelowMin(sold))
 	}
 
 	return shortfall
@@ -167,7 +190,7 @@ func (search *saleSearch) allocationWarnings() []models.AllocationWarning {
 	for i := range search.assets {
 		asset := &search.assets[i]
 		sold := search.soldFrom(asset, search.bestSharesByPosition)
-		if asset.isAllocationAllowed(sold, totalValueAfterSale) {
+		if asset.isAllocationAllowed(sold) {
 			continue
 		}
 

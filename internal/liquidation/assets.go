@@ -8,15 +8,21 @@ import (
 )
 
 type sellableAsset struct {
+	index           int
 	label           string
 	isPlanned       bool
 	currentValue    decimal.Decimal
 	minAllocAllowed decimal.Decimal
 	maxAllocAllowed decimal.Decimal
+
+	// Fixed by setValueBounds once the portfolio total after the sale is known.
+	minValueAllowed decimal.Decimal
+	maxValueAllowed decimal.Decimal
+	roomAboveMin    decimal.Decimal
 }
 
-func newSellableAsset(source portfolio.Asset, maxDeviation decimal.Decimal) sellableAsset {
-	asset := sellableAsset{label: source.Label()}
+func newSellableAsset(index int, source portfolio.Asset, maxDeviation decimal.Decimal) sellableAsset {
+	asset := sellableAsset{index: index, label: source.Label()}
 	if source.Plan == nil {
 		return asset
 	}
@@ -28,30 +34,28 @@ func newSellableAsset(source portfolio.Asset, maxDeviation decimal.Decimal) sell
 	return asset
 }
 
-func (a *sellableAsset) shortfallBelowMin(sold, totalValueAfterSale decimal.Decimal) decimal.Decimal {
+func (a *sellableAsset) setValueBounds(totalValueAfterSale decimal.Decimal) {
+	a.minValueAllowed = totalValueAfterSale.Mul(a.minAllocAllowed)
+	a.maxValueAllowed = totalValueAfterSale.Mul(a.maxAllocAllowed)
+	a.roomAboveMin = a.currentValue.Sub(a.minValueAllowed)
+}
+
+func (a *sellableAsset) shortfallBelowMin(sold decimal.Decimal) decimal.Decimal {
 	if !a.isPlanned {
 		return decimal.Zero
 	}
 
-	return utils.ClampNonNegative(sold.Sub(a.roomAboveMin(totalValueAfterSale)))
+	return utils.ClampNonNegative(sold.Sub(a.roomAboveMin))
 }
 
-func (a *sellableAsset) roomAboveMin(totalValueAfterSale decimal.Decimal) decimal.Decimal {
-	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
-	return a.currentValue.Sub(minValueAllowed)
-}
-
-func (a *sellableAsset) isAllocationAllowed(sold, totalValueAfterSale decimal.Decimal) bool {
+func (a *sellableAsset) isAllocationAllowed(sold decimal.Decimal) bool {
 	if !a.isPlanned {
 		return true
 	}
 
 	valueAfterSale := a.currentValue.Sub(sold)
-	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
-	maxValueAllowed := totalValueAfterSale.Mul(a.maxAllocAllowed)
-
-	isAboveMin := valueAfterSale.GreaterThanOrEqual(minValueAllowed)
-	isBelowMax := valueAfterSale.LessThanOrEqual(maxValueAllowed)
+	isAboveMin := valueAfterSale.GreaterThanOrEqual(a.minValueAllowed)
+	isBelowMax := valueAfterSale.LessThanOrEqual(a.maxValueAllowed)
 
 	return isAboveMin && isBelowMax
 }

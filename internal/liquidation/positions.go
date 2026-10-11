@@ -101,7 +101,7 @@ func collectPositions(
 
 	for i, source := range snapshot.Assets {
 		asset := &assets[i]
-		*asset = newSellableAsset(source, maxDeviation)
+		*asset = newSellableAsset(i, source, maxDeviation)
 
 		for _, ticker := range source.Tickers {
 			heldPosition, isHeld := snapshot.Portfolio.PositionByTicker[ticker]

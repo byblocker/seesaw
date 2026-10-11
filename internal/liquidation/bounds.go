@@ -31,20 +31,21 @@ func (search *saleSearch) canBeatBest(bestCase saleTotals) bool {
 // Count the shortfall the decided positions already cause, then add what the rest must
 // cause. Money still needed beyond their assets' room above minimum falls short dollar for dollar.
 func (search *saleSearch) smallestShortfallBelowMin(depth int, proceedsSoFar decimal.Decimal) decimal.Decimal {
+	soldByAsset, unsoldByAsset := search.soldByDepth[depth], search.unsoldByDepth[depth]
+
 	shortfall := decimal.Zero
 	roomLeft := decimal.Zero
 	for i := range search.assets {
 		asset := &search.assets[i]
-		sold := search.soldFrom(asset, search.chosenSharesByPosition[:depth])
-		unsold := search.unsoldValue(asset, depth)
-		shortfall = shortfall.Add(asset.shortfallBelowMin(sold, search.totalValueAfterRequest))
+		sold, unsold := soldByAsset[i], unsoldByAsset[i]
+		shortfall = shortfall.Add(asset.shortfallBelowMin(sold))
 
 		if !asset.isPlanned {
 			roomLeft = roomLeft.Add(unsold)
 			continue
 		}
 
-		room := utils.ClampNonNegative(asset.roomAboveMin(search.totalValueAfterRequest).Sub(sold))
+		room := utils.ClampNonNegative(asset.roomAboveMin.Sub(sold))
 		roomLeft = roomLeft.Add(decimal.Min(room, unsold))
 	}
 
@@ -52,19 +53,6 @@ func (search *saleSearch) smallestShortfallBelowMin(depth int, proceedsSoFar dec
 	forcedShortfall := utils.ClampNonNegative(stillNeeded.Sub(roomLeft))
 
 	return shortfall.Add(forcedShortfall)
-}
-
-// Total what an asset's undecided positions could still sell, which caps how much of its room they can use.
-func (search *saleSearch) unsoldValue(asset *sellableAsset, depth int) decimal.Decimal {
-	unsold := decimal.Zero
-	for i := depth; i < len(search.positions); i++ {
-		position := &search.positions[i]
-		if position.asset == asset {
-			unsold = unsold.Add(position.saleProceeds(position.sellableShares))
-		}
-	}
-
-	return unsold
 }
 
 // Estimate the least tax the undecided positions add while raising what is still needed.

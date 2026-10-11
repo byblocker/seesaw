@@ -120,6 +120,11 @@ func (search *saleSearch) withShares(depth int, soldSoFar saleTotals, shares int
 
 	estimatedTax := position.estimateSaleTax(shares)
 	estimatedProceeds := position.saleProceeds(shares)
+
+	soldByAsset := search.soldByDepth[depth+1]
+	copy(soldByAsset, search.soldByDepth[depth])
+	soldByAsset[position.asset.index] = soldByAsset[position.asset.index].Add(estimatedProceeds)
+
 	return soldSoFar.withSale(estimatedProceeds, estimatedTax)
 }
 
