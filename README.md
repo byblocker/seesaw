@@ -33,12 +33,13 @@ Start-Process https://example.com
 
 ## Creating your portfolio plan
 
-1. Create a personal copy of the template portfolio plan:
+1. Create a personal copy of the example portfolio plan:
 ```sh
-cp data/portfolios/template.yaml data/portfolios/< your portfolio name here >.yaml
+mkdir -p data/portfolios
+cp examples/portfolio.yaml data/portfolios/< your portfolio name here >.yaml
 ```
 
-**NOTE**: Personal portfolio .yaml files are ignored through `.gitignore`; only `data/portfolios/template.yaml` is tracked for explanation purposes.
+**NOTE**: `data/` holds your personal files and is ignored through `.gitignore`. The tracked examples live in `examples/`.
 
 2. Edit your local portfolio plan:
 
@@ -58,11 +59,11 @@ liquidation:
   max_excess_cash: 100
 
 assets:
-  - primary_ticker: VOO
-    alternate_ticker: SCHX
+  - primary_ticker: TICKER_A
+    alternate_ticker: TICKER_B
     target_allocation: 0.75
 
-  - primary_ticker: SGOV
+  - primary_ticker: TICKER_C
     target_allocation: 0.25
 ```
 
@@ -89,9 +90,10 @@ _seesaw_ rejects unknown fields and multiple documents
 
 ## User tax assumptions
 
-1. Create a personal copy of the template user config:
+1. Create a personal copy of the example user config:
 ```sh
-cp data/user.template.yaml data/user.yaml
+mkdir -p data
+cp examples/user.yaml data/user.yaml
 ```
 
 2. Edit your local user config:
@@ -130,14 +132,14 @@ go run . rebalance --portfolio < name of your portfolio >
 ```text
 Suggested Orders
 
-Ticker  Action  Acquired    Shares    Price        Cost       P/L
-_________________________________________________________________
-VOO     SELL    2026-06-10      10  $100.00   $1,000.00  -$100.00
+Ticker    Action  Acquired    Shares    Price        Cost       P/L
+___________________________________________________________________
+TICKER_A  SELL    2026-06-10      10  $100.00   $1,000.00  -$100.00
 
-SCHX    BUY     —               15  $100.00  -$1,500.00         —
+TICKER_B  BUY     —               15  $100.00  -$1,500.00         —
 
-SGOV    BUY     —                5  $100.00    -$500.00         —
-_________________________________________________________________
+TICKER_C  BUY     —                5  $100.00    -$500.00         —
+___________________________________________________________________
 
 Total P/L:         -$100.00
 Remaining balance:    $0.00
