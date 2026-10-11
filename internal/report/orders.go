@@ -1,7 +1,6 @@
 package report
 
 import (
-	"fmt"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
@@ -65,31 +64,4 @@ func orderSummaries(sells formattedSells, remainingCash decimal.Decimal) [][2]st
 	}
 
 	return summaries
-}
-
-var summaryRule = [2]string{}
-
-// Align every group's labels and amounts together, separating groups with a blank line.
-func writeSummaries(output *strings.Builder, groups ...[][2]string) {
-	var labelWidth, amountWidth int
-	for _, summaries := range groups {
-		for _, summary := range summaries {
-			labelWidth = max(labelWidth, len(summary[0]))
-			amountWidth = max(amountWidth, len(summary[1]))
-		}
-	}
-
-	for i, summaries := range groups {
-		if i > 0 {
-			output.WriteByte('\n')
-		}
-		for _, summary := range summaries {
-			if summary == summaryRule {
-				output.WriteString(strings.Repeat("_", labelWidth+1+amountWidth))
-				output.WriteByte('\n')
-				continue
-			}
-			fmt.Fprintf(output, "%-*s %*s\n", labelWidth, summary[0], amountWidth, summary[1])
-		}
-	}
 }
