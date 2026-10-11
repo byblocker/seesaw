@@ -4,6 +4,7 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
 
@@ -57,4 +58,59 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings, recentT
 		result.realizedPL = result.realizedPL.Add(sell.RealizedPL)
 	}
 	return result
+}
+
+func formatBuys(buys []models.Buy, rates *config.TaxSettings) (rows [][]string, cost decimal.Decimal) {
+	rows = make([][]string, 0, len(buys))
+	buys = slices.SortedFunc(slices.Values(buys), func(left, right models.Buy) int {
+		return strings.Compare(left.Ticker, right.Ticker)
+	})
+	for _, buy := range buys {
+		row := formatBuy(buy)
+		if rates != nil {
+			row = append(row, "—")
+		}
+		rows = append(rows, row)
+		cost = cost.Add(buy.EstimatedCost)
+	}
+
+	return rows, cost
+}
+
+func formatBuy(buy models.Buy) []string {
+	return []string{
+		buy.Ticker,
+		"BUY",
+		"—",
+		buy.Quantity.String(),
+		price(buy.Price),
+		money(buy.EstimatedCost.Neg()),
+		"—",
+	}
+}
+
+func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
+	headers := []string{"Asset", "Value", "Current", "Target", "Deviation"}
+	rows := make([][]string, 0, len(assets))
+	for _, asset := range assets {
+		rows = append(rows, formatAsset(asset))
+	}
+	return writeTable(output, headers, rows, 1)
+}
+
+func formatAsset(asset portfolio.Asset) []string {
+	label, target, deviation := "OTHER", "—", "—"
+	if asset.Plan != nil {
+		label = strings.Join(slices.Collect(asset.Plan.Tickers()), " / ")
+		target = percentage(asset.Plan.TargetAllocation)
+		deviation = formatDeviation(asset.AllocDrift)
+	}
+	return []string{label, money(asset.Value), percentage(asset.Allocation), target, deviation}
+}
+
+func formatDeviation(drift decimal.Decimal) string {
+	if drift.IsPositive() {
+		return "+" + percentage(drift)
+	}
+	return percentage(drift)
 }
