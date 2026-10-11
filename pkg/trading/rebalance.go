@@ -9,8 +9,6 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -60,7 +58,7 @@ func Rebalance(
 	for _, asset := range snapshot.Assets {
 		if asset.Plan != nil {
 			utils.Verbosef(ctx, "Evaluating %s: current %s%%, target %s%%",
-				strings.Join(slices.Collect(asset.Plan.Tickers()), " / "),
+				asset.Label(),
 				asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
 			for ticker := range asset.Plan.Tickers() {
 				if snapshot.Portfolio.RecentTx.HasRecentSell(ticker) {

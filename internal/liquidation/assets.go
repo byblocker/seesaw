@@ -1,8 +1,6 @@
 package liquidation
 
 import (
-	"strings"
-
 	"seesaw/internal/utils"
 	"seesaw/pkg/portfolio"
 
@@ -18,7 +16,7 @@ type sellableAsset struct {
 }
 
 func newSellableAsset(source portfolio.Asset, maxDeviation decimal.Decimal) sellableAsset {
-	asset := sellableAsset{label: strings.Join(source.Tickers, " / ")}
+	asset := sellableAsset{label: source.Label()}
 	if source.Plan == nil {
 		return asset
 	}

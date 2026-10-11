@@ -99,13 +99,12 @@ func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 }
 
 func formatAsset(asset portfolio.Asset) []string {
-	label, target, deviation := "OTHER", "—", "—"
+	target, deviation := "—", "—"
 	if asset.Plan != nil {
-		label = strings.Join(slices.Collect(asset.Plan.Tickers()), " / ")
 		target = percentage(asset.Plan.TargetAllocation)
 		deviation = formatDeviation(asset.AllocDrift)
 	}
-	return []string{label, money(asset.Value), percentage(asset.Allocation), target, deviation}
+	return []string{asset.Label(), money(asset.Value), percentage(asset.Allocation), target, deviation}
 }
 
 func formatDeviation(drift decimal.Decimal) string {

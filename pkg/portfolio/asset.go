@@ -6,6 +6,7 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -19,6 +20,13 @@ type Asset struct {
 
 	Value      decimal.Decimal
 	ValueDrift decimal.Decimal
+}
+
+func (asset Asset) Label() string {
+	if asset.Plan == nil {
+		return "OTHER"
+	}
+	return strings.Join(asset.Tickers, " / ")
 }
 
 func groupByAsset(
