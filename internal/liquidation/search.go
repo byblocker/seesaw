@@ -126,7 +126,8 @@ func (search *saleSearch) shareCountRange(depth int, proceedsSoFar decimal.Decim
 
 // Picks the share count to try to sell first. The best-case shortfall tends to fall, stays flat at
 // its lowest, then rises as share counts increase. Within that flat stretch, the best-case tax has a
-// single low point. Find where this stretch starts and ends, and record the lowest tax owed within it.
+// single low point. Find where this stretch starts and ends, and the most shares with the lowest tax within it,
+// so ties go to selling more of the earlier, preferred positions.
 func (search *saleSearch) bestStartingShares(
 	ctx context.Context,
 	depth int,
@@ -134,11 +135,17 @@ func (search *saleSearch) bestStartingShares(
 	fewest, most int64,
 ) (int64, error) {
 	var err error
+	evaluated := map[int64]saleTotals{}
 	bestCaseAt := func(shares int64) saleTotals {
+		if bestCase, ok := evaluated[shares]; ok {
+			return bestCase
+		}
 		if err == nil {
 			err = search.countNode(ctx)
 		}
-		return search.bestCase(depth+1, search.withShares(depth, soldSoFar, shares))
+		bestCase := search.bestCase(depth+1, search.withShares(depth, soldSoFar, shares))
+		evaluated[shares] = bestCase
+		return bestCase
 	}
 
 	flatStart := firstShares(fewest, most, func(shares int64) bool {
@@ -149,7 +156,7 @@ func (search *saleSearch) bestStartingShares(
 		return bestCaseAt(shares + 1).shortfallBelowMin.GreaterThan(leastShortfall)
 	})
 	leastTax := firstShares(flatStart, flatEnd, func(shares int64) bool {
-		return !bestCaseAt(shares + 1).tax.LessThan(bestCaseAt(shares).tax)
+		return bestCaseAt(shares + 1).tax.GreaterThan(bestCaseAt(shares).tax)
 	})
 
 	return leastTax, err
