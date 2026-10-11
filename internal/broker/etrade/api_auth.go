@@ -136,14 +136,21 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		"token": {requestToken},
 	}.Encode())
 
-	log.Printf("Redirecting to authenticate with %s...", Name)
-	if err = utils.OpenUrl(authURL); err != nil {
-		return nil, err
-	}
-
-	verificationCode, err := utils.AskForInput("Enter verification code: ")
+	fmt.Printf("Sign in to %s at:\n%s\n", Name, authURL)
+	// Anyone who opened the link themselves can paste the code here instead of opening it again.
+	verificationCode, err := utils.AskForInput("Press ENTER to open it in your browser, or paste the verification code: ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read verification code: %w", err)
+	}
+	if verificationCode == "" {
+		if err := utils.OpenUrl(authURL); err != nil {
+			fmt.Printf("%v. Open the link above instead.\n", err)
+		}
+
+		verificationCode, err = utils.AskForInput("Enter verification code: ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to read verification code: %w", err)
+		}
 	}
 
 	log.Print("Received verification code. Creating new access token...")
