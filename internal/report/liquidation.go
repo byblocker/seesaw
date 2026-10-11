@@ -5,8 +5,6 @@ import (
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
-
-	"github.com/shopspring/decimal"
 )
 
 func Liquidation(selection models.LiquidationSelection, recentTx models.RecentTxByTicker) string {
@@ -28,14 +26,19 @@ func Liquidation(selection models.LiquidationSelection, recentTx models.RecentTx
 		writeTable(&output, headers, formatted.rows, 3)
 	}
 
-	availableNow := decimal.Min(plan.Request.Amount, plan.AvailableCash)
-	summaries := [][2]string{
-		{"Requested withdrawal:", money(plan.Request.Amount)},
-		{"Available now for this withdrawal:", money(availableNow)},
-		{"Estimated sale proceeds:", money(selection.Proceeds)},
+	cashFlow := [][2]string{
+		{"Cash on hand:", money(plan.StartingCash)},
+		{"Sale proceeds:", money(selection.Proceeds)},
+		{"Withdrawal:", money(plan.Request.Amount.Neg())},
+		summaryRule,
+		{"Left over:", money(selection.ExpectedBalance)},
 	}
-	summaries = append(summaries, orderSummaries(formatted, selection.ExpectedBalance)...)
-	writeSummaries(&output, summaries)
+	if formatted.showTax {
+		netTax := formatted.tax.Sub(formatted.relief)
+		writeSummaries(&output, cashFlow, [][2]string{{"Estimated tax:", money(netTax)}})
+	} else {
+		writeSummaries(&output, cashFlow)
+	}
 
 	if len(selection.AllocationWarnings) > 0 {
 		output.WriteString("\nThese assets end up outside their allocation band after this sale:\n")

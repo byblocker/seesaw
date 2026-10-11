@@ -180,7 +180,7 @@ Sale proceeds stay between the amount you need and that amount plus `liquidation
 
 Remaining ties prefer holdings outside your plan, then lots with the lowest estimated tax per dollar. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance.
 
-Review the proposed lots, cash available now, estimated sale proceeds, and remaining balance after withdrawal. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+Review the proposed lots and the totals: cash on hand plus sale proceeds, minus the withdrawal, gives the cash left over. Taxable portfolios also show the net estimated tax, where a negative amount is potential relief. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
 The search stops with an error if your whole-share holdings cannot raise the amount needed, if no combination of whole shares lands within `liquidation.max_excess_cash` of it, or if its search budget is exhausted. It does not return an unfinished proposal.
 
