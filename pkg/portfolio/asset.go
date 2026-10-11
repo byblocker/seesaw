@@ -44,6 +44,8 @@ func groupByAsset(
 	}
 
 	if len(unplanned) > 0 {
+		// Map iteration order is random; sort so ties between unplanned positions break the same way every run.
+		slices.Sort(unplanned)
 		assets = append(assets, assignAsset(nil, unplanned, portfolio))
 	}
 
