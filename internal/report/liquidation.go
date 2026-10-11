@@ -48,17 +48,8 @@ func Liquidation(selection models.LiquidationSelection, recentTx models.RecentTx
 			)
 		}
 	}
-	if availableNow.LessThan(plan.Request.Amount) {
-		output.WriteString("\nThe full withdrawal is not available now; cash availability depends on settlement and broker restrictions.\n")
-	}
 	if formatted.washSale {
-		output.WriteString("\n[WS] Loss sale with a recent purchase of the same ticker; some or all tax relief may be disallowed.\n")
-		output.WriteString("This check does not cover future purchases or all substantially identical securities.\n")
-	}
-	if formatted.showTax {
-		output.WriteString("\nNegative tax impact is potential relief, assuming losses offset gains of the same holding period.\n")
-		output.WriteString("Estimates exclude annual netting, carryovers, and wash-sale adjustments; they are not tax due.\n")
-		output.WriteString("The plan does not reserve cash for tax payments.\n")
+		output.WriteString("\n[WS] Possible wash sale: a recent purchase of this ticker may disallow the loss.\n")
 	}
 	return output.String()
 }

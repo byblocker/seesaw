@@ -35,10 +35,6 @@ func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *conf
 	remainingCash := buyingPower.Add(sells.proceeds).Sub(cost)
 
 	writeSummaries(&output, orderSummaries(sells, remainingCash))
-	if sells.showTax {
-		output.WriteString("\nNegative tax impact is potential relief, assuming losses offset gains of the same holding period.\n")
-		output.WriteString("Estimates exclude annual netting, carryovers, and wash-sale adjustments; they are not tax due.\n")
-	}
 	return output.String()
 }
 
