@@ -1,12 +1,11 @@
 package liquidation
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
-	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -26,14 +25,6 @@ type sellableLot struct {
 	lot         *models.PositionLot
 	wholeShares int64
 	taxPerShare decimal.Decimal
-}
-
-type sellableAsset struct {
-	label           string
-	isPlanned       bool
-	currentValue    decimal.Decimal
-	minAllocAllowed decimal.Decimal
-	maxAllocAllowed decimal.Decimal
 }
 
 func (p *sellablePosition) saleProceeds(count int64) decimal.Decimal {
@@ -86,34 +77,6 @@ func (p *sellablePosition) splitSaleAcrossLots(count int64, saleDate time.Time) 
 	return sales
 }
 
-func (a *sellableAsset) shortfallBelowMin(sold, totalValueAfterSale decimal.Decimal) decimal.Decimal {
-	if !a.isPlanned {
-		return decimal.Zero
-	}
-
-	return utils.ClampNonNegative(sold.Sub(a.roomAboveMin(totalValueAfterSale)))
-}
-
-func (a *sellableAsset) roomAboveMin(totalValueAfterSale decimal.Decimal) decimal.Decimal {
-	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
-	return a.currentValue.Sub(minValueAllowed)
-}
-
-func (a *sellableAsset) isAllocationAllowed(sold, totalValueAfterSale decimal.Decimal) bool {
-	if !a.isPlanned {
-		return true
-	}
-
-	valueAfterSale := a.currentValue.Sub(sold)
-	minValueAllowed := totalValueAfterSale.Mul(a.minAllocAllowed)
-	maxValueAllowed := totalValueAfterSale.Mul(a.maxAllocAllowed)
-
-	isAboveMin := valueAfterSale.GreaterThanOrEqual(minValueAllowed)
-	isBelowMax := valueAfterSale.LessThanOrEqual(maxValueAllowed)
-
-	return isAboveMin && isBelowMax
-}
-
 func collectPositions(
 	snapshot portfolio.Snapshot,
 	quotes map[string]models.Quote,
@@ -161,19 +124,6 @@ func collectPositions(
 	return positions, assets, nil
 }
 
-func newSellableAsset(source portfolio.Asset, maxDeviation decimal.Decimal) sellableAsset {
-	asset := sellableAsset{label: strings.Join(source.Tickers, " / ")}
-	if source.Plan == nil {
-		return asset
-	}
-
-	target := source.Plan.TargetAllocation
-	asset.isPlanned = true
-	asset.minAllocAllowed = utils.ClampNonNegative(target.Sub(maxDeviation))
-	asset.maxAllocAllowed = decimal.Min(decimal.NewFromInt(1), target.Add(maxDeviation))
-	return asset
-}
-
 func newSellablePosition(
 	ticker string,
 	source models.Position,
@@ -215,4 +165,31 @@ func newSellableLot(
 	}
 
 	return sellable, entireLot.Proceeds()
+}
+
+func compareLots(left, right sellableLot) int {
+	if order := left.taxPerShare.Cmp(right.taxPerShare); order != 0 {
+		return order
+	}
+	return cmp.Compare(left.lot.Id, right.lot.Id)
+}
+
+func comparePositions(left, right sellablePosition) int {
+	leftAsset, rightAsset := left.asset, right.asset
+
+	// Order unplanned assets before planned ones.
+	if leftAsset.isPlanned != rightAsset.isPlanned {
+		if leftAsset.isPlanned {
+			return 1
+		}
+		return -1
+	}
+
+	// Order by the cheapest lot's tax per dollar incurred
+	leftTaxPerDollar := left.lots[0].taxPerShare.Mul(right.bid)
+	rightTaxPerDollar := right.lots[0].taxPerShare.Mul(left.bid)
+	if order := leftTaxPerDollar.Cmp(rightTaxPerDollar); order != 0 {
+		return order
+	}
+	return rightAsset.currentValue.Cmp(leftAsset.currentValue)
 }

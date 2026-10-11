@@ -39,3 +39,9 @@ func (totals saleTotals) compare(other saleTotals) int {
 func preferLess(value, other decimal.Decimal) int {
 	return other.Cmp(value)
 }
+
+func compareTaxPerDollar(left, right saleTotals) int {
+	leftTaxPerDollar := left.tax.Mul(right.proceeds)
+	rightTaxPerDollar := right.tax.Mul(left.proceeds)
+	return leftTaxPerDollar.Cmp(rightTaxPerDollar)
+}
