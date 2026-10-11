@@ -2,9 +2,7 @@ package report
 
 import (
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
-	"slices"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -19,7 +17,6 @@ func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *conf
 		return output.String()
 	}
 
-	plan = sortOrders(plan)
 	sells := formatSells(plan.Sells, rates, nil)
 	buyRows, cost := formatBuys(plan.Buys, rates)
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
@@ -32,19 +29,6 @@ func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *conf
 
 	writeSummaries(&output, orderSummaries(sells, remainingCash))
 	return output.String()
-}
-
-func sortOrders(plan trading.RebalancePlan) trading.RebalancePlan {
-	plan.Buys = slices.Clone(plan.Buys)
-	slices.SortFunc(plan.Buys, func(left, right models.Buy) int {
-		return strings.Compare(left.Ticker, right.Ticker)
-	})
-
-	plan.Sells = slices.Clone(plan.Sells)
-	slices.SortFunc(plan.Sells, func(left, right models.SellProposal) int {
-		return strings.Compare(left.Ticker, right.Ticker)
-	})
-	return plan
 }
 
 func orderSummaries(sells formattedSells, remainingCash decimal.Decimal) [][2]string {

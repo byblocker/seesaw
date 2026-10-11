@@ -3,7 +3,6 @@ package report
 import (
 	"fmt"
 	"seesaw/pkg/models"
-	"slices"
 	"strings"
 )
 
@@ -13,9 +12,7 @@ func Liquidation(selection models.LiquidationSelection, recentTx models.RecentTx
 	var output strings.Builder
 	output.WriteString("\nSuggested Liquidation\n\n")
 
-	sells := slices.Clone(selection.Sells)
-	slices.SortFunc(sells, func(a, b models.SellProposal) int { return strings.Compare(a.Ticker, b.Ticker) })
-	formatted := formatSells(sells, rates, recentTx)
+	formatted := formatSells(selection.Sells, rates, recentTx)
 	if len(formatted.rows) == 0 {
 		output.WriteString("No sales required.\n\n")
 	} else {

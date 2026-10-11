@@ -4,6 +4,8 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"slices"
+	"strings"
 
 	"github.com/shopspring/decimal"
 )
@@ -20,6 +22,9 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings, recentT
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
 	}
+	sells = slices.SortedFunc(slices.Values(sells), func(left, right models.SellProposal) int {
+		return strings.Compare(left.Ticker, right.Ticker)
+	})
 	for _, sell := range sells {
 		for _, lot := range sell.Lots {
 			realizedPL := lot.RealizedPL()
