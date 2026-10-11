@@ -2,30 +2,25 @@ package rebalance
 
 import (
 	"seesaw/pkg/models"
-	"time"
+	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
 )
 
-func HarvestTaxLoss(
-	position models.Position,
-	bid,
-	minPctLossToHarvest decimal.Decimal,
-	saleDate time.Time,
-) models.SellProposal {
+func HarvestTaxLoss(holding portfolio.Holding, minPctLossToHarvest decimal.Decimal) models.SellProposal {
 	proposal := models.SellProposal{
-		Ticker: position.Ticker,
+		Ticker: holding.Ticker,
 		Type:   models.Market,
-		Price:  bid,
+		Price:  holding.Bid,
 	}
 
-	for i := range position.Lots {
-		lot := &position.Lots[i]
-		if !lot.PLPct.IsNegative() || lot.PLPct.Cmp(minPctLossToHarvest) > 0 {
+	for _, sale := range holding.Lots {
+		lossPct := sale.Lot.PLPct
+		if !lossPct.IsNegative() || lossPct.Cmp(minPctLossToHarvest) > 0 {
 			continue
 		}
 
-		proposal.Add(models.NewLotSale(position.Ticker, lot, bid, saleDate))
+		proposal.Add(sale)
 	}
 
 	return proposal

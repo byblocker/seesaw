@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"seesaw/internal/collections"
 	"seesaw/internal/rebalance"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -54,8 +56,13 @@ func Rebalance(
 		return nil, err
 	}
 
+	holdingsByAsset, err := snapshot.HoldingsByAsset(quotePerTicker, saleDate)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
-	for _, asset := range snapshot.Assets {
+	for i, asset := range snapshot.Assets {
 		if asset.Plan != nil {
 			utils.Verbosef(ctx, "Evaluating %s: current %s%%, target %s%%",
 				asset.Label(),
@@ -70,8 +77,10 @@ func Rebalance(
 		}
 
 		harvestFunc := func(ticker string) models.SellProposal {
-			position, exists := snapshot.Portfolio.PositionByTicker[ticker]
-			if !exists {
+			holding, isHeld := collections.Find(slices.Values(holdingsByAsset[i]), func(holding portfolio.Holding) bool {
+				return holding.Ticker == ticker
+			})
+			if !isHeld {
 				return models.SellProposal{}
 			}
 			if snapshot.Portfolio.RecentTx.HasRecentBuy(ticker) {
@@ -79,12 +88,7 @@ func Rebalance(
 				return models.SellProposal{}
 			}
 
-			candidate := rebalance.HarvestTaxLoss(
-				position,
-				quotePerTicker[ticker].Bid,
-				*settings.MinPctLossToHarvest,
-				saleDate,
-			)
+			candidate := rebalance.HarvestTaxLoss(holding, *settings.MinPctLossToHarvest)
 			if len(candidate.Lots) == 0 {
 				utils.Verbosef(ctx, "No lots of %s meet the %s%% loss threshold",
 					ticker, settings.MinPctLossToHarvest.Shift(2).StringFixed(2))

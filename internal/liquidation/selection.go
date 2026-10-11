@@ -53,7 +53,7 @@ func PlanSales(
 			Price:  position.bid,
 			Type:   models.Market,
 		}
-		for _, sale := range position.splitSaleAcrossLots(shares, saleDate) {
+		for _, sale := range position.splitSaleAcrossLots(shares) {
 			proposal.Add(sale)
 		}
 		proposals = append(proposals, proposal)

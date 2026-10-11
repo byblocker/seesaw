@@ -2,7 +2,6 @@ package liquidation
 
 import (
 	"cmp"
-	"fmt"
 	"slices"
 	"time"
 
@@ -22,7 +21,7 @@ type sellablePosition struct {
 }
 
 type sellableLot struct {
-	lot         *models.PositionLot
+	sale        models.LotSale // the whole lot
 	wholeShares int64
 	taxPerShare decimal.Decimal
 }
@@ -67,7 +66,7 @@ func (p *sellablePosition) lotSaleTotals() []saleTotals {
 	return totals
 }
 
-func (p *sellablePosition) splitSaleAcrossLots(count int64, saleDate time.Time) []models.LotSale {
+func (p *sellablePosition) splitSaleAcrossLots(count int64) []models.LotSale {
 	var sales []models.LotSale
 	for _, lot := range p.lots {
 		if count == 0 {
@@ -79,7 +78,7 @@ func (p *sellablePosition) splitSaleAcrossLots(count int64, saleDate time.Time) 
 			continue
 		}
 
-		sale := models.NewLotSale(p.ticker, lot.lot, p.bid, saleDate)
+		sale := lot.sale
 		sale.Quantity = decimal.NewFromInt(sharesFromLot)
 		sales = append(sales, sale)
 		count -= sharesFromLot
@@ -94,36 +93,23 @@ func collectPositions(
 	settings config.LiquidationSettings,
 	rates *config.TaxSettings,
 ) ([]sellablePosition, []sellableAsset, error) {
+	holdingsByAsset, err := snapshot.HoldingsByAsset(quotes, saleDate)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	maxDeviation := *settings.MaxAllocationDeviation
 
 	assets := make([]sellableAsset, len(snapshot.Assets))
 	var positions []sellablePosition
 
-	for i, source := range snapshot.Assets {
+	for i, holdings := range holdingsByAsset {
 		asset := &assets[i]
-		*asset = newSellableAsset(i, source, maxDeviation)
+		*asset = newSellableAsset(i, snapshot.Assets[i], maxDeviation)
 
-		for _, ticker := range source.Tickers {
-			heldPosition, isHeld := snapshot.Portfolio.PositionByTicker[ticker]
-			if !isHeld || heldPosition.Quantity.IsZero() {
-				continue
-			}
-
-			quote, quoted := quotes[ticker]
-			if !quoted || !quote.Bid.IsPositive() {
-				return nil, nil, fmt.Errorf("missing bid price for %s", ticker)
-			}
-
-			position, value := newSellablePosition(
-				ticker,
-				heldPosition,
-				quote.Bid,
-				asset,
-				saleDate,
-				rates,
-			)
-			asset.currentValue = asset.currentValue.Add(value)
-			if position.sellableShares > 0 {
+		for _, holding := range holdings {
+			asset.currentValue = asset.currentValue.Add(holding.Value)
+			if position := newSellablePosition(holding, asset, rates); position.sellableShares > 0 {
 				positions = append(positions, position)
 			}
 		}
@@ -135,53 +121,30 @@ func collectPositions(
 }
 
 func newSellablePosition(
-	ticker string,
-	source models.Position,
-	bid decimal.Decimal,
+	holding portfolio.Holding,
 	asset *sellableAsset,
-	saleDate time.Time,
 	rates *config.TaxSettings,
-) (position sellablePosition, currentValue decimal.Decimal) {
-	position = sellablePosition{ticker: ticker, asset: asset, bid: bid}
-	for i := range source.Lots {
-		lot := &source.Lots[i]
-		if !lot.Quantity.IsPositive() {
-			continue
+) sellablePosition {
+	position := sellablePosition{ticker: holding.Ticker, asset: asset, bid: holding.Bid}
+	for _, sale := range holding.Lots {
+		lot := sellableLot{sale: sale, wholeShares: sale.Quantity.Floor().IntPart()}
+		if rates != nil {
+			lot.taxPerShare = sale.TaxImpactPerShare(*rates)
 		}
 
-		sellable, lotValue := newSellableLot(ticker, lot, bid, saleDate, rates)
-
-		position.lots = append(position.lots, sellable)
-		position.sellableShares += sellable.wholeShares
-		currentValue = currentValue.Add(lotValue)
+		position.lots = append(position.lots, lot)
+		position.sellableShares += lot.wholeShares
 	}
 
 	slices.SortFunc(position.lots, compareLots)
-	return position, currentValue
-}
-
-func newSellableLot(
-	ticker string,
-	lot *models.PositionLot,
-	bid decimal.Decimal,
-	saleDate time.Time,
-	rates *config.TaxSettings,
-) (sellable sellableLot, currentValue decimal.Decimal) {
-	entireLot := models.NewLotSale(ticker, lot, bid, saleDate)
-
-	sellable = sellableLot{lot: lot, wholeShares: lot.Quantity.Floor().IntPart()}
-	if rates != nil {
-		sellable.taxPerShare = entireLot.TaxImpactPerShare(*rates)
-	}
-
-	return sellable, entireLot.Proceeds()
+	return position
 }
 
 func compareLots(left, right sellableLot) int {
 	if order := left.taxPerShare.Cmp(right.taxPerShare); order != 0 {
 		return order
 	}
-	return cmp.Compare(left.lot.Id, right.lot.Id)
+	return cmp.Compare(left.sale.Lot.Id, right.sale.Lot.Id)
 }
 
 func comparePositions(left, right sellablePosition) int {
