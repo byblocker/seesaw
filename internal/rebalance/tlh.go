@@ -15,8 +15,8 @@ func HarvestTaxLoss(holding portfolio.Holding, minPctLossToHarvest decimal.Decim
 	}
 
 	for _, sale := range holding.Lots {
-		lossPct := sale.Lot.PLPct
-		if !lossPct.IsNegative() || lossPct.Cmp(minPctLossToHarvest) > 0 {
+		gainPct := sale.GainPct()
+		if !gainPct.IsNegative() || gainPct.Cmp(minPctLossToHarvest) > 0 {
 			continue
 		}
 

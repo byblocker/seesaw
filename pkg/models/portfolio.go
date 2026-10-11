@@ -47,7 +47,6 @@ type PositionLot struct {
 	TimeAcquired time.Time
 	MarketValue  decimal.Decimal
 	UnrealizedPL decimal.Decimal
-	PLPct        decimal.Decimal
 }
 
 func (lot PositionLot) IsLongTermAt(saleDate time.Time) bool {

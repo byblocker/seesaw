@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"time"
 
@@ -74,6 +75,16 @@ func (sale LotSale) Proceeds() decimal.Decimal {
 
 func (sale LotSale) RealizedPL() decimal.Decimal {
 	return sale.Quantity.Mul(sale.GainPerShare)
+}
+
+// Gain or loss at the sale price as a fraction of the price paid.
+func (sale LotSale) GainPct() decimal.Decimal {
+	if !sale.Lot.PricePaid.IsPositive() {
+		return decimal.Zero
+	}
+
+	gainPct, _ := sale.GainPerShare.QuoRem(sale.Lot.PricePaid, utils.DivisionDecimalPlaces)
+	return gainPct
 }
 
 func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {

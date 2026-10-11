@@ -51,8 +51,7 @@ type getPositionLotResponse struct {
 	PositionLotsResponse struct {
 		PositionLots []struct {
 			positionLotResponse
-			DateAcquired int64           `json:"acquiredDate"`
-			GainBasis    decimal.Decimal `json:"totalCostForGainPct"`
+			DateAcquired int64 `json:"acquiredDate"`
 		} `json:"PositionLot"`
 	} `json:"PositionLotsResponse"`
 }
@@ -206,11 +205,6 @@ func (client *Client) getPositionLots(
 
 	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
-		var gainRatio decimal.Decimal
-		if lot.GainBasis.IsPositive() {
-			// totalCostForGainPct is the denominator, not a percentage.
-			gainRatio, _ = lot.UnrealizedPL.QuoRem(lot.GainBasis, utils.DivisionDecimalPlaces)
-		}
 		lots = append(lots, models.PositionLot{
 			Id:           lot.Id,
 			Quantity:     lot.Quantity,
@@ -218,7 +212,6 @@ func (client *Client) getPositionLots(
 			TimeAcquired: time.UnixMilli(lot.DateAcquired),
 			MarketValue:  lot.MarketValue,
 			UnrealizedPL: lot.UnrealizedPL,
-			PLPct:        gainRatio,
 		})
 	}
 
