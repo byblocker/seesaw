@@ -8,6 +8,8 @@ import (
 
 // Estimates here are optimistic on purpose. No plan reachable from a branch can beat
 // its best case, so a branch whose best case loses is skipped without missing a better plan.
+// The one exception is proceeds, which carry a small cushion (proceedsTolerance) to prune
+// faster. A plan that raises less cash by under that cushion can lose a tie it should win.
 
 // Allow for the rounding taxOnPartOfLot adds when comparing tax estimates.
 var taxRoundingMargin = decimal.New(1, -6)
