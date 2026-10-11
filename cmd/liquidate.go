@@ -60,6 +60,9 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	if err := plan.Liquidation.Validate(); err != nil {
+		return err
+	}
 
 	var rates *config.TaxSettings
 	if *plan.IsTaxable {

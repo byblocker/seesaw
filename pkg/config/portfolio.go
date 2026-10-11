@@ -50,16 +50,8 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 		return nil, fmt.Errorf("portfolio plan must contain exactly one YAML document")
 	}
 
-	if err := plan.Rebalance.Validate(); err != nil {
-		return nil, err
-	}
-
 	if plan.IsTaxable == nil {
 		return nil, fmt.Errorf("missing required is_taxable")
-	}
-
-	if err := plan.Liquidation.Validate(); err != nil {
-		return nil, err
 	}
 
 	if err := normalizeAssets(plan.Assets); err != nil {

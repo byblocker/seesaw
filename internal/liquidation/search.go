@@ -157,7 +157,8 @@ func (search *saleSearch) soldFrom(asset *sellableAsset, sharesByPosition []int6
 }
 
 func (search *saleSearch) allocationWarnings() []models.AllocationWarning {
-	totalValueAfterSale := search.totalValue.Sub(search.bestTotals.proceeds)
+	// Judge against the same total the search used, so warnings match what it optimized.
+	totalValueAfterSale := search.totalValueAfterRequest
 	if !totalValueAfterSale.IsPositive() {
 		return nil
 	}
