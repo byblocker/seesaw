@@ -21,10 +21,10 @@ func Snapshot(snapshot portfolio.Snapshot) string {
 		divider = writeAssets(&output, snapshot.Assets)
 	}
 
-	total := money(snapshot.Portfolio.TotalValue)
-	balance := money(snapshot.Portfolio.Balances.CashBalance)
-	moneyWidth := max(len(total), len(balance))
-	fmt.Fprintf(&output, "%-8s %*s\n%-8s %*s\n", "Balance:", moneyWidth, balance, "Total:", moneyWidth, total)
+	writeSummaries(&output, [][2]string{
+		{"Balance:", money(snapshot.Portfolio.Balances.CashBalance)},
+		{"Total:", money(snapshot.Portfolio.TotalValue)},
+	})
 	if divider != "" {
 		output.WriteString(divider)
 		output.WriteByte('\n')
