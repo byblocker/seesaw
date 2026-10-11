@@ -34,7 +34,7 @@ func init() {
 	rootCmd.AddCommand(liquidatePortfolio)
 	liquidatePortfolio.Flags().StringVar(&liquidationPlanName, "portfolio", "", "name of portfolio plan")
 	liquidatePortfolio.Flags().StringVar(&liquidationAmount, "amount", "", "withdrawal amount in account currency")
-	liquidatePortfolio.Flags().IntVar(&liquidationSearchLimit, "search-limit", 1_000_000, "maximum search nodes before reporting an incomplete search")
+	liquidatePortfolio.Flags().IntVar(&liquidationSearchLimit, "search-limit", 100_000, "maximum search nodes before reporting an incomplete search")
 	for _, flag := range []string{"portfolio", "amount"} {
 		if err := liquidatePortfolio.MarkFlagRequired(flag); err != nil {
 			panic(err)

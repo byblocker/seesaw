@@ -182,13 +182,15 @@ Remaining ties prefer holdings outside your plan, then lots with the lowest esti
 
 Review the proposed lots, cash available now, estimated sale proceeds, and remaining balance after withdrawal. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
-The search stops with an error if your whole-share holdings cannot raise the amount needed, if no combination of whole shares lands within `liquidation.max_excess_cash` of it, or if its search budget is exhausted. It does not return an unfinished proposal. Increase the budget when needed:
+The search stops with an error if your whole-share holdings cannot raise the amount needed, if no combination of whole shares lands within `liquidation.max_excess_cash` of it, or if its search budget is exhausted. It does not return an unfinished proposal.
+
+Typical requests finish in a few thousand nodes, well under a second. The default budget of 100,000 nodes leaves wide headroom while keeping a hard request from running for long. Rarely, a large request across many cheap and expensive shares needs more; raise the budget for that request:
 
 ```sh
-go run . liquidate --portfolio growth --amount 1000 --search-limit 2000000
+go run . liquidate --portfolio growth --amount 60000 --search-limit 5000000
 ```
 
-The default search limit is 1,000,000 nodes. Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
+Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
 
 ## Library Usage
 
