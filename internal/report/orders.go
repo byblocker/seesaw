@@ -21,13 +21,10 @@ func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *conf
 
 	plan = sortOrders(plan)
 	sells := formatSells(plan.Sells, rates, nil)
-	buyRows, cost := formatBuys(plan.Buys)
+	buyRows, cost := formatBuys(plan.Buys, rates)
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
 	if rates != nil {
 		headers = append(headers, "Est. tax impact")
-		for i := range buyRows {
-			buyRows[i] = append(buyRows[i], "—")
-		}
 	}
 	writeTable(&output, headers, append(sells.rows, buyRows...), 3)
 

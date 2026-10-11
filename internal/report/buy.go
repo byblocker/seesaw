@@ -1,15 +1,20 @@
 package report
 
 import (
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
 )
 
-func formatBuys(buys []models.Buy) (rows [][]string, cost decimal.Decimal) {
+func formatBuys(buys []models.Buy, rates *config.TaxSettings) (rows [][]string, cost decimal.Decimal) {
 	rows = make([][]string, 0, len(buys))
 	for _, buy := range buys {
-		rows = append(rows, formatBuy(buy))
+		row := formatBuy(buy)
+		if rates != nil {
+			row = append(row, "—")
+		}
+		rows = append(rows, row)
 		cost = cost.Add(buy.EstimatedCost)
 	}
 
