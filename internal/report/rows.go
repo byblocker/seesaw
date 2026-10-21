@@ -18,7 +18,7 @@ type formattedSells struct {
 	washSale, showTax    bool
 }
 
-func formatSells(sells []models.SellProposal, rates *config.TaxSettings, recentTx models.RecentTxByTicker) formattedSells {
+func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
@@ -46,7 +46,7 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings, recentT
 				} else {
 					result.tax = result.tax.Add(impact)
 				}
-				if realizedPL.IsNegative() && recentTx.HasRecentBuy(sell.Ticker) {
+				if lot.IsWashSale {
 					row[1] += " [WS]"
 					result.washSale = true
 				}

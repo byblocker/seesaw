@@ -17,7 +17,7 @@ func Orders(plan trading.RebalancePlan, buyingPower decimal.Decimal, rates *conf
 		return output.String()
 	}
 
-	sells := formatSells(plan.Sells, rates, nil)
+	sells := formatSells(plan.Sells, rates)
 	buyRows, cost := formatBuys(plan.Buys, rates)
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
 	if rates != nil {

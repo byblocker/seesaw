@@ -97,7 +97,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*selection, snapshot.Portfolio.RecentTx)); err != nil {
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*selection)); err != nil {
 		return fmt.Errorf("write liquidation summary: %w", err)
 	}
 	return nil
