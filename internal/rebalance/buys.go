@@ -9,9 +9,9 @@ import (
 )
 
 type BuyRequest struct {
-	Ticker     string
-	ValueDrift decimal.Decimal
-	Ask        decimal.Decimal
+	Ticker string
+	Amount decimal.Decimal
+	Ask    decimal.Decimal
 }
 
 func ProposeBuy(
@@ -24,7 +24,7 @@ func ProposeBuy(
 	if !req.Ask.IsPositive() {
 		return models.Buy{}, fmt.Errorf("ask must be positive")
 	}
-	if !req.ValueDrift.IsPositive() || !balance.IsPositive() {
+	if !req.Amount.IsPositive() || !balance.IsPositive() {
 		return models.Buy{}, nil
 	}
 
@@ -41,7 +41,7 @@ func ProposeBuy(
 		}
 	}
 
-	valueToCover := req.ValueDrift
+	valueToCover := req.Amount
 	if balance.LessThan(valueToCover) {
 		valueToCover = balance
 	}
@@ -59,7 +59,7 @@ func ProposeBuy(
 
 	rounded := whole.Add(decimal.NewFromInt(1))
 	cost := rounded.Mul(req.Ask)
-	maxAllowedCost := req.ValueDrift.Add(maxValueDeviation)
+	maxAllowedCost := req.Amount.Add(maxValueDeviation)
 
 	if cost.Cmp(balance) > 0 || cost.Cmp(maxAllowedCost) > 0 {
 		return proposeQuantity(whole), nil

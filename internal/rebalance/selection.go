@@ -56,9 +56,9 @@ func SelectPosToBuy(
 		isBeingSold := len(sell.Lots) > 0 && ticker == sell.Ticker
 		if !isBeingSold && !recentTx.HasSellWithinWashWindow(ticker, tradeDate) {
 			return BuyRequest{
-				Ticker:     ticker,
-				ValueDrift: shortfall,
-				Ask:        quoteByTicker[ticker].Ask,
+				Ticker: ticker,
+				Amount: shortfall,
+				Ask:    quoteByTicker[ticker].Ask,
 			}
 		}
 	}

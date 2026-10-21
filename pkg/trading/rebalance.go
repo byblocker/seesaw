@@ -126,7 +126,7 @@ func Rebalance(
 			continue
 		}
 
-		utils.Verbosef(ctx, "Queue purchase of %s to cover a $%s shortfall", buy.Ticker, buy.ValueDrift.StringFixed(2))
+		utils.Verbosef(ctx, "Queue purchase of %s to cover a $%s shortfall", buy.Ticker, buy.Amount.StringFixed(2))
 		buyRequests = append(buyRequests, buy)
 
 		if len(sell.Lots) > 0 {
