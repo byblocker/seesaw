@@ -66,15 +66,14 @@ func normalizeAssets(assets []AssetPlan) error {
 	seenTickers := collections.NewSet[string]()
 
 	for i := range assets {
-		asset := &assets[i]
+		assets[i].PrimaryTicker = strings.TrimSpace(assets[i].PrimaryTicker)
+		assets[i].AltTicker = strings.TrimSpace(assets[i].AltTicker)
+	}
+	if err := validateAssets(assets); err != nil {
+		return err
+	}
 
-		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
-		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
-
-		if err := asset.Validate(); err != nil {
-			return err
-		}
-
+	for _, asset := range assets {
 		for ticker := range asset.Tickers() {
 			if seenTickers.Contains(ticker) {
 				return fmt.Errorf("duplicate ticker %q", ticker)
