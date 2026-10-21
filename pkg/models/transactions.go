@@ -1,6 +1,10 @@
 package models
 
-import "github.com/shopspring/decimal"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 type RecentTxByTicker map[string]struct {
 	Buys  []Transaction
@@ -42,6 +46,7 @@ func (r RecentTxByTicker) Append(other RecentTxByTicker) {
 type Transaction struct {
 	Ticker   string
 	Type     TransactionType
+	Date     time.Time
 	Quantity decimal.Decimal
 	Price    decimal.Decimal
 }

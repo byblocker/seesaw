@@ -17,6 +17,7 @@ type transactionResponse struct {
 		Transactions []struct {
 			AccountID string `json:"accountId"`
 			Type      string `json:"transactionType"`
+			Date      int64  `json:"transactionDate"`
 			Brokerage struct {
 				Ticker   string          `json:"displaySymbol"`
 				Quantity decimal.Decimal `json:"quantity"`
@@ -95,10 +96,14 @@ func (client *Client) Transactions(
 			if !tickerSet.Contains(tx.Brokerage.Ticker) || !models.TransactionType(tx.Type).IsSupported() {
 				continue
 			}
+			if tx.Date <= 0 {
+				return nil, fmt.Errorf("%s transaction for %s has no date", tx.Type, tx.Brokerage.Ticker)
+			}
 
 			result.Add(models.Transaction{
 				Ticker:   tx.Brokerage.Ticker,
 				Type:     models.TransactionType(tx.Type),
+				Date:     time.UnixMilli(tx.Date),
 				Quantity: tx.Brokerage.Quantity,
 				Price:    tx.Brokerage.Price,
 			})
