@@ -34,14 +34,22 @@ func (snapshot Snapshot) HoldingsByAsset(
 				return nil, fmt.Errorf("missing bid price for %s", ticker)
 			}
 
-			holdingsByAsset[i] = append(holdingsByAsset[i], newHolding(ticker, position, quote.Bid, saleDate))
+			isRecentlyBought := snapshot.Portfolio.RecentTx.HasRecentBuy(ticker)
+			holding := newHolding(ticker, position, quote.Bid, saleDate, isRecentlyBought)
+			holdingsByAsset[i] = append(holdingsByAsset[i], holding)
 		}
 	}
 
 	return holdingsByAsset, nil
 }
 
-func newHolding(ticker string, position models.Position, bid decimal.Decimal, saleDate time.Time) Holding {
+func newHolding(
+	ticker string,
+	position models.Position,
+	bid decimal.Decimal,
+	saleDate time.Time,
+	isRecentlyBought bool,
+) Holding {
 	holding := Holding{Ticker: ticker, Bid: bid}
 	for i := range position.Lots {
 		lot := &position.Lots[i]
@@ -49,7 +57,7 @@ func newHolding(ticker string, position models.Position, bid decimal.Decimal, sa
 			continue
 		}
 
-		sale := models.NewLotSale(ticker, lot, bid, saleDate)
+		sale := models.NewLotSale(ticker, lot, bid, saleDate, isRecentlyBought)
 		holding.Lots = append(holding.Lots, sale)
 		holding.Value = holding.Value.Add(sale.Proceeds())
 	}

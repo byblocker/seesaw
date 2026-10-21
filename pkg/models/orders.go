@@ -45,6 +45,7 @@ type LotSale struct {
 	Price        decimal.Decimal
 	GainPerShare decimal.Decimal
 	LongTerm     bool
+	IsWashSale   bool
 }
 
 func NewLotSale(
@@ -52,16 +53,25 @@ func NewLotSale(
 	lot *PositionLot,
 	price decimal.Decimal,
 	saleDate time.Time,
+	isRecentlyBought bool,
 ) LotSale {
+	gainPerShare := price.Sub(lot.PricePaid)
+	isWashSale := isRecentlyBought && gainPerShare.IsNegative()
+
 	return LotSale{
 		Ticker: ticker, Lot: lot, Price: price,
 		Quantity:     lot.Quantity,
-		GainPerShare: price.Sub(lot.PricePaid),
+		GainPerShare: gainPerShare,
 		LongTerm:     lot.IsLongTermAt(saleDate),
+		IsWashSale:   isWashSale,
 	}
 }
 
 func (sale LotSale) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal {
+	if sale.IsWashSale {
+		return decimal.Zero
+	}
+
 	rate := rates.ShortTermGainRate
 	if sale.LongTerm {
 		rate = rates.LongTermGainRate
