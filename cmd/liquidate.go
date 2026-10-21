@@ -66,7 +66,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 
 	var rates *config.TaxSettings
 	if *plan.IsTaxable {
-		user, err := config.LoadUser("./data/user.yaml")
+		user, err := config.LoadUser(userConfigPath)
 		if err != nil {
 			return err
 		}

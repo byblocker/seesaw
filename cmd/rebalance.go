@@ -14,8 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const portfolioDir = "./data/portfolios"
-
 var planName string
 
 var rebalancePortfolio = &cobra.Command{
@@ -47,7 +45,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 
 	var rates *config.TaxSettings
 	if *plan.IsTaxable {
-		user, err := config.LoadUser("./data/user.yaml")
+		user, err := config.LoadUser(userConfigPath)
 		if err != nil {
 			return err
 		}
