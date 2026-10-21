@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/collections"
-	"seesaw/internal/rebalance"
+	"seesaw/internal/rebalancer"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
@@ -33,7 +33,7 @@ func Rebalance(
 	}
 
 	var (
-		buyRequests []rebalance.BuyRequest
+		buyRequests []rebalancer.BuyRequest
 		plan        models.RebalancePlan
 	)
 
@@ -83,7 +83,7 @@ func Rebalance(
 				return models.SellProposal{}
 			}
 
-			candidate := rebalance.HarvestTaxLoss(holding, *settings.MinPctLossToHarvest)
+			candidate := rebalancer.HarvestTaxLoss(holding, *settings.MinPctLossToHarvest)
 			if len(candidate.Lots) == 0 {
 				utils.Verbosef(ctx, "No lots of %s meet the %s%% loss threshold",
 					ticker, settings.MinPctLossToHarvest.Shift(2).StringFixed(2))
@@ -107,8 +107,8 @@ func Rebalance(
 			continue
 		}
 
-		sell := rebalance.SelectPosToSell(asset, snapshot.Portfolio.RecentTx, saleDate, harvestFunc)
-		buy := rebalance.SelectPosToBuy(asset, snapshot.Portfolio.RecentTx, saleDate, sell, quotePerTicker)
+		sell := rebalancer.SelectPosToSell(asset, snapshot.Portfolio.RecentTx, saleDate, harvestFunc)
+		buy := rebalancer.SelectPosToBuy(asset, snapshot.Portfolio.RecentTx, saleDate, sell, quotePerTicker)
 
 		if buy.Ticker == "" {
 			// This should rarely happen, but if we cannot maintain an asset's allocation
@@ -137,7 +137,7 @@ func Rebalance(
 			break
 		}
 
-		buy, err := rebalance.ProposeBuy(
+		buy, err := rebalancer.ProposeBuy(
 			request,
 			balance,
 			maxValueDeviationAllowed,

@@ -1,4 +1,4 @@
-package rebalance
+package rebalancer
 
 import (
 	"seesaw/pkg/models"
