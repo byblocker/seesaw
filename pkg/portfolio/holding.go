@@ -34,7 +34,7 @@ func (snapshot Snapshot) HoldingsByAsset(
 				return nil, fmt.Errorf("missing bid price for %s", ticker)
 			}
 
-			isRecentlyBought := snapshot.Portfolio.RecentTx.HasRecentBuy(ticker)
+			isRecentlyBought := snapshot.Portfolio.RecentTx.HasBuyWithinWashWindow(ticker, saleDate)
 			holding := newHolding(ticker, position, quote.Bid, saleDate, isRecentlyBought)
 			holdingsByAsset[i] = append(holdingsByAsset[i], holding)
 		}

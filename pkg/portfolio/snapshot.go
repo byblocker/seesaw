@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const washSaleWindowDays = 31
+const transactionHistoryDays = models.WashSaleWindowDays + 1
 
 type Snapshot struct {
 	Id        string
@@ -26,7 +26,7 @@ func TakeSnapshot(
 	portfolio, err := client.Portfolio(
 		ctx,
 		plan.AccountId,
-		washSaleWindowDays,
+		transactionHistoryDays,
 		slices.Collect(plan.Tickers()),
 	)
 	if err != nil {

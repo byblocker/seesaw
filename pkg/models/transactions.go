@@ -1,22 +1,37 @@
 package models
 
 import (
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
+
+const WashSaleWindowDays = 30
 
 type RecentTxByTicker map[string]struct {
 	Buys  []Transaction
 	Sells []Transaction
 }
 
-func (r RecentTxByTicker) HasRecentBuy(ticker string) bool {
-	return ticker != "" && len(r[ticker].Buys) > 0
+func (r RecentTxByTicker) HasBuyWithinWashWindow(ticker string, day time.Time) bool {
+	return hasTradeWithinWashWindow(r[ticker].Buys, day)
 }
 
-func (r RecentTxByTicker) HasRecentSell(ticker string) bool {
-	return ticker != "" && len(r[ticker].Sells) > 0
+func (r RecentTxByTicker) HasSellWithinWashWindow(ticker string, day time.Time) bool {
+	return hasTradeWithinWashWindow(r[ticker].Sells, day)
+}
+
+func hasTradeWithinWashWindow(trades []Transaction, day time.Time) bool {
+	windowStart := calendarDate(day).AddDate(0, 0, -WashSaleWindowDays)
+	return slices.ContainsFunc(trades, func(trade Transaction) bool {
+		return !calendarDate(trade.Date.In(day.Location())).Before(windowStart)
+	})
+}
+
+func calendarDate(moment time.Time) time.Time {
+	year, month, day := moment.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
 
 func (r RecentTxByTicker) Add(transaction Transaction) {

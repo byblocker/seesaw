@@ -3,11 +3,13 @@ package rebalance
 import (
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"time"
 )
 
 func SelectPosToSell(
 	asset portfolio.Asset,
 	recentTx models.RecentTxByTicker,
+	tradeDate time.Time,
 	harvestPosition func(string) models.SellProposal,
 ) models.SellProposal {
 	if asset.Plan == nil {
@@ -21,10 +23,10 @@ func SelectPosToSell(
 
 	var sellPrimary, sellAlt models.SellProposal
 
-	if !recentTx.HasRecentSell(primary) {
+	if !recentTx.HasSellWithinWashWindow(primary, tradeDate) {
 		sellAlt = harvestPosition(alternate)
 	}
-	if !recentTx.HasRecentSell(alternate) {
+	if !recentTx.HasSellWithinWashWindow(alternate, tradeDate) {
 		sellPrimary = harvestPosition(primary)
 	}
 
@@ -40,6 +42,7 @@ func SelectPosToSell(
 func SelectPosToBuy(
 	asset portfolio.Asset,
 	recentTx models.RecentTxByTicker,
+	tradeDate time.Time,
 	sell models.SellProposal,
 	quoteByTicker map[string]models.Quote,
 ) BuyRequest {
@@ -51,7 +54,7 @@ func SelectPosToBuy(
 
 	for ticker := range asset.Plan.Tickers() {
 		isBeingSold := len(sell.Lots) > 0 && ticker == sell.Ticker
-		if !isBeingSold && !recentTx.HasRecentSell(ticker) {
+		if !isBeingSold && !recentTx.HasSellWithinWashWindow(ticker, tradeDate) {
 			return BuyRequest{
 				Ticker:     ticker,
 				ValueDrift: shortfall,

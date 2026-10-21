@@ -68,7 +68,7 @@ func Rebalance(
 				asset.Label(),
 				asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
 			for ticker := range asset.Plan.Tickers() {
-				if snapshot.Portfolio.RecentTx.HasRecentSell(ticker) {
+				if snapshot.Portfolio.RecentTx.HasSellWithinWashWindow(ticker, saleDate) {
 					utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", ticker)
 				}
 			}
@@ -83,7 +83,7 @@ func Rebalance(
 			if !isHeld {
 				return models.SellProposal{}
 			}
-			if snapshot.Portfolio.RecentTx.HasRecentBuy(ticker) {
+			if snapshot.Portfolio.RecentTx.HasBuyWithinWashWindow(ticker, saleDate) {
 				utils.Verbosef(ctx, "Skip harvesting %s: recent purchases in the wash-sale window", ticker)
 				return models.SellProposal{}
 			}
@@ -112,8 +112,8 @@ func Rebalance(
 			continue
 		}
 
-		sell := rebalance.SelectPosToSell(asset, snapshot.Portfolio.RecentTx, harvestFunc)
-		buy := rebalance.SelectPosToBuy(asset, snapshot.Portfolio.RecentTx, sell, quotePerTicker)
+		sell := rebalance.SelectPosToSell(asset, snapshot.Portfolio.RecentTx, saleDate, harvestFunc)
+		buy := rebalance.SelectPosToBuy(asset, snapshot.Portfolio.RecentTx, saleDate, sell, quotePerTicker)
 
 		if buy.Ticker == "" {
 			// This should rarely happen, but if we cannot maintain an asset's allocation
