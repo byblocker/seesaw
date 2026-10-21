@@ -58,7 +58,7 @@ func SelectPosToBuy(
 			return BuyRequest{
 				Ticker:     ticker,
 				ValueDrift: shortfall,
-				Price:      quoteByTicker[ticker].Ask,
+				Ask:        quoteByTicker[ticker].Ask,
 			}
 		}
 	}

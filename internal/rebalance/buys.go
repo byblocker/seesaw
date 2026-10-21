@@ -11,7 +11,7 @@ import (
 type BuyRequest struct {
 	Ticker     string
 	ValueDrift decimal.Decimal
-	Price      decimal.Decimal
+	Ask        decimal.Decimal
 }
 
 func ProposeBuy(
@@ -21,8 +21,8 @@ func ProposeBuy(
 	minFractionalShareToRound decimal.Decimal,
 	allowFractionalShares bool,
 ) (models.Buy, error) {
-	if !req.Price.IsPositive() {
-		return models.Buy{}, fmt.Errorf("price must be positive")
+	if !req.Ask.IsPositive() {
+		return models.Buy{}, fmt.Errorf("ask must be positive")
 	}
 	if !req.ValueDrift.IsPositive() || !balance.IsPositive() {
 		return models.Buy{}, nil
@@ -35,9 +35,9 @@ func ProposeBuy(
 
 		return models.Buy{
 			Ticker:        req.Ticker,
-			Price:         req.Price,
+			Price:         req.Ask,
 			Quantity:      quantity,
-			EstimatedCost: quantity.Mul(req.Price),
+			EstimatedCost: quantity.Mul(req.Ask),
 		}
 	}
 
@@ -46,7 +46,7 @@ func ProposeBuy(
 		valueToCover = balance
 	}
 
-	exact, _ := valueToCover.QuoRem(req.Price, utils.DivisionDecimalPlaces)
+	exact, _ := valueToCover.QuoRem(req.Ask, utils.DivisionDecimalPlaces)
 	if allowFractionalShares {
 		return proposeQuantity(exact), nil
 	}
@@ -58,7 +58,7 @@ func ProposeBuy(
 	}
 
 	rounded := whole.Add(decimal.NewFromInt(1))
-	cost := rounded.Mul(req.Price)
+	cost := rounded.Mul(req.Ask)
 	maxAllowedCost := req.ValueDrift.Add(maxValueDeviation)
 
 	if cost.Cmp(balance) > 0 || cost.Cmp(maxAllowedCost) > 0 {
