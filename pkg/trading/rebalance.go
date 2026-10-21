@@ -16,17 +16,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type RebalancePlan struct {
-	Buys  []models.Buy
-	Sells []models.SellProposal
-}
-
 func Rebalance(
 	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	settings config.RebalanceSettings,
-) (*RebalancePlan, error) {
+) (*models.RebalancePlan, error) {
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
@@ -39,7 +34,7 @@ func Rebalance(
 
 	var (
 		buyRequests []rebalance.BuyRequest
-		plan        RebalancePlan
+		plan        models.RebalancePlan
 	)
 
 	saleDate := time.Now()
