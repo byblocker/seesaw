@@ -1,12 +1,12 @@
 package report
 
 import (
-	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -32,7 +32,7 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 			row := []string{
 				sell.Ticker,
 				"SELL",
-				lot.Lot.TimeAcquired.Format(utils.YYYY_MM_DD),
+				lot.Lot.TimeAcquired.Format(time.DateOnly),
 				lot.Quantity.String(),
 				price(sell.Price),
 				money(lot.Proceeds()),

@@ -6,7 +6,6 @@ import (
 	"log"
 	"maps"
 	"seesaw/internal/collections"
-	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -78,8 +77,8 @@ func (client *Client) Portfolio(
 	start := end.AddDate(0, 0, -daysBack)
 	log.Printf(
 		"Checking transactions from %s to %s",
-		start.Format(utils.YYYY_MM_DD),
-		end.Format(utils.YYYY_MM_DD),
+		start.Format(time.DateOnly),
+		end.Format(time.DateOnly),
 	)
 
 	portfolio.RecentTx = make(models.RecentTxByTicker)

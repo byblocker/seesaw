@@ -2,9 +2,9 @@ package report
 
 import (
 	"fmt"
-	"seesaw/internal/utils"
 	"seesaw/pkg/portfolio"
 	"strings"
+	"time"
 )
 
 func Snapshot(snapshot portfolio.Snapshot) string {
@@ -12,7 +12,7 @@ func Snapshot(snapshot portfolio.Snapshot) string {
 	account := snapshot.Id[len(snapshot.Id)-4:]
 
 	fmt.Fprintf(&output, "\nAccount %s as of %s\n", account,
-		snapshot.CreatedAt.Format(utils.YYYY_MM_DD+" 15:04:05 MST"))
+		snapshot.CreatedAt.Format(time.DateTime+" MST"))
 	output.WriteByte('\n')
 	divider := ""
 	if len(snapshot.Assets) == 0 {

@@ -12,6 +12,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const dateFormat = "01022006"
+
 type transactionResponse struct {
 	Page struct {
 		Transactions []struct {
@@ -62,8 +64,8 @@ func (client *Client) Transactions(
 		url.PathEscape(account.key),
 	)
 	query := url.Values{
-		"startDate": {start.Format(utils.MMDDYYYY)},
-		"endDate":   {end.Format(utils.MMDDYYYY)},
+		"startDate": {start.Format(dateFormat)},
+		"endDate":   {end.Format(dateFormat)},
 	}
 	endpoint += "?" + query.Encode()
 

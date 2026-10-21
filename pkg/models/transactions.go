@@ -1,6 +1,7 @@
 package models
 
 import (
+	"seesaw/internal/calendar"
 	"slices"
 	"time"
 
@@ -23,15 +24,9 @@ func (r RecentTxByTicker) HasSellWithinWashWindow(ticker string, day time.Time) 
 }
 
 func hasTradeWithinWashWindow(trades []Transaction, day time.Time) bool {
-	windowStart := calendarDate(day).AddDate(0, 0, -WashSaleWindowDays)
 	return slices.ContainsFunc(trades, func(trade Transaction) bool {
-		return !calendarDate(trade.Date.In(day.Location())).Before(windowStart)
+		return calendar.DaysBetween(trade.Date, day) <= WashSaleWindowDays
 	})
-}
-
-func calendarDate(moment time.Time) time.Time {
-	year, month, day := moment.Date()
-	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
 
 func (r RecentTxByTicker) Add(transaction Transaction) {

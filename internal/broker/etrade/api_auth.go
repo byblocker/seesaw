@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"seesaw/internal/calendar"
 	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
 
@@ -73,7 +74,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 }
 
 func cacheOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHash [32]byte) error {
-	expiresAt, err := utils.EndOfDay(refreshedAt, timezone)
+	expiresAt, err := calendar.EndOfDay(refreshedAt, timezone)
 	if err != nil {
 		return err
 	}

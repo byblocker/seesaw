@@ -1,13 +1,8 @@
-package utils
+package calendar
 
 import (
 	"fmt"
 	"time"
-)
-
-const (
-	YYYY_MM_DD = "2006-01-02"
-	MMDDYYYY   = "01022006"
 )
 
 func EndOfDay(date time.Time, timezone string) (time.Time, error) {
@@ -27,4 +22,15 @@ func EndOfDay(date time.Time, timezone string) (time.Time, error) {
 	)
 
 	return endOfDay, nil
+}
+
+func DaysBetween(from, to time.Time) int {
+	fromDay := utcDate(from.In(to.Location()))
+	toDay := utcDate(to)
+	return int(toDay.Sub(fromDay).Hours() / 24)
+}
+
+func utcDate(moment time.Time) time.Time {
+	year, month, day := moment.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
