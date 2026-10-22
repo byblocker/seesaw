@@ -49,7 +49,7 @@ func (r *Rebalancer) SizeBuys(
 	log.Printf("Sizing %d purchase(s) with $%s available, including proposed sales", len(requests), balance.StringFixed(2))
 	var buys []models.Buy
 	for _, request := range requests {
-		if balance.Cmp(decimal.Zero) <= 0 {
+		if !balance.IsPositive() {
 			log.Print("No buying power remains; skipping remaining purchases")
 			break
 		}
@@ -88,7 +88,7 @@ func proposeBuy(
 	if !req.Ask.IsPositive() {
 		return models.Buy{}, fmt.Errorf("ask must be positive")
 	}
-	if !req.Amount.IsPositive() || !balance.IsPositive() {
+	if !req.Amount.IsPositive() {
 		return models.Buy{}, nil
 	}
 
