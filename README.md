@@ -115,6 +115,18 @@ Each proposed sale will show it's estimated tax impact. Negative impact represen
 
 Use `config.ParseUser(reader)` from `seesaw/pkg/config` to parse and validate. It rejects unknown fields and additional YAML documents.
 
+## Snapshot
+
+See where your account stands without planning any trades:
+
+```sh
+go run . snapshot --portfolio < name of your portfolio >
+```
+
+A snapshot fetches your holdings and recent transactions, plus a quote for every ticker in your plan and every other ticker you hold.
+
+`rebalance` and `liquidate` plan from it.
+
 ## Rebalance!
 
 1. Pass your portfolio filename `data/portfolios/` without `.yaml`. _seesaw_ reads files relative to your working directory.
@@ -123,7 +135,7 @@ Use `config.ParseUser(reader)` from `seesaw/pkg/config` to parse and validate. I
 go run . rebalance --portfolio < name of your portfolio >
 ```
 
-2. Review the account snapshot: asset values, current and target allocations, cash balance, and portfolio total.
+2. Review the account snapshot: asset values at the bid, current and target allocations, cash balance, and portfolio total.
 
 3. Review the suggested orders. For example, with a starting cash balance of $1,000:
 
@@ -145,7 +157,7 @@ Remaining balance:    $0.00
 
 When no trades qualify, you will see `No trades suggested.`
 
-Rebalance logs show quote fetching, tax-loss evaluation, purchase sizing, and final trade counts. Add `--verbose` (or `-v`) to show source locations, individual transaction page results, and reasons for skipped trades:
+Rebalance logs show quote fetching for the snapshot, tax-loss evaluation, purchase sizing, and final trade counts. Add `--verbose` (or `-v`) to show source locations, individual transaction page results, and reasons for skipped trades:
 
 ```sh
 go run . rebalance --portfolio < name of your portfolio > --verbose
