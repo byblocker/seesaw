@@ -76,7 +76,7 @@ func (sale LotSale) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal 
 	if sale.LongTerm {
 		rate = rates.LongTermGainRate
 	}
-	return sale.GainPerShare.Mul(*rate)
+	return sale.GainPerShare.Mul(rate)
 }
 
 func (sale LotSale) Proceeds() decimal.Decimal {

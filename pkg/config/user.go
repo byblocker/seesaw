@@ -9,9 +9,15 @@ import (
 )
 
 type User struct {
-	Tax         TaxSettings         `yaml:"tax"`
-	Rebalance   RebalanceSettings   `yaml:"rebalance"`
-	Liquidation LiquidationSettings `yaml:"liquidation"`
+	Tax         TaxSettings
+	Rebalance   RebalanceSettings
+	Liquidation LiquidationSettings
+}
+
+type userYAML struct {
+	Tax         taxYAML         `yaml:"tax"`
+	Rebalance   rebalanceYAML   `yaml:"rebalance"`
+	Liquidation liquidationYAML `yaml:"liquidation"`
 }
 
 func NewUser(tax TaxSettings, rebalance RebalanceSettings, liquidation LiquidationSettings) (*User, error) {
@@ -42,10 +48,10 @@ func LoadUser(path string) (*User, error) {
 }
 
 func ParseUser(file io.Reader) (*User, error) {
-	config := &User{}
+	var decoded userYAML
 	decoder := yaml.NewDecoder(file)
 	decoder.KnownFields(true)
-	if err := decoder.Decode(config); err != nil {
+	if err := decoder.Decode(&decoded); err != nil {
 		return nil, fmt.Errorf("failed to parse user config: %w", err)
 	}
 
@@ -57,5 +63,17 @@ func ParseUser(file io.Reader) (*User, error) {
 		return nil, fmt.Errorf("user config must contain exactly one YAML document")
 	}
 
-	return NewUser(config.Tax, config.Rebalance, config.Liquidation)
+	tax, err := decoded.Tax.build()
+	if err != nil {
+		return nil, err
+	}
+	rebalance, err := decoded.Rebalance.build()
+	if err != nil {
+		return nil, err
+	}
+	liquidation, err := decoded.Liquidation.build()
+	if err != nil {
+		return nil, err
+	}
+	return NewUser(tax, rebalance, liquidation)
 }

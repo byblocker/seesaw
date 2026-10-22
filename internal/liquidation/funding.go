@@ -9,7 +9,7 @@ import (
 
 func PlanFunding(balances models.Balances, request models.LiquidationRequest) *models.LiquidationPlan {
 	withdrawal := request.Amount
-	maxExcess := *request.Settings.MaxExcessCash
+	maxExcess := request.Settings.MaxExcessCash
 
 	availableCash := utils.ClampNonNegative(
 		decimal.Min(balances.CashBalance, balances.WithdrawableCash),

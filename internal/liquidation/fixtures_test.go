@@ -17,13 +17,8 @@ import (
 var testSaleDate = time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
 
 var testTaxRates = &config.TaxSettings{
-	ShortTermGainRate: decimalPointer("0.35"),
-	LongTermGainRate:  decimalPointer("0.20"),
-}
-
-func decimalPointer(value string) *decimal.Decimal {
-	parsed := decimal.RequireFromString(value)
-	return &parsed
+	ShortTermGainRate: decimal.RequireFromString("0.35"),
+	LongTermGainRate:  decimal.RequireFromString("0.20"),
 }
 
 type testPortfolio struct {
@@ -83,8 +78,8 @@ func testRequest(amount, maxDeviation, maxExcessCash string, rates *config.TaxSe
 	return models.LiquidationRequest{
 		Amount: decimal.RequireFromString(amount),
 		Settings: config.LiquidationSettings{
-			MaxAllocationDeviation: decimalPointer(maxDeviation),
-			MaxExcessCash:          decimalPointer(maxExcessCash),
+			MaxAllocationDeviation: decimal.RequireFromString(maxDeviation),
+			MaxExcessCash:          decimal.RequireFromString(maxExcessCash),
 		},
 		TaxRates:    rates,
 		SearchLimit: 10_000_000,

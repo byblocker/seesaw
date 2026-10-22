@@ -21,7 +21,7 @@ type Plan struct {
 	Assets    []AssetPlan
 }
 
-type planFile struct {
+type planYAML struct {
 	Broker    string      `yaml:"broker"`
 	AccountId string      `yaml:"accountId"`
 	IsTaxable *bool       `yaml:"is_taxable"`
@@ -103,7 +103,7 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 		)
 	}
 
-	var decoded planFile
+	var decoded planYAML
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&decoded); err != nil {

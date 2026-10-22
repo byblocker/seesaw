@@ -60,7 +60,7 @@ func (r *Rebalancer) harvestPosition(
 		return models.SellProposal{}
 	}
 
-	minPctLoss := *r.settings.MinPctLossToHarvest
+	minPctLoss := r.settings.MinPctLossToHarvest
 	candidate := harvestLots(holding, minPctLoss)
 	if len(candidate.Lots) == 0 {
 		utils.Verbosef(ctx, "No lots of %s meet the %s%% loss threshold",

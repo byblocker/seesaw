@@ -98,7 +98,7 @@ func collectPositions(
 		return nil, nil, err
 	}
 
-	maxDeviation := *settings.MaxAllocationDeviation
+	maxDeviation := settings.MaxAllocationDeviation
 
 	assets := make([]sellableAsset, len(snapshot.Assets))
 	var positions []sellablePosition
