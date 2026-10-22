@@ -63,7 +63,6 @@ func (client *Client) Portfolio(
 
 	portfolio := &models.Portfolio{
 		Balances:         balances,
-		TotalValue:       holdings.MarketValue.Add(balances.CashBalance),
 		PositionByTicker: holdings.PositionByTicker,
 	}
 

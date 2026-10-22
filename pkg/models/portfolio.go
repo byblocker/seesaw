@@ -19,18 +19,15 @@ type Balances struct {
 
 type Portfolio struct {
 	Balances         Balances
-	TotalValue       decimal.Decimal
 	PositionByTicker map[string]Position
 	RecentTx         RecentTxByTicker
 }
 
 type Position struct {
-	Id          int64
-	Ticker      string
-	Quantity    decimal.Decimal
-	Allocation  decimal.Decimal
-	MarketValue decimal.Decimal
-	Lots        []PositionLot
+	Id       int64
+	Ticker   string
+	Quantity decimal.Decimal
+	Lots     []PositionLot
 }
 
 type PositionLot struct {
@@ -38,8 +35,6 @@ type PositionLot struct {
 	Quantity     decimal.Decimal
 	PricePaid    decimal.Decimal
 	TimeAcquired time.Time
-	MarketValue  decimal.Decimal
-	UnrealizedPL decimal.Decimal
 }
 
 func (lot PositionLot) IsLongTermAt(saleDate time.Time) bool {

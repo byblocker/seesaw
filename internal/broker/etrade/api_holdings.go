@@ -14,19 +14,15 @@ import (
 )
 
 type positionResponse struct {
-	Id          int64           `json:"positionId"`
-	Ticker      string          `json:"symbolDescription"`
-	Quantity    decimal.Decimal `json:"quantity"`
-	Allocation  decimal.Decimal `json:"pctOfPortfolio"`
-	MarketValue decimal.Decimal `json:"marketValue"`
+	Id       int64           `json:"positionId"`
+	Ticker   string          `json:"symbolDescription"`
+	Quantity decimal.Decimal `json:"quantity"`
 }
 
 type positionLotResponse struct {
-	Id           int64           `json:"positionLotId"`
-	Quantity     decimal.Decimal `json:"remainingQty"`
-	PricePaid    decimal.Decimal `json:"price"`
-	MarketValue  decimal.Decimal `json:"marketValue"`
-	UnrealizedPL decimal.Decimal `json:"totalGain"`
+	Id        int64           `json:"positionLotId"`
+	Quantity  decimal.Decimal `json:"remainingQty"`
+	PricePaid decimal.Decimal `json:"price"`
 }
 
 type accountPortfolioResponse struct {
@@ -37,9 +33,6 @@ type accountPortfolioResponse struct {
 }
 
 type portfolioPageResponse struct {
-	Totals struct {
-		MarketValue decimal.Decimal `json:"totalMarketValue"`
-	} `json:"totals"`
 	Portfolios []accountPortfolioResponse `json:"AccountPortfolio"`
 }
 
@@ -57,7 +50,6 @@ type getPositionLotResponse struct {
 }
 
 type Holdings struct {
-	MarketValue      decimal.Decimal
 	PositionByTicker map[string]models.Position
 }
 
@@ -72,8 +64,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		url.PathEscape(account.key),
 	)
 	query := url.Values{
-		"totalsRequired": {"true"},
-		"view":           {"COMPLETE"},
+		"view": {"COMPLETE"},
 	}
 
 	holdings := &Holdings{
@@ -94,10 +85,6 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		data := response.PortfolioResponse
 		if len(data.Portfolios) == 0 {
 			return nil, fmt.Errorf("no portfolio returned for account %s on page %d", account.id, currentPage)
-		}
-		if pagesFetched == 0 {
-			// Totals describe the account, not each page's positions.
-			holdings.MarketValue = data.Totals.MarketValue
 		}
 
 		pagesFetched++
@@ -161,11 +148,9 @@ func (client *Client) parsePositions(
 	for _, page := range pages {
 		for _, pos := range page.Positions {
 			position := models.Position{
-				Id:          pos.Id,
-				Ticker:      strings.TrimSpace(pos.Ticker),
-				Quantity:    pos.Quantity,
-				Allocation:  pos.Allocation,
-				MarketValue: pos.MarketValue,
+				Id:       pos.Id,
+				Ticker:   strings.TrimSpace(pos.Ticker),
+				Quantity: pos.Quantity,
 			}
 			if _, exists := positions[position.Ticker]; exists {
 				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
@@ -210,8 +195,6 @@ func (client *Client) getPositionLots(
 			Quantity:     lot.Quantity,
 			PricePaid:    lot.PricePaid,
 			TimeAcquired: time.UnixMilli(lot.DateAcquired),
-			MarketValue:  lot.MarketValue,
-			UnrealizedPL: lot.UnrealizedPL,
 		})
 	}
 
