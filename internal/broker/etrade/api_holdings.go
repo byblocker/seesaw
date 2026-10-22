@@ -14,9 +14,8 @@ import (
 )
 
 type positionResponse struct {
-	Id       int64           `json:"positionId"`
-	Ticker   string          `json:"symbolDescription"`
-	Quantity decimal.Decimal `json:"quantity"`
+	Id     int64  `json:"positionId"`
+	Ticker string `json:"symbolDescription"`
 }
 
 type positionLotResponse struct {
@@ -148,9 +147,7 @@ func (client *Client) parsePositions(
 	for _, page := range pages {
 		for _, pos := range page.Positions {
 			position := models.Position{
-				Id:       pos.Id,
-				Ticker:   strings.TrimSpace(pos.Ticker),
-				Quantity: pos.Quantity,
+				Ticker: strings.TrimSpace(pos.Ticker),
 			}
 			if _, exists := positions[position.Ticker]; exists {
 				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)

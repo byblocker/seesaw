@@ -24,10 +24,8 @@ type Portfolio struct {
 }
 
 type Position struct {
-	Id       int64
-	Ticker   string
-	Quantity decimal.Decimal
-	Lots     []PositionLot
+	Ticker string
+	Lots   []PositionLot
 }
 
 type PositionLot struct {
