@@ -57,14 +57,5 @@ func ParseUser(file io.Reader) (*User, error) {
 		return nil, fmt.Errorf("user config must contain exactly one YAML document")
 	}
 
-	if err := config.Tax.Validate(); err != nil {
-		return nil, err
-	}
-	if err := config.Rebalance.Validate(); err != nil {
-		return nil, err
-	}
-	if err := config.Liquidation.Validate(); err != nil {
-		return nil, err
-	}
-	return config, nil
+	return NewUser(config.Tax, config.Rebalance, config.Liquidation)
 }

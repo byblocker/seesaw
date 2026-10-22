@@ -29,13 +29,13 @@ func newSettingsValidator() *validator.Validate {
 }
 
 func validateSettings(settings any, section string) error {
-	return describeFieldError(settingsValidator.Struct(settings), func(fieldError validator.FieldError) string {
-		return section + "." + fieldError.Field()
-	})
+	return validateFields(settings, section+".")
 }
 
-func validateFields(value any) error {
-	return describeFieldError(settingsValidator.Struct(value), validator.FieldError.Field)
+func validateFields(value any, prefix string) error {
+	return describeFieldError(settingsValidator.Struct(value), func(fieldError validator.FieldError) string {
+		return prefix + fieldError.Field()
+	})
 }
 
 func validateAssets(assets []AssetPlan) error {

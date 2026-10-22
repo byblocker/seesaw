@@ -15,6 +15,13 @@ import (
 )
 
 type Plan struct {
+	Broker    string
+	AccountId string
+	IsTaxable *bool
+	Assets    []AssetPlan
+}
+
+type planFile struct {
 	Broker    string      `yaml:"broker"`
 	AccountId string      `yaml:"accountId"`
 	IsTaxable *bool       `yaml:"is_taxable"`
@@ -43,12 +50,16 @@ func (asset AssetPlan) Tickers() iter.Seq[string] {
 }
 
 func NewAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Decimal) (AssetPlan, error) {
+	return newAssetPlan(primaryTicker, altTicker, targetAllocation, "")
+}
+
+func newAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Decimal, fieldPrefix string) (AssetPlan, error) {
 	asset := AssetPlan{
 		PrimaryTicker:    strings.TrimSpace(primaryTicker),
 		AltTicker:        strings.TrimSpace(altTicker),
 		TargetAllocation: targetAllocation,
 	}
-	if err := validateFields(asset); err != nil {
+	if err := validateFields(asset, fieldPrefix); err != nil {
 		return AssetPlan{}, err
 	}
 	return asset, nil
@@ -92,10 +103,10 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 		)
 	}
 
-	plan := &Plan{}
+	var decoded planFile
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
 	decoder.KnownFields(true)
-	if err := decoder.Decode(plan); err != nil {
+	if err := decoder.Decode(&decoded); err != nil {
 		return nil, fmt.Errorf(
 			"failed to parse portfolio plan at %w", err,
 		)
@@ -108,26 +119,20 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 		return nil, fmt.Errorf("portfolio plan must contain exactly one YAML document")
 	}
 
-	if plan.IsTaxable == nil {
+	if decoded.IsTaxable == nil {
 		return nil, fmt.Errorf("missing required is_taxable")
 	}
 
-	if err := normalizeAssets(plan.Assets); err != nil {
-		return nil, err
+	assets := make([]AssetPlan, 0, len(decoded.Assets))
+	for i, asset := range decoded.Assets {
+		built, err := newAssetPlan(asset.PrimaryTicker, asset.AltTicker, asset.TargetAllocation, fmt.Sprintf("assets[%d].", i))
+		if err != nil {
+			return nil, err
+		}
+		assets = append(assets, built)
 	}
 
-	return plan, nil
-}
-
-func normalizeAssets(assets []AssetPlan) error {
-	for i := range assets {
-		assets[i].PrimaryTicker = strings.TrimSpace(assets[i].PrimaryTicker)
-		assets[i].AltTicker = strings.TrimSpace(assets[i].AltTicker)
-	}
-	if err := validateAssets(assets); err != nil {
-		return err
-	}
-	return validateAllocations(assets)
+	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, assets)
 }
 
 // Tickers must be unique across assets, and target allocations must sum to 1.
