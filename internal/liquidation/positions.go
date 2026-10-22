@@ -88,45 +88,42 @@ func (p *sellablePosition) splitSaleAcrossLots(count int64) []models.LotSale {
 
 func collectPositions(
 	snapshot portfolio.Snapshot,
-	quotes map[string]models.Quote,
-	saleDate time.Time,
 	settings config.LiquidationSettings,
 	rates *config.TaxSettings,
-) ([]sellablePosition, []sellableAsset, error) {
-	holdingsByAsset, err := snapshot.HoldingsByAsset(quotes, saleDate)
-	if err != nil {
-		return nil, nil, err
-	}
-
+) ([]sellablePosition, []sellableAsset) {
 	maxDeviation := settings.MaxAllocationDeviation
 
 	assets := make([]sellableAsset, len(snapshot.Assets))
 	var positions []sellablePosition
 
-	for i, holdings := range holdingsByAsset {
+	for i, source := range snapshot.Assets {
 		asset := &assets[i]
-		*asset = newSellableAsset(i, snapshot.Assets[i], maxDeviation)
+		*asset = newSellableAsset(i, source, maxDeviation)
 
-		for _, holding := range holdings {
-			asset.currentValue = asset.currentValue.Add(holding.Value)
-			if position := newSellablePosition(holding, asset, rates); position.sellableShares > 0 {
-				positions = append(positions, position)
+		for _, position := range source.Positions {
+			if !position.IsHeld() {
+				continue
+			}
+			asset.currentValue = asset.currentValue.Add(position.Value())
+			if sp := newSellablePosition(position, snapshot.CreatedAt, asset, rates); sp.sellableShares > 0 {
+				positions = append(positions, sp)
 			}
 		}
 	}
 
 	slices.SortStableFunc(positions, comparePositions)
 
-	return positions, assets, nil
+	return positions, assets
 }
 
 func newSellablePosition(
-	holding portfolio.Holding,
+	held portfolio.Position,
+	saleDate time.Time,
 	asset *sellableAsset,
 	rates *config.TaxSettings,
 ) sellablePosition {
-	position := sellablePosition{ticker: holding.Ticker, asset: asset, bid: holding.Bid}
-	for _, sale := range holding.Lots {
+	position := sellablePosition{ticker: held.Ticker, asset: asset, bid: held.Quote.Bid}
+	for _, sale := range held.LotSales(saleDate) {
 		lot := sellableLot{sale: sale, wholeShares: sale.Quantity.Floor().IntPart()}
 		if rates != nil {
 			lot.taxPerShare = sale.TaxImpactPerShare(*rates)

@@ -74,7 +74,7 @@ func checkAgainstBruteForce(t *testing.T, seed int64, p *testPortfolio, request 
 	t.Helper()
 
 	plan := p.plan(request)
-	selection, err := PlanSales(context.Background(), p.snapshot, p.quotes, testSaleDate, plan)
+	selection, err := PlanSales(context.Background(), p.snapshot, plan)
 
 	oracle, oracleErr := p.search(request)
 	if oracleErr != nil {

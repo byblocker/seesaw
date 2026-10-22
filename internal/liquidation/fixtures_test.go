@@ -36,7 +36,7 @@ type testLot struct {
 func newTestPortfolio(cash string) *testPortfolio {
 	balance := decimal.RequireFromString(cash)
 	return &testPortfolio{
-		snapshot: portfolio.Snapshot{Portfolio: &models.Portfolio{
+		snapshot: portfolio.Snapshot{CreatedAt: testSaleDate, Portfolio: &models.Portfolio{
 			Balances:         models.Balances{CashBalance: balance, WithdrawableCash: balance},
 			PositionByTicker: map[string]models.Position{},
 		}},
@@ -44,9 +44,16 @@ func newTestPortfolio(cash string) *testPortfolio {
 	}
 }
 
-// Add a planned asset, or an unplanned one when the target is empty.
+// Add a planned asset, or an unplanned one when the target is empty. Add its holdings first.
 func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 	asset := portfolio.Asset{Tickers: tickers}
+	for _, ticker := range tickers {
+		asset.Positions = append(asset.Positions, portfolio.Position{
+			Ticker: ticker,
+			Lots:   p.snapshot.Portfolio.PositionByTicker[ticker].Lots,
+			Quote:  p.quotes[ticker],
+		})
+	}
 	if target != "" {
 		asset.Plan = &config.AssetPlan{TargetAllocation: decimal.RequireFromString(target)}
 	}
@@ -93,7 +100,7 @@ func (p *testPortfolio) plan(request models.LiquidationRequest) *models.Liquidat
 func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationRequest) *models.LiquidationSelection {
 	t.Helper()
 
-	selection, err := PlanSales(context.Background(), p.snapshot, p.quotes, testSaleDate, p.plan(request))
+	selection, err := PlanSales(context.Background(), p.snapshot, p.plan(request))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,10 +123,7 @@ func (p *testPortfolio) wholeShareValue() decimal.Decimal {
 
 func (p *testPortfolio) search(request models.LiquidationRequest) (*saleSearch, error) {
 	plan := p.plan(request)
-	positions, assets, err := collectPositions(p.snapshot, p.quotes, testSaleDate, plan.Request.Settings, plan.Request.TaxRates)
-	if err != nil {
-		return nil, err
-	}
+	positions, assets := collectPositions(p.snapshot, plan.Request.Settings, plan.Request.TaxRates)
 	return newSaleSearch(positions, assets, plan)
 }
 

@@ -3,7 +3,6 @@ package liquidation
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -12,20 +11,9 @@ import (
 func PlanSales(
 	ctx context.Context,
 	snapshot portfolio.Snapshot,
-	quotes map[string]models.Quote,
-	saleDate time.Time,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	positions, assets, err := collectPositions(
-		snapshot,
-		quotes,
-		saleDate,
-		plan.Request.Settings,
-		plan.Request.TaxRates,
-	)
-	if err != nil {
-		return nil, err
-	}
+	positions, assets := collectPositions(snapshot, plan.Request.Settings, plan.Request.TaxRates)
 
 	search, err := newSaleSearch(positions, assets, plan)
 	if err != nil {

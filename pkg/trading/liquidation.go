@@ -30,24 +30,12 @@ func Liquidate(
 		}, nil
 	}
 
-	saleDate := snapshot.CreatedAt
-	quotes, err := client.QuoteAll(ctx, snapshot.Portfolio.ActiveTickers())
-	if err != nil {
-		return nil, err
-	}
-
 	log.Printf(
 		"Selecting liquidation sales between $%s and $%s",
 		plan.MinTargetSale.StringFixed(2), plan.MaxTargetSale.StringFixed(2),
 	)
 
-	selection, err := liquidation.PlanSales(
-		ctx,
-		snapshot,
-		quotes,
-		saleDate,
-		plan,
-	)
+	selection, err := liquidation.PlanSales(ctx, snapshot, plan)
 	if err != nil {
 		return nil, err
 	}

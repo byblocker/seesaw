@@ -105,7 +105,7 @@ func TestReportsImpossibleRequests(t *testing.T) {
 				holding("ONLY", "30", testLot{"10", "30", 24}).
 				asset("1", "ONLY")
 
-			_, err := PlanSales(context.Background(), p.snapshot, p.quotes, testSaleDate, p.plan(testRequest(test.amount, "0", test.maxExcess, nil)))
+			_, err := PlanSales(context.Background(), p.snapshot, p.plan(testRequest(test.amount, "0", test.maxExcess, nil)))
 			if err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Errorf("error %v, want %q", err, test.want)
 			}
