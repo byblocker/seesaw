@@ -39,7 +39,7 @@ func newTestPortfolio(cash string) *testPortfolio {
 	return &testPortfolio{
 		snapshot: portfolio.Snapshot{
 			CreatedAt: testSaleDate,
-			Balances:  models.Balances{CashBalance: balance, WithdrawableCash: balance},
+			Balances:  models.Balances{CashBalance: balance},
 		},
 		quotes: map[string]models.Quote{},
 		lots:   map[string][]models.PositionLot{},

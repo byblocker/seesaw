@@ -13,9 +13,8 @@ import (
 type balanceResponse struct {
 	BalanceResponse struct {
 		Computed struct {
-			NetCash          *decimal.Decimal `json:"netCash"`
-			BuyingPower      *decimal.Decimal `json:"cashBuyingPower"`
-			WithdrawableCash *decimal.Decimal `json:"cashAvailableForWithdrawal"`
+			NetCash     *decimal.Decimal `json:"netCash"`
+			BuyingPower *decimal.Decimal `json:"cashBuyingPower"`
 		} `json:"Computed"`
 	} `json:"BalanceResponse"`
 }
@@ -46,7 +45,6 @@ func (client *Client) Balances(ctx context.Context, account Account) (models.Bal
 	}{
 		{"netCash", computed.NetCash},
 		{"cashBuyingPower", computed.BuyingPower},
-		{"cashAvailableForWithdrawal", computed.WithdrawableCash},
 	} {
 		if field.value == nil {
 			return models.Balances{}, fmt.Errorf("account balance response is missing %s", field.name)
@@ -54,8 +52,7 @@ func (client *Client) Balances(ctx context.Context, account Account) (models.Bal
 	}
 
 	return models.Balances{
-		CashBalance:      *computed.NetCash,
-		BuyingPower:      *computed.BuyingPower,
-		WithdrawableCash: *computed.WithdrawableCash,
+		CashBalance: *computed.NetCash,
+		BuyingPower: *computed.BuyingPower,
 	}, nil
 }

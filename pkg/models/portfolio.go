@@ -12,9 +12,8 @@ type Quote struct {
 }
 
 type Balances struct {
-	CashBalance      decimal.Decimal
-	BuyingPower      decimal.Decimal
-	WithdrawableCash decimal.Decimal
+	CashBalance decimal.Decimal
+	BuyingPower decimal.Decimal
 }
 
 type Portfolio struct {
