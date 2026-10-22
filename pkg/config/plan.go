@@ -17,7 +17,7 @@ import (
 type Plan struct {
 	Broker    string
 	AccountId string
-	IsTaxable *bool
+	IsTaxable bool
 	Assets    []AssetPlan
 }
 
@@ -76,7 +76,7 @@ func NewPlan(broker, accountId string, isTaxable bool, assets []AssetPlan) (*Pla
 	return &Plan{
 		Broker:    broker,
 		AccountId: accountId,
-		IsTaxable: &isTaxable,
+		IsTaxable: isTaxable,
 		Assets:    slices.Clone(assets),
 	}, nil
 }

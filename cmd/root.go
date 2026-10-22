@@ -60,7 +60,7 @@ func loadPlan(name string) (*config.Plan, error) {
 }
 
 func taxRates(plan *config.Plan, user *config.User) *config.TaxSettings {
-	if !*plan.IsTaxable {
+	if !plan.IsTaxable {
 		return nil
 	}
 	return &user.Tax
