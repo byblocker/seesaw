@@ -2,7 +2,6 @@ package trading
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"seesaw/internal/liquidation"
 	"seesaw/pkg/models"
@@ -21,9 +20,6 @@ func Liquidate(
 	}
 	if err := request.Validate(); err != nil {
 		return nil, err
-	}
-	if snapshot.Portfolio == nil {
-		return nil, fmt.Errorf("snapshot is missing portfolio")
 	}
 
 	plan := liquidation.PlanFunding(snapshot.Portfolio.Balances, request)

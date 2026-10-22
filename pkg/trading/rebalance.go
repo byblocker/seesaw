@@ -20,9 +20,6 @@ func Rebalance(
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
-	if snapshot.Portfolio == nil {
-		return nil, fmt.Errorf("snapshot is missing portfolio")
-	}
 	if !snapshot.Portfolio.TotalValue.IsPositive() {
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
