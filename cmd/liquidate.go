@@ -46,9 +46,6 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	if liquidationSearchLimit <= 0 {
 		return fmt.Errorf("--search-limit must be positive")
 	}
-	if strings.TrimSpace(liquidationPlanName) == "" {
-		return fmt.Errorf("--portfolio must not be empty")
-	}
 
 	log.Print("Starting liquidation planning . . .")
 	plan, err := loadPlan(liquidationPlanName)

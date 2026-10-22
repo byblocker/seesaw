@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"path/filepath"
 	"seesaw/pkg/config"
+	"strings"
 )
 
 const (
@@ -11,6 +13,10 @@ const (
 )
 
 func loadPlan(name string) (*config.Plan, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("--portfolio must not be empty")
+	}
+
 	fileName := name + ".yaml"
 	pathToPlan := filepath.Join(portfolioDir, fileName)
 	return config.LoadPlan(pathToPlan)
