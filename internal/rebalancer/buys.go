@@ -19,8 +19,7 @@ type BuyRequest struct {
 
 func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (BuyRequest, bool) {
 	for _, position := range asset.Positions {
-		isBeingSold := !sell.IsEmpty() && position.Ticker == sell.Ticker
-		if !isBeingSold && !position.RecentlySold {
+		if position.Ticker != sell.Ticker && !position.RecentlySold {
 			return BuyRequest{
 				Ticker: position.Ticker,
 				Amount: shortfall,
