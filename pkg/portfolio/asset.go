@@ -12,8 +12,9 @@ import (
 )
 
 type Asset struct {
-	Plan    *config.AssetPlan
-	Tickers []string
+	Plan      *config.AssetPlan
+	Tickers   []string
+	Positions []Position
 
 	Allocation decimal.Decimal
 	AllocDrift decimal.Decimal

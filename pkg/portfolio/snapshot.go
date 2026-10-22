@@ -33,11 +33,30 @@ func TakeSnapshot(
 		return nil, fmt.Errorf("failed to retrieve portfolio: %w", err)
 	}
 
+	createdAt := time.Now()
 	assets := groupByAsset(plan.Assets, portfolio)
+
+	var tickers []string
+	for _, asset := range assets {
+		tickers = append(tickers, asset.Tickers...)
+	}
+
+	quotes, err := client.QuoteAll(ctx, tickers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve quotes: %w", err)
+	}
+
+	for i := range assets {
+		asset := &assets[i]
+		for _, ticker := range asset.Tickers {
+			position := newPosition(ticker, portfolio, quotes[ticker], createdAt)
+			asset.Positions = append(asset.Positions, position)
+		}
+	}
 
 	return &Snapshot{
 		Id:        plan.AccountId,
-		CreatedAt: time.Now(),
+		CreatedAt: createdAt,
 		Portfolio: portfolio,
 		Assets:    assets,
 	}, nil
