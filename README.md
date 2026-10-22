@@ -197,6 +197,30 @@ Like `rebalance`, this command only displays suggestions; it does not submit ord
 Use `broker.Connect(ctx, name)` from with a saved configuration in your OS keyring, or see specific usage for a given broker:
 - [ETRADE guide](docs/brokers/etrade.md#library-use)
 
+### Plans and user settings
+
+Load the YAML files with `config.LoadPlan(path)` and `config.LoadUser(path)` from `seesaw/pkg/config`, or parse any reader with `config.ParsePlan` and `config.ParseUser`.
+
+To build them in code, use the constructors. They apply the same rules as the files and return the same error messages:
+
+```go
+d := decimal.RequireFromString
+
+// Check each err before continuing.
+stocks, err := config.NewAssetPlan("VTI", "ITOT", d("0.6"))
+bonds, err := config.NewAssetPlan("BND", "", d("0.4"))
+plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, []config.AssetPlan{stocks, bonds})
+
+tax, err := config.NewTaxSettings(d("0.35"), d("0.20"))
+rebalance, err := config.NewRebalanceSettings(d("0.7"), d("0.02"), d("-0.005"))
+liquidation, err := config.NewLiquidationSettings(d("0.02"), d("100"))
+user, err := config.NewUser(tax, rebalance, liquidation)
+```
+
+`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`.
+
+Fields are exported, so you can read or change them directly; the constructors only check values when they build them. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the plan their snapshot was taken from.
+
 ## Development Choices
 
 We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0E-4`. We keep prices and quantities as decimals throughout the calculations and truncate division to 19 decimal places.
