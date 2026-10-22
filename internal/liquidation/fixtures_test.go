@@ -24,6 +24,7 @@ var testTaxRates = &config.TaxSettings{
 type testPortfolio struct {
 	snapshot  portfolio.Snapshot
 	quotes    map[string]models.Quote
+	lots      map[string][]models.PositionLot
 	nextLotID int64
 }
 
@@ -36,11 +37,12 @@ type testLot struct {
 func newTestPortfolio(cash string) *testPortfolio {
 	balance := decimal.RequireFromString(cash)
 	return &testPortfolio{
-		snapshot: portfolio.Snapshot{CreatedAt: testSaleDate, Portfolio: &models.Portfolio{
-			Balances:         models.Balances{CashBalance: balance, WithdrawableCash: balance},
-			PositionByTicker: map[string]models.Position{},
-		}},
+		snapshot: portfolio.Snapshot{
+			CreatedAt: testSaleDate,
+			Balances:  models.Balances{CashBalance: balance, WithdrawableCash: balance},
+		},
 		quotes: map[string]models.Quote{},
+		lots:   map[string][]models.PositionLot{},
 	}
 }
 
@@ -50,7 +52,7 @@ func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 	for _, ticker := range tickers {
 		asset.Positions = append(asset.Positions, portfolio.Position{
 			Ticker: ticker,
-			Lots:   p.snapshot.Portfolio.PositionByTicker[ticker].Lots,
+			Lots:   p.lots[ticker],
 			Quote:  p.quotes[ticker],
 		})
 	}
@@ -62,22 +64,18 @@ func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 }
 
 func (p *testPortfolio) holding(ticker, bid string, lots ...testLot) *testPortfolio {
-	position := models.Position{Ticker: ticker}
 	for _, lot := range lots {
 		p.nextLotID++
-		shares := decimal.RequireFromString(lot.shares)
-		position.Lots = append(position.Lots, models.PositionLot{
+		p.lots[ticker] = append(p.lots[ticker], models.PositionLot{
 			Id:           p.nextLotID,
-			Quantity:     shares,
+			Quantity:     decimal.RequireFromString(lot.shares),
 			PricePaid:    decimal.RequireFromString(lot.paid),
 			TimeAcquired: testSaleDate.AddDate(0, -lot.monthsHeld, 0),
 		})
-		position.Quantity = position.Quantity.Add(shares)
 	}
 
 	price := decimal.RequireFromString(bid)
 	p.quotes[ticker] = models.Quote{Bid: price, Ask: price}
-	p.snapshot.Portfolio.PositionByTicker[ticker] = position
 	return p
 }
 
@@ -94,7 +92,7 @@ func testRequest(amount, maxDeviation, maxExcessCash string, rates *config.TaxSe
 }
 
 func (p *testPortfolio) plan(request models.LiquidationRequest) *models.LiquidationPlan {
-	return PlanFunding(p.snapshot.Portfolio.Balances, request)
+	return PlanFunding(p.snapshot.Balances, request)
 }
 
 func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationRequest) *models.LiquidationSelection {
@@ -113,7 +111,7 @@ func (p *testPortfolio) wholeShareValue() decimal.Decimal {
 	value := decimal.Zero
 	for _, asset := range p.snapshot.Assets {
 		for _, ticker := range asset.Tickers {
-			for _, lot := range p.snapshot.Portfolio.PositionByTicker[ticker].Lots {
+			for _, lot := range p.lots[ticker] {
 				value = value.Add(lot.Quantity.Floor().Mul(p.quotes[ticker].Bid))
 			}
 		}

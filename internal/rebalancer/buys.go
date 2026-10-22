@@ -45,7 +45,7 @@ func (r *Rebalancer) SizeBuys(
 	sells []models.SellProposal,
 	requests []BuyRequest,
 ) ([]models.Buy, decimal.Decimal, error) {
-	balance := snapshot.Portfolio.Balances.BuyingPower
+	balance := snapshot.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
 	}

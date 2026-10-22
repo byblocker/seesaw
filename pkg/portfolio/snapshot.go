@@ -16,7 +16,7 @@ const transactionHistoryDays = models.WashSaleWindowDays + 1
 type Snapshot struct {
 	Id         string
 	CreatedAt  time.Time
-	Portfolio  *models.Portfolio
+	Balances   models.Balances
 	Assets     []Asset
 	TotalValue decimal.Decimal
 }
@@ -70,7 +70,7 @@ func TakeSnapshot(
 	return &Snapshot{
 		Id:         plan.AccountId,
 		CreatedAt:  createdAt,
-		Portfolio:  portfolio,
+		Balances:   portfolio.Balances,
 		Assets:     assets,
 		TotalValue: totalValue,
 	}, nil

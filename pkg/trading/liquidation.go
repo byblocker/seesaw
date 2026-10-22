@@ -21,7 +21,7 @@ func Liquidate(
 		return nil, err
 	}
 
-	plan := liquidation.PlanFunding(snapshot.Portfolio.Balances, request)
+	plan := liquidation.PlanFunding(snapshot.Balances, request)
 
 	if plan.MinTargetSale.IsZero() {
 		return &models.LiquidationSelection{
