@@ -22,7 +22,7 @@ type sellableAsset struct {
 }
 
 func newSellableAsset(index int, source portfolio.Asset, maxDeviation decimal.Decimal) sellableAsset {
-	asset := sellableAsset{index: index, label: source.Label()}
+	asset := sellableAsset{index: index, label: source.Label(), currentValue: source.Value}
 	if source.Plan == nil {
 		return asset
 	}

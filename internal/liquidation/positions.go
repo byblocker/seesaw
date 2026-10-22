@@ -101,10 +101,6 @@ func collectPositions(
 		*asset = newSellableAsset(i, source, maxDeviation)
 
 		for _, position := range source.Positions {
-			if !position.IsHeld() {
-				continue
-			}
-			asset.currentValue = asset.currentValue.Add(position.Value())
 			if sp := newSellablePosition(position, snapshot.CreatedAt, asset, rates); sp.sellableShares > 0 {
 				positions = append(positions, sp)
 			}

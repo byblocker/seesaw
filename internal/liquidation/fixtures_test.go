@@ -50,11 +50,13 @@ func newTestPortfolio(cash string) *testPortfolio {
 func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 	asset := portfolio.Asset{Tickers: tickers}
 	for _, ticker := range tickers {
-		asset.Positions = append(asset.Positions, portfolio.Position{
+		position := portfolio.Position{
 			Ticker: ticker,
 			Lots:   p.lots[ticker],
 			Quote:  p.quotes[ticker],
-		})
+		}
+		asset.Positions = append(asset.Positions, position)
+		asset.Value = asset.Value.Add(position.Value())
 	}
 	if target != "" {
 		asset.Plan = &config.AssetPlan{TargetAllocation: decimal.RequireFromString(target)}
