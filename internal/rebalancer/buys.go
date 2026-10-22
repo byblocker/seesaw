@@ -7,7 +7,6 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -18,28 +17,20 @@ type BuyRequest struct {
 	Ask    decimal.Decimal
 }
 
-// The buy that covers what an asset's sale leaves it short: its first ticker that isn't being
-// sold and wasn't sold in the wash-sale window.
-func selectBuy(
-	asset portfolio.Asset,
-	recentTx models.RecentTxByTicker,
-	tradeDate time.Time,
-	sell models.SellProposal,
-	quoteByTicker map[string]models.Quote,
-) (BuyRequest, bool) {
+func selectBuy(asset portfolio.Asset, sell models.SellProposal) (BuyRequest, bool) {
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into overweight position
 		return BuyRequest{}, false
 	}
 
-	for ticker := range asset.Plan.Tickers() {
-		isBeingSold := len(sell.Lots) > 0 && ticker == sell.Ticker
-		if !isBeingSold && !recentTx.HasSellWithinWashWindow(ticker, tradeDate) {
+	for _, position := range asset.Positions {
+		isBeingSold := len(sell.Lots) > 0 && position.Ticker == sell.Ticker
+		if !isBeingSold && !position.RecentlySold {
 			return BuyRequest{
-				Ticker: ticker,
+				Ticker: position.Ticker,
 				Amount: shortfall,
-				Ask:    quoteByTicker[ticker].Ask,
+				Ask:    position.Quote.Ask,
 			}, true
 		}
 	}

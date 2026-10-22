@@ -20,27 +20,24 @@ func New(settings config.RebalanceSettings) *Rebalancer {
 func (r *Rebalancer) RebalanceAsset(
 	ctx context.Context,
 	asset portfolio.Asset,
-	holdings []portfolio.Holding,
-	quotes map[string]models.Quote,
-	recentTx models.RecentTxByTicker,
 	tradeDate time.Time,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
 		utils.Verbosef(ctx, "Evaluating holdings outside the portfolio plan for tax losses")
-		return r.harvestUnplanned(ctx, asset, holdings, recentTx, tradeDate), nil
+		return r.harvestUnplanned(ctx, asset, tradeDate), nil
 	}
 
 	utils.Verbosef(ctx, "Evaluating %s: current %s%%, target %s%%",
 		asset.Label(),
 		asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
-	for ticker := range asset.Plan.Tickers() {
-		if recentTx.HasSellWithinWashWindow(ticker, tradeDate) {
-			utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", ticker)
+	for _, position := range asset.Positions {
+		if position.RecentlySold {
+			utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", position.Ticker)
 		}
 	}
 
-	sell := r.harvestAsset(ctx, asset, holdings, recentTx, tradeDate)
-	buy, ok := selectBuy(asset, recentTx, tradeDate, sell, quotes)
+	sell := r.harvestAsset(ctx, asset, tradeDate)
+	buy, ok := selectBuy(asset, sell)
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
@@ -64,13 +61,11 @@ func (r *Rebalancer) RebalanceAsset(
 func (r *Rebalancer) harvestUnplanned(
 	ctx context.Context,
 	asset portfolio.Asset,
-	holdings []portfolio.Holding,
-	recentTx models.RecentTxByTicker,
 	tradeDate time.Time,
 ) []models.SellProposal {
 	var sells []models.SellProposal
-	for _, ticker := range asset.Tickers {
-		if sell := r.harvestPosition(ctx, ticker, holdings, recentTx, tradeDate); len(sell.Lots) > 0 {
+	for _, position := range asset.Positions {
+		if sell := r.harvestPosition(ctx, position, tradeDate); len(sell.Lots) > 0 {
 			sells = append(sells, sell)
 		}
 	}
