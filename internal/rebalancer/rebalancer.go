@@ -53,7 +53,7 @@ func (r *Rebalancer) RebalanceAsset(
 	}
 
 	utils.Verbosef(ctx, "Queue purchase of %s to cover a $%s shortfall", buy.Ticker, buy.Amount.StringFixed(2))
-	if len(sell.Lots) == 0 {
+	if sell.IsEmpty() {
 		return nil, []BuyRequest{buy}
 	}
 	return []models.SellProposal{sell}, []BuyRequest{buy}
@@ -68,7 +68,7 @@ func (r *Rebalancer) harvestUnplanned(
 ) []models.SellProposal {
 	var sells []models.SellProposal
 	for _, position := range asset.Positions {
-		if sell := r.harvestPosition(ctx, position, tradeDate); len(sell.Lots) > 0 {
+		if sell := r.harvestPosition(ctx, position, tradeDate); !sell.IsEmpty() {
 			sells = append(sells, sell)
 		}
 	}

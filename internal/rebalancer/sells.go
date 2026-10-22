@@ -55,7 +55,7 @@ func (r *Rebalancer) harvestPosition(
 
 	minPctLoss := r.settings.MinPctLossToHarvest
 	candidate := harvestLots(position, tradeDate, minPctLoss)
-	if len(candidate.Lots) == 0 {
+	if candidate.IsEmpty() {
 		utils.Verbosef(ctx, "No lots of %s meet the %s%% loss threshold",
 			ticker, minPctLoss.Shift(2).StringFixed(2))
 	} else {
