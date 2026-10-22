@@ -41,11 +41,8 @@ func init() {
 
 func liquidate(cmd *cobra.Command, args []string) error {
 	amount, err := decimal.NewFromString(strings.TrimSpace(liquidationAmount))
-	if err != nil || !amount.IsPositive() {
-		return fmt.Errorf("--amount must be a positive decimal")
-	}
-	if liquidationSearchLimit <= 0 {
-		return fmt.Errorf("--search-limit must be positive")
+	if err != nil {
+		return fmt.Errorf("--amount must be a decimal")
 	}
 
 	log.Print("Starting liquidation planning . . .")
@@ -58,17 +55,23 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	request := models.LiquidationRequest{
+		Amount:      amount,
+		Settings:    user.Liquidation,
+		TaxRates:    taxRates(plan, user),
+		SearchLimit: liquidationSearchLimit,
+	}
+	// Reject a bad request before the broker login, not after.
+	if err := request.Validate(); err != nil {
+		return err
+	}
+
 	client, snapshot, err := takeSnapshot(cmd, plan)
 	if err != nil {
 		return err
 	}
 
-	selection, err := trading.Liquidate(cmd.Context(), *snapshot, client, models.LiquidationRequest{
-		Amount:      amount,
-		Settings:    user.Liquidation,
-		TaxRates:    taxRates(plan, user),
-		SearchLimit: liquidationSearchLimit,
-	})
+	selection, err := trading.Liquidate(cmd.Context(), *snapshot, client, request)
 	if err != nil {
 		return err
 	}
