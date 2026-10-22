@@ -35,6 +35,7 @@ type saleSearch struct {
 
 	chosenSharesByPosition []int64
 	bestSharesByPosition   []int64
+	bestSoldByAsset        []decimal.Decimal
 	bestTotals             saleTotals
 	found                  bool
 }
@@ -126,8 +127,9 @@ func (search *saleSearch) visit(
 }
 
 func (search *saleSearch) recordIfBest(sold saleTotals) {
+	soldByAsset := search.soldByDepth[len(search.positions)]
 	sold.shortfallBelowMin = decimal.Zero
-	for i, soldFromAsset := range search.soldByDepth[len(search.positions)] {
+	for i, soldFromAsset := range soldByAsset {
 		sold.shortfallBelowMin = sold.shortfallBelowMin.Add(search.assets[i].shortfallBelowMin(soldFromAsset))
 	}
 	if search.found && sold.compare(search.bestTotals) <= 0 {
@@ -137,6 +139,7 @@ func (search *saleSearch) recordIfBest(sold saleTotals) {
 	search.found = true
 	search.bestTotals = sold
 	search.bestSharesByPosition = append(search.bestSharesByPosition[:0], search.chosenSharesByPosition...)
+	search.bestSoldByAsset = append(search.bestSoldByAsset[:0], soldByAsset...)
 }
 
 func (search *saleSearch) countNode(ctx context.Context) error {
@@ -152,18 +155,6 @@ func (search *saleSearch) countNode(ctx context.Context) error {
 	return nil
 }
 
-func (search *saleSearch) soldFrom(asset *sellableAsset, sharesByPosition []int64) decimal.Decimal {
-	sold := decimal.Zero
-	for i, shares := range sharesByPosition {
-		position := &search.positions[i]
-		if position.asset == asset {
-			sold = sold.Add(position.saleProceeds(shares))
-		}
-	}
-
-	return sold
-}
-
 func (search *saleSearch) allocationWarnings() []models.AllocationWarning {
 	// Judge against the same total the search used, so warnings match what it optimized.
 	totalValueAfterSale := search.totalValueAfterRequest
@@ -174,7 +165,7 @@ func (search *saleSearch) allocationWarnings() []models.AllocationWarning {
 	var warnings []models.AllocationWarning
 	for i := range search.assets {
 		asset := &search.assets[i]
-		sold := search.soldFrom(asset, search.bestSharesByPosition)
+		sold := search.bestSoldByAsset[i]
 		if asset.isAllocationAllowed(sold) {
 			continue
 		}

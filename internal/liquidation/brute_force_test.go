@@ -189,3 +189,15 @@ func (search *saleSearch) shortfallBelowMin(sharesByPosition []int64) decimal.De
 
 	return shortfall
 }
+
+func (search *saleSearch) soldFrom(asset *sellableAsset, sharesByPosition []int64) decimal.Decimal {
+	sold := decimal.Zero
+	for i, shares := range sharesByPosition {
+		position := &search.positions[i]
+		if position.asset == asset {
+			sold = sold.Add(position.saleProceeds(shares))
+		}
+	}
+
+	return sold
+}
