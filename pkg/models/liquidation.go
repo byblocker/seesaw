@@ -33,7 +33,6 @@ func (request LiquidationRequest) Validate() error {
 type LiquidationPlan struct {
 	Request       LiquidationRequest
 	StartingCash  decimal.Decimal
-	AvailableCash decimal.Decimal
 	MinTargetSale decimal.Decimal
 	MaxTargetSale decimal.Decimal
 }
