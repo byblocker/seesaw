@@ -14,6 +14,19 @@ type User struct {
 	Liquidation LiquidationSettings `yaml:"liquidation"`
 }
 
+func NewUser(tax TaxSettings, rebalance RebalanceSettings, liquidation LiquidationSettings) (*User, error) {
+	if err := tax.Validate(); err != nil {
+		return nil, err
+	}
+	if err := rebalance.Validate(); err != nil {
+		return nil, err
+	}
+	if err := liquidation.Validate(); err != nil {
+		return nil, err
+	}
+	return &User{Tax: tax, Rebalance: rebalance, Liquidation: liquidation}, nil
+}
+
 func LoadUser(path string) (*User, error) {
 	file, err := os.Open(path)
 	if err != nil {

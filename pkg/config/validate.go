@@ -34,6 +34,10 @@ func validateSettings(settings any, section string) error {
 	})
 }
 
+func validateFields(value any) error {
+	return describeFieldError(settingsValidator.Struct(value), validator.FieldError.Field)
+}
+
 func validateAssets(assets []AssetPlan) error {
 	return describeFieldError(settingsValidator.Var(assets, "dive"), func(fieldError validator.FieldError) string {
 		return "assets" + fieldError.Namespace()

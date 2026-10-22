@@ -42,6 +42,34 @@ func (asset AssetPlan) Tickers() iter.Seq[string] {
 	}
 }
 
+func NewAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Decimal) (AssetPlan, error) {
+	asset := AssetPlan{
+		PrimaryTicker:    strings.TrimSpace(primaryTicker),
+		AltTicker:        strings.TrimSpace(altTicker),
+		TargetAllocation: targetAllocation,
+	}
+	if err := validateFields(asset); err != nil {
+		return AssetPlan{}, err
+	}
+	return asset, nil
+}
+
+func NewPlan(broker, accountId string, isTaxable bool, assets []AssetPlan) (*Plan, error) {
+	if err := validateAssets(assets); err != nil {
+		return nil, err
+	}
+	if err := validateAllocations(assets); err != nil {
+		return nil, err
+	}
+
+	return &Plan{
+		Broker:    broker,
+		AccountId: accountId,
+		IsTaxable: &isTaxable,
+		Assets:    slices.Clone(assets),
+	}, nil
+}
+
 func LoadPlan(path string) (*Plan, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -92,9 +120,6 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 }
 
 func normalizeAssets(assets []AssetPlan) error {
-	totalAllocation := decimal.Zero
-	seenTickers := collections.NewSet[string]()
-
 	for i := range assets {
 		assets[i].PrimaryTicker = strings.TrimSpace(assets[i].PrimaryTicker)
 		assets[i].AltTicker = strings.TrimSpace(assets[i].AltTicker)
@@ -102,7 +127,13 @@ func normalizeAssets(assets []AssetPlan) error {
 	if err := validateAssets(assets); err != nil {
 		return err
 	}
+	return validateAllocations(assets)
+}
 
+// Tickers must be unique across assets, and target allocations must sum to 1.
+func validateAllocations(assets []AssetPlan) error {
+	totalAllocation := decimal.Zero
+	seenTickers := collections.NewSet[string]()
 	for _, asset := range assets {
 		for ticker := range asset.Tickers() {
 			if seenTickers.Contains(ticker) {
