@@ -29,9 +29,9 @@ func Rebalance(
 	var sells []models.SellProposal
 	var requests []rebalancer.BuyRequest
 	for _, asset := range snapshot.Assets {
-		sells, buyRequests := r.RebalanceAsset(ctx, asset, snapshot.CreatedAt)
-		sells = append(sells, sells...)
-		requests = append(requests, buyRequests...)
+		assetSells, assetRequests := r.RebalanceAsset(ctx, asset, snapshot.CreatedAt)
+		sells = append(sells, assetSells...)
+		requests = append(requests, assetRequests...)
 	}
 
 	buys, remainingBalance, err := r.SizeBuys(ctx, client, snapshot, sells, requests)

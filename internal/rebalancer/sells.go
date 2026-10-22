@@ -5,6 +5,7 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -15,28 +16,27 @@ func (r *Rebalancer) harvestAsset(
 	asset portfolio.Asset,
 	tradeDate time.Time,
 ) models.SellProposal {
-	// A planned asset's positions follow its tickers: the primary, then any alternate.
-	if len(asset.Positions) < 2 || asset.Positions[0].Ticker == asset.Positions[1].Ticker {
-		return models.SellProposal{}
+	var best models.SellProposal
+	for _, position := range asset.Positions {
+		if !hasReplacement(asset, position.Ticker) {
+			continue
+		}
+		sell := r.harvestPosition(ctx, position, tradeDate)
+		if sell.IsEmpty() {
+			continue
+		}
+		// Since we begin with the primary position, ties favor selling the alternate.
+		if best.IsEmpty() || sell.HarvestsAtLeast(best) {
+			best = sell
+		}
 	}
-	primary, alternate := asset.Positions[0], asset.Positions[1]
+	return best
+}
 
-	var sellPrimary, sellAlt models.SellProposal
-
-	if !primary.RecentlySold {
-		sellAlt = r.harvestPosition(ctx, alternate, tradeDate)
-	}
-	if !alternate.RecentlySold {
-		sellPrimary = r.harvestPosition(ctx, primary, tradeDate)
-	}
-
-	if len(sellPrimary.Lots) == 0 {
-		return sellAlt
-	}
-	if len(sellAlt.Lots) == 0 || sellPrimary.RealizedPL.LessThan(sellAlt.RealizedPL) {
-		return sellPrimary
-	}
-	return sellAlt
+func hasReplacement(asset portfolio.Asset, ticker string) bool {
+	return slices.ContainsFunc(asset.Positions, func(other portfolio.Position) bool {
+		return other.Ticker != ticker && !other.RecentlySold
+	})
 }
 
 func (r *Rebalancer) harvestPosition(

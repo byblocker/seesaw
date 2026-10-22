@@ -38,6 +38,14 @@ func (p *SellProposal) Add(sale LotSale) {
 	p.RealizedPL = p.RealizedPL.Add(sale.RealizedPL())
 }
 
+func (p SellProposal) IsEmpty() bool {
+	return len(p.Lots) == 0
+}
+
+func (p SellProposal) HarvestsAtLeast(other SellProposal) bool {
+	return p.RealizedPL.LessThanOrEqual(other.RealizedPL)
+}
+
 type LotSale struct {
 	Ticker       string
 	Quantity     decimal.Decimal
