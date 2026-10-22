@@ -18,7 +18,6 @@ type Balances struct {
 }
 
 type Portfolio struct {
-	AllTickers       []string
 	Balances         Balances
 	TotalValue       decimal.Decimal
 	PositionByTicker map[string]Position

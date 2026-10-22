@@ -68,7 +68,7 @@ func (client *Client) Portfolio(
 	}
 
 	// Include any held tickers along with the planned tickers
-	portfolio.AllTickers = collections.SetFrom(
+	allTickers := collections.SetFrom(
 		slices.Values(tickers),
 		maps.Keys(portfolio.PositionByTicker),
 	).Slice()
@@ -83,7 +83,7 @@ func (client *Client) Portfolio(
 
 	portfolio.RecentTx = make(models.RecentTxByTicker)
 	for _, account := range accounts {
-		history, err := client.Transactions(ctx, account, start, end, portfolio.AllTickers)
+		history, err := client.Transactions(ctx, account, start, end, allTickers)
 		if err != nil {
 			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
 		}
