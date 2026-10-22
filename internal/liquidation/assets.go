@@ -14,30 +14,29 @@ type sellableAsset struct {
 	currentValue    decimal.Decimal
 	minAllocAllowed decimal.Decimal
 	maxAllocAllowed decimal.Decimal
-
-	// Fixed by setValueBounds once the portfolio total after the sale is known.
 	minValueAllowed decimal.Decimal
 	maxValueAllowed decimal.Decimal
 	roomAboveMin    decimal.Decimal
 }
 
-func newSellableAsset(index int, source portfolio.Asset, maxDeviation decimal.Decimal) sellableAsset {
+func newSellableAsset(
+	index int,
+	source portfolio.Asset,
+	maxDeviation decimal.Decimal,
+	totalValueAfterSale decimal.Decimal,
+) sellableAsset {
 	asset := sellableAsset{index: index, label: source.Label(), currentValue: source.Value}
-	if source.Plan == nil {
-		return asset
+	if source.Plan != nil {
+		target := source.Plan.TargetAllocation
+		asset.isPlanned = true
+		asset.minAllocAllowed = utils.ClampNonNegative(target.Sub(maxDeviation))
+		asset.maxAllocAllowed = decimal.Min(decimal.NewFromInt(1), target.Add(maxDeviation))
 	}
 
-	target := source.Plan.TargetAllocation
-	asset.isPlanned = true
-	asset.minAllocAllowed = utils.ClampNonNegative(target.Sub(maxDeviation))
-	asset.maxAllocAllowed = decimal.Min(decimal.NewFromInt(1), target.Add(maxDeviation))
+	asset.minValueAllowed = totalValueAfterSale.Mul(asset.minAllocAllowed)
+	asset.maxValueAllowed = totalValueAfterSale.Mul(asset.maxAllocAllowed)
+	asset.roomAboveMin = asset.currentValue.Sub(asset.minValueAllowed)
 	return asset
-}
-
-func (a *sellableAsset) setValueBounds(totalValueAfterSale decimal.Decimal) {
-	a.minValueAllowed = totalValueAfterSale.Mul(a.minAllocAllowed)
-	a.maxValueAllowed = totalValueAfterSale.Mul(a.maxAllocAllowed)
-	a.roomAboveMin = a.currentValue.Sub(a.minValueAllowed)
 }
 
 func (a *sellableAsset) shortfallBelowMin(sold decimal.Decimal) decimal.Decimal {

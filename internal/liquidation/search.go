@@ -21,7 +21,6 @@ type saleSearch struct {
 	assets                   []sellableAsset
 	minSale                  decimal.Decimal
 	maxSale                  decimal.Decimal
-	totalValue               decimal.Decimal
 	totalValueAfterRequest   decimal.Decimal
 	proceedsTolerance        decimal.Decimal
 	maxProceedsByDepth       []decimal.Decimal
@@ -57,15 +56,13 @@ func newSaleSearch(
 		soldByDepth:              make([][]decimal.Decimal, len(positions)+1),
 		chosenSharesByPosition:   make([]int64, len(positions)),
 	}
+	totalValue := decimal.Zero
 	for _, asset := range assets {
-		search.totalValue = search.totalValue.Add(asset.currentValue)
+		totalValue = totalValue.Add(asset.currentValue)
 	}
 
-	search.maxSale = decimal.Min(plan.MaxTargetSale, search.totalValue)
-	search.totalValueAfterRequest = search.totalValue.Sub(search.minSale)
-	for i := range assets {
-		assets[i].setValueBounds(search.totalValueAfterRequest)
-	}
+	search.maxSale = decimal.Min(plan.MaxTargetSale, totalValue)
+	search.totalValueAfterRequest = totalValue.Sub(search.minSale)
 
 	for depth := range search.soldByDepth {
 		search.soldByDepth[depth] = make([]decimal.Decimal, len(assets))

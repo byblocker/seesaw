@@ -93,12 +93,18 @@ func collectPositions(
 	maxDeviation := plan.Request.Settings.MaxAllocationDeviation
 	rates := plan.Request.TaxRates
 
+	totalValue := decimal.Zero
+	for _, source := range snapshot.Assets {
+		totalValue = totalValue.Add(source.Value)
+	}
+	totalValueAfterSale := totalValue.Sub(plan.MinTargetSale)
+
 	assets := make([]sellableAsset, len(snapshot.Assets))
 	var positions []sellablePosition
 
 	for i, source := range snapshot.Assets {
 		asset := &assets[i]
-		*asset = newSellableAsset(i, source, maxDeviation)
+		*asset = newSellableAsset(i, source, maxDeviation, totalValueAfterSale)
 
 		for _, position := range source.Positions {
 			if sp := newSellablePosition(position, snapshot.CreatedAt, asset, rates); sp.sellableShares > 0 {
