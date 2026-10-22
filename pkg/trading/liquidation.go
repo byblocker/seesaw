@@ -6,8 +6,6 @@ import (
 	"seesaw/internal/liquidation"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-
-	"github.com/shopspring/decimal"
 )
 
 func Liquidate(
@@ -25,10 +23,7 @@ func Liquidate(
 	plan := liquidation.PlanFunding(snapshot.Balances, request)
 
 	if plan.MinTargetSale.IsZero() {
-		return &models.LiquidationSelection{
-			Plan:            plan,
-			ExpectedBalance: plan.BalanceAfter(decimal.Zero),
-		}, nil
+		return &models.LiquidationSelection{Plan: plan}, nil
 	}
 
 	log.Printf(

@@ -142,8 +142,8 @@ func checkSelection(t *testing.T, seed int64, plan *models.LiquidationPlan, maxS
 		t.Fatalf("seed %d: lot sales raise %s, selection reports %s", seed, proceeds, selection.Proceeds)
 	case proceeds.LessThan(plan.MinTargetSale) || proceeds.GreaterThan(maxSale):
 		t.Fatalf("seed %d: proceeds %s outside %s to %s", seed, proceeds, plan.MinTargetSale, maxSale)
-	case !selection.ExpectedBalance.Equal(expectedBalance):
-		t.Fatalf("seed %d: expected balance %s, want %s", seed, selection.ExpectedBalance, expectedBalance)
+	case !selection.ExpectedBalance().Equal(expectedBalance):
+		t.Fatalf("seed %d: expected balance %s, want %s", seed, selection.ExpectedBalance(), expectedBalance)
 	}
 }
 

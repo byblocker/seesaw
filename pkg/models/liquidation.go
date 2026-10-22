@@ -37,17 +37,16 @@ type LiquidationPlan struct {
 	MaxTargetSale decimal.Decimal
 }
 
-// The cash left after the withdrawal, once sales raising these proceeds settle.
-func (plan LiquidationPlan) BalanceAfter(proceeds decimal.Decimal) decimal.Decimal {
-	return plan.StartingCash.Sub(plan.Request.Amount).Add(proceeds)
-}
-
 type LiquidationSelection struct {
 	Plan               *LiquidationPlan
 	Sells              []SellProposal
 	Proceeds           decimal.Decimal
-	ExpectedBalance    decimal.Decimal
 	AllocationWarnings []AllocationWarning
+}
+
+func (selection LiquidationSelection) ExpectedBalance() decimal.Decimal {
+	plan := selection.Plan
+	return plan.StartingCash.Sub(plan.Request.Amount).Add(selection.Proceeds)
 }
 
 type AllocationWarning struct {

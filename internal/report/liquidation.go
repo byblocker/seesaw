@@ -24,7 +24,7 @@ func Liquidation(selection models.LiquidationSelection) string {
 		{"Sale proceeds:", money(selection.Proceeds)},
 		{"Withdrawal:", money(plan.Request.Amount.Neg())},
 		summaryRule,
-		{"Left over:", money(selection.ExpectedBalance)},
+		{"Left over:", money(selection.ExpectedBalance())},
 	}
 	if formatted.showTax {
 		netTax := formatted.tax.Sub(formatted.relief)

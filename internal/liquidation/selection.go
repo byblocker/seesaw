@@ -46,12 +46,10 @@ func PlanSales(
 		proposals = append(proposals, proposal)
 	}
 
-	proceeds := search.bestTotals.proceeds
 	return &models.LiquidationSelection{
 		Plan:               plan,
-		ExpectedBalance:    plan.BalanceAfter(proceeds),
 		Sells:              proposals,
-		Proceeds:           proceeds,
+		Proceeds:           search.bestTotals.proceeds,
 		AllocationWarnings: search.allocationWarnings(),
 	}, nil
 }
