@@ -42,7 +42,7 @@ func groupByAsset(
 		tickers := slices.Collect(plan.Tickers())
 		planned.Add(tickers...)
 
-		assets = append(assets, assignAsset(plan, tickers, portfolio))
+		assets = append(assets, Asset{Plan: plan, Tickers: tickers})
 	}
 
 	var unplanned []string
@@ -55,31 +55,20 @@ func groupByAsset(
 	if len(unplanned) > 0 {
 		// Map iteration order is random; sort so ties between unplanned positions break the same way every run.
 		slices.Sort(unplanned)
-		assets = append(assets, assignAsset(nil, unplanned, portfolio))
+		assets = append(assets, Asset{Tickers: unplanned})
 	}
 
 	return assets
 }
 
-func assignAsset(
-	plan *config.AssetPlan,
-	tickers []string,
-	portfolio *models.Portfolio,
-) Asset {
-	asset := Asset{Plan: plan, Tickers: tickers}
-	for _, ticker := range tickers {
-		asset.Value = asset.Value.Add(portfolio.PositionByTicker[ticker].MarketValue)
+func (asset *Asset) allocate(totalValue decimal.Decimal) {
+	if !totalValue.IsZero() {
+		asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
 	}
 
-	if !portfolio.TotalValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(portfolio.TotalValue, utils.DivisionDecimalPlaces)
-	}
-
-	if plan != nil {
-		asset.AllocDrift = asset.Allocation.Sub(plan.TargetAllocation)
-		expectedValue := portfolio.TotalValue.Mul(plan.TargetAllocation)
+	if asset.Plan != nil {
+		asset.AllocDrift = asset.Allocation.Sub(asset.Plan.TargetAllocation)
+		expectedValue := totalValue.Mul(asset.Plan.TargetAllocation)
 		asset.ValueDrift = asset.Value.Sub(expectedValue)
 	}
-
-	return asset
 }

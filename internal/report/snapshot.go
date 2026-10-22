@@ -23,7 +23,7 @@ func Snapshot(snapshot portfolio.Snapshot) string {
 
 	writeSummaries(&output, [][2]string{
 		{"Balance:", money(snapshot.Portfolio.Balances.CashBalance)},
-		{"Total:", money(snapshot.Portfolio.TotalValue)},
+		{"Total:", money(snapshot.TotalValue)},
 	})
 	if divider != "" {
 		output.WriteString(divider)
