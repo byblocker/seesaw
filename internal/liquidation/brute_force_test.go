@@ -177,3 +177,15 @@ func bruteForce(search *saleSearch) (best saleTotals, found bool) {
 	visit(0)
 	return best, found
 }
+
+// Recount the shortfall from scratch. The search keeps running totals instead; this stays as their reference.
+func (search *saleSearch) shortfallBelowMin(sharesByPosition []int64) decimal.Decimal {
+	shortfall := decimal.Zero
+	for i := range search.assets {
+		asset := &search.assets[i]
+		sold := search.soldFrom(asset, sharesByPosition)
+		shortfall = shortfall.Add(asset.shortfallBelowMin(sold))
+	}
+
+	return shortfall
+}
