@@ -125,11 +125,11 @@ func checkSelection(t *testing.T, seed int64, plan *models.LiquidationPlan, maxS
 
 	proceeds := decimal.Zero
 	for _, proposal := range selection.Sells {
-		if err := proposal.Validate(); err != nil {
-			t.Fatalf("seed %d: %s: %v", seed, proposal.Ticker, err)
+		if !proposal.Price.IsPositive() {
+			t.Fatalf("seed %d: sells %s at %s", seed, proposal.Ticker, proposal.Price)
 		}
 		for _, sale := range proposal.Lots {
-			if !sale.Quantity.Equal(sale.Quantity.Floor()) || sale.Quantity.GreaterThan(sale.Lot.Quantity.Floor()) {
+			if !sale.Quantity.IsPositive() || !sale.Quantity.Equal(sale.Quantity.Floor()) || sale.Quantity.GreaterThan(sale.Lot.Quantity.Floor()) {
 				t.Fatalf("seed %d: sells %s of %s from a lot of %s", seed, sale.Quantity, sale.Ticker, sale.Lot.Quantity)
 			}
 			proceeds = proceeds.Add(sale.Proceeds())

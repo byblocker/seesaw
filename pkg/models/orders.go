@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"time"
@@ -99,16 +98,4 @@ func (sale LotSale) GainPct() decimal.Decimal {
 
 func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
 	return sale.Quantity.Mul(sale.TaxImpactPerShare(rates))
-}
-
-func (proposal SellProposal) Validate() error {
-	if !proposal.Price.IsPositive() {
-		return fmt.Errorf("sale price must be positive")
-	}
-	for _, sell := range proposal.Lots {
-		if !sell.Quantity.IsPositive() || sell.Quantity.GreaterThan(sell.Lot.Quantity) {
-			return fmt.Errorf("sale quantity must be positive and no greater than lot quantity")
-		}
-	}
-	return nil
 }
