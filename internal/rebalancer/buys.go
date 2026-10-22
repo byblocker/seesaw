@@ -17,13 +17,7 @@ type BuyRequest struct {
 	Ask    decimal.Decimal
 }
 
-func selectBuy(asset portfolio.Asset, sell models.SellProposal) (BuyRequest, bool) {
-	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
-	if !shortfall.IsPositive() {
-		// We should not buy into overweight position
-		return BuyRequest{}, false
-	}
-
+func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (BuyRequest, bool) {
 	for _, position := range asset.Positions {
 		isBeingSold := len(sell.Lots) > 0 && position.Ticker == sell.Ticker
 		if !isBeingSold && !position.RecentlySold {

@@ -37,15 +37,18 @@ func (r *Rebalancer) RebalanceAsset(
 	}
 
 	sell := r.harvestAsset(ctx, asset, tradeDate)
-	buy, ok := selectBuy(asset, sell)
+	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
+	if !shortfall.IsPositive() {
+		// We should not buy into an overweight asset, so its sale cannot be replaced either.
+		utils.Verbosef(ctx, "Skip %s: no allocation shortfall after considering sales", asset.Plan.PrimaryTicker)
+		return nil, nil
+	}
+
+	buy, ok := selectBuy(asset, sell, shortfall)
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
-		if !sell.Proceeds.Sub(asset.ValueDrift).IsPositive() {
-			utils.Verbosef(ctx, "Skip %s: no allocation shortfall after considering sales", asset.Plan.PrimaryTicker)
-		} else {
-			utils.Verbosef(ctx, "Skip %s: no eligible purchase ticker", asset.Plan.PrimaryTicker)
-		}
+		utils.Verbosef(ctx, "Skip %s: no eligible purchase ticker", asset.Plan.PrimaryTicker)
 		return nil, nil
 	}
 
