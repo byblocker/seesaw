@@ -50,7 +50,7 @@ func PlanSales(
 	proceeds := search.bestTotals.proceeds
 	return &models.LiquidationSelection{
 		Plan:               plan,
-		ExpectedBalance:    plan.StartingCash.Sub(plan.Request.Amount).Add(proceeds),
+		ExpectedBalance:    plan.BalanceAfter(proceeds),
 		Sells:              proposals,
 		Proceeds:           proceeds,
 		AllocationWarnings: search.allocationWarnings(),
