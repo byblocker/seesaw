@@ -74,11 +74,9 @@ func harvestLots(position portfolio.Position, saleDate time.Time, minPctLossToHa
 
 	for _, sale := range position.LotSales(saleDate) {
 		gainPct := sale.GainPct()
-		if !gainPct.IsNegative() || gainPct.Cmp(minPctLossToHarvest) > 0 {
-			continue
+		if gainPct.IsNegative() && gainPct.LessThanOrEqual(minPctLossToHarvest) {
+			proposal.Add(sale)
 		}
-
-		proposal.Add(sale)
 	}
 
 	return proposal
