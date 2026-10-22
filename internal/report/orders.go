@@ -8,7 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func Orders(plan models.RebalancePlan, buyingPower decimal.Decimal, rates *config.TaxSettings) string {
+func Orders(plan models.RebalancePlan, rates *config.TaxSettings) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
@@ -18,16 +18,14 @@ func Orders(plan models.RebalancePlan, buyingPower decimal.Decimal, rates *confi
 	}
 
 	sells := formatSells(plan.Sells, rates)
-	buyRows, cost := formatBuys(plan.Buys, rates)
+	buyRows := formatBuys(plan.Buys, rates)
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
 	if rates != nil {
 		headers = append(headers, "Est. tax impact")
 	}
 	writeTable(&output, headers, append(sells.rows, buyRows...), 3)
 
-	remainingCash := buyingPower.Add(sells.proceeds).Sub(cost)
-
-	writeSummaries(&output, orderSummaries(sells, remainingCash))
+	writeSummaries(&output, orderSummaries(sells, plan.RemainingBalance))
 	return output.String()
 }
 

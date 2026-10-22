@@ -47,14 +47,13 @@ func selectBuy(
 	return BuyRequest{}, false
 }
 
-// Sizes each buy against the cash left after the buys before it, counting the sales' proceeds.
 func (r *Rebalancer) SizeBuys(
 	ctx context.Context,
 	client models.BrokerClient,
 	snapshot portfolio.Snapshot,
 	sells []models.SellProposal,
 	requests []BuyRequest,
-) ([]models.Buy, error) {
+) ([]models.Buy, decimal.Decimal, error) {
 	balance := snapshot.Portfolio.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
@@ -78,7 +77,7 @@ func (r *Rebalancer) SizeBuys(
 			allowFractionalShares,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
+			return nil, decimal.Zero, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
 		}
 
 		if buy.Quantity.IsZero() {
@@ -91,7 +90,7 @@ func (r *Rebalancer) SizeBuys(
 		utils.Verbosef(ctx, "Propose buying %s: %s share(s), cost $%s, remaining balance $%s",
 			buy.Ticker, buy.Quantity.String(), buy.EstimatedCost.StringFixed(2), balance.StringFixed(2))
 	}
-	return buys, nil
+	return buys, balance, nil
 }
 
 func proposeBuy(

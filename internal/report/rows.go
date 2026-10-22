@@ -12,10 +12,10 @@ import (
 )
 
 type formattedSells struct {
-	rows                 [][]string
-	proceeds, realizedPL decimal.Decimal
-	tax, relief          decimal.Decimal
-	washSale, showTax    bool
+	rows              [][]string
+	realizedPL        decimal.Decimal
+	tax, relief       decimal.Decimal
+	washSale, showTax bool
 }
 
 func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formattedSells {
@@ -54,14 +54,13 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 			result.rows = append(result.rows, row)
 		}
 
-		result.proceeds = result.proceeds.Add(sell.Proceeds)
 		result.realizedPL = result.realizedPL.Add(sell.RealizedPL)
 	}
 	return result
 }
 
-func formatBuys(buys []models.Buy, rates *config.TaxSettings) (rows [][]string, cost decimal.Decimal) {
-	rows = make([][]string, 0, len(buys))
+func formatBuys(buys []models.Buy, rates *config.TaxSettings) [][]string {
+	rows := make([][]string, 0, len(buys))
 	buys = slices.SortedFunc(slices.Values(buys), func(left, right models.Buy) int {
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
@@ -71,10 +70,9 @@ func formatBuys(buys []models.Buy, rates *config.TaxSettings) (rows [][]string, 
 			row = append(row, "—")
 		}
 		rows = append(rows, row)
-		cost = cost.Add(buy.EstimatedCost)
 	}
 
-	return rows, cost
+	return rows
 }
 
 func formatBuy(buy models.Buy) []string {
