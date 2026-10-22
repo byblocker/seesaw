@@ -19,11 +19,7 @@ func Orders(plan models.RebalancePlan, rates *config.TaxSettings) string {
 
 	sells := formatSells(plan.Sells, rates)
 	buyRows := formatBuys(plan.Buys, rates)
-	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
-	if rates != nil {
-		headers = append(headers, "Est. tax impact")
-	}
-	writeTable(&output, headers, append(sells.rows, buyRows...), 3)
+	writeOrderTable(&output, "Cost", append(sells.rows, buyRows...), rates)
 
 	writeSummaries(&output, orderSummaries(sells, plan.RemainingBalance))
 	return output.String()

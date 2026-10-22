@@ -16,11 +16,7 @@ func Liquidation(selection models.LiquidationSelection) string {
 	if len(formatted.rows) == 0 {
 		output.WriteString("No sales required.\n\n")
 	} else {
-		headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", "Proceeds", "P/L"}
-		if rates != nil {
-			headers = append(headers, "Est. tax impact")
-		}
-		writeTable(&output, headers, formatted.rows, 3)
+		writeOrderTable(&output, "Proceeds", formatted.rows, rates)
 	}
 
 	cashFlow := [][2]string{

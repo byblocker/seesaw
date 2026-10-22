@@ -18,6 +18,14 @@ type formattedSells struct {
 	washSale, showTax bool
 }
 
+func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]string, rates *config.TaxSettings) {
+	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", amountHeader, "P/L"}
+	if rates != nil {
+		headers = append(headers, "Est. tax impact")
+	}
+	writeTable(output, headers, rows, 3)
+}
+
 func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
