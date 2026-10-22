@@ -55,7 +55,6 @@ rebalance:
 
 liquidation:
   max_pct_allocation_deviation: 0.02
-  cash_reserve: 0
   max_excess_cash: 100
 
 assets:
@@ -78,7 +77,6 @@ All fields below are required except `assets[].alternate_ticker`. Values have no
 | `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
 | `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
 | `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
-| `liquidation.cash_reserve` | Minimum balance for this account | Non-negative number |
 | `liquidation.max_excess_cash` | Maximum sale proceeds above the requested amount. Whole-share sales rarely land on the exact amount; a larger value gives the planner more room to lower estimated tax. | Non-negative number |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
@@ -172,7 +170,7 @@ Request a withdrawal in your account's currency:
 go run . liquidate --portfolio growth --amount 1000
 ```
 
-_seesaw_ uses existing cash first, preserves your configured cash reserve, and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
+_seesaw_ uses existing cash first and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
 Sale proceeds stay between the amount you need and that amount plus `liquidation.max_excess_cash`. Within that range, the planner chooses sales in this order of priority:
 

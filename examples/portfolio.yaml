@@ -9,7 +9,6 @@ rebalance:
 
 liquidation:
   max_pct_allocation_deviation: 0.02
-  cash_reserve: 0
   max_excess_cash: 100
 
 assets:

@@ -90,23 +90,6 @@ func TestSellsUnplannedHoldingsOnTies(t *testing.T) {
 	}
 }
 
-func TestKeepsCashReserve(t *testing.T) {
-	p := newTestPortfolio("500").
-		holding("ONLY", "50", testLot{"20", "50", 24}).
-		asset("1", "ONLY")
-	request := testRequest("400", "1", "0", nil)
-	request.Settings.CashReserve = decimalPointer("300")
-
-	selection := p.planSales(t, request)
-
-	if !selection.Proceeds.Equal(decimal.NewFromInt(200)) {
-		t.Errorf("proceeds %s, want the 200 that keeps the 300 reserve", selection.Proceeds)
-	}
-	if !selection.ExpectedBalance.Equal(decimal.NewFromInt(300)) {
-		t.Errorf("expected balance %s, want the 300 reserve", selection.ExpectedBalance)
-	}
-}
-
 func TestReportsImpossibleRequests(t *testing.T) {
 	for _, test := range []struct {
 		name      string

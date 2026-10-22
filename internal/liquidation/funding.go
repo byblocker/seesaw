@@ -9,17 +9,12 @@ import (
 
 func PlanFunding(balances models.Balances, request models.LiquidationRequest) *models.LiquidationPlan {
 	withdrawal := request.Amount
-	reserve := *request.Settings.CashReserve
 	maxExcess := *request.Settings.MaxExcessCash
 
-	cashAboveReserve := utils.ClampNonNegative(balances.CashBalance.Sub(reserve))
-
 	availableCash := utils.ClampNonNegative(
-		decimal.Min(cashAboveReserve, balances.WithdrawableCash),
+		decimal.Min(balances.CashBalance, balances.WithdrawableCash),
 	)
-	minTargetSale := utils.ClampNonNegative(
-		withdrawal.Add(reserve).Sub(balances.CashBalance),
-	)
+	minTargetSale := utils.ClampNonNegative(withdrawal.Sub(balances.CashBalance))
 	maxTargetSale := minTargetSale.Add(maxExcess)
 
 	return &models.LiquidationPlan{

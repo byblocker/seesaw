@@ -84,7 +84,6 @@ func testRequest(amount, maxDeviation, maxExcessCash string, rates *config.TaxSe
 		Amount: decimal.RequireFromString(amount),
 		Settings: config.LiquidationSettings{
 			MaxAllocationDeviation: decimalPointer(maxDeviation),
-			CashReserve:            decimalPointer("0"),
 			MaxExcessCash:          decimalPointer(maxExcessCash),
 		},
 		TaxRates:    rates,
@@ -208,7 +207,6 @@ func randomCase(seed int64, shape randomShape) (*testPortfolio, models.Liquidati
 		excesses[random.Intn(len(excesses))],
 		rates,
 	)
-	request.Settings.CashReserve = decimalPointer(price(0, 5))
 
 	needsSale := p.plan(request).MinTargetSale.IsPositive()
 	return p, request, needsSale

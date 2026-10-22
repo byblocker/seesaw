@@ -53,7 +53,6 @@ func (settings RebalanceSettings) Validate() error {
 
 type LiquidationSettings struct {
 	MaxAllocationDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation" validate:"required,gte=0,lte=1"`
-	CashReserve            *decimal.Decimal `yaml:"cash_reserve" validate:"required,gte=0"`
 	MaxExcessCash          *decimal.Decimal `yaml:"max_excess_cash" validate:"required,gte=0"`
 }
 
