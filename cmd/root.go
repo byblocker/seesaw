@@ -4,9 +4,17 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
+	"strings"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	portfolioDir   = "./data/portfolios"
+	userConfigPath = "./data/user.yaml"
 )
 
 var verbose bool
@@ -39,4 +47,21 @@ func Execute() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func loadPlan(name string) (*config.Plan, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, fmt.Errorf("--portfolio must not be empty")
+	}
+
+	fileName := name + ".yaml"
+	pathToPlan := filepath.Join(portfolioDir, fileName)
+	return config.LoadPlan(pathToPlan)
+}
+
+func taxRates(plan *config.Plan, user *config.User) *config.TaxSettings {
+	if !*plan.IsTaxable {
+		return nil
+	}
+	return &user.Tax
 }

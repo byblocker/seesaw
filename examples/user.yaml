@@ -2,3 +2,12 @@
 tax:
   short_term_gain_rate: 0.35
   long_term_gain_rate: 0.20
+
+rebalance:
+  min_fractional_share_to_round: 0.7
+  max_pct_allocation_deviation: 0.02
+  min_pct_loss_to_harvest: -0.005
+
+liquidation:
+  max_pct_allocation_deviation: 0.02
+  max_excess_cash: 100

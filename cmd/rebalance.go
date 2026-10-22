@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"seesaw/internal/report"
+	"seesaw/pkg/config"
 	"seesaw/pkg/trading"
 
 	"github.com/spf13/cobra"
@@ -32,10 +33,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := plan.Rebalance.Validate(); err != nil {
-		return err
-	}
-	rates, err := loadTaxRates(plan)
+	user, err := config.LoadUser(userConfigPath)
 	if err != nil {
 		return err
 	}
@@ -45,12 +43,12 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(cmd.Context(), *snapshot, client, plan.Rebalance)
+	orders, err := trading.Rebalance(cmd.Context(), *snapshot, client, user.Rebalance)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Orders(*orders, snapshot.Portfolio.Balances.BuyingPower, rates)); err != nil {
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Orders(*orders, snapshot.Portfolio.Balances.BuyingPower, taxRates(plan, user))); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
 	}
 	return nil

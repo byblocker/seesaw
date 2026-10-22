@@ -8,6 +8,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type User struct {
+	Tax         TaxSettings         `yaml:"tax"`
+	Rebalance   RebalanceSettings   `yaml:"rebalance"`
+	Liquidation LiquidationSettings `yaml:"liquidation"`
+}
+
 func LoadUser(path string) (*User, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -39,6 +45,12 @@ func ParseUser(file io.Reader) (*User, error) {
 	}
 
 	if err := config.Tax.Validate(); err != nil {
+		return nil, err
+	}
+	if err := config.Rebalance.Validate(); err != nil {
+		return nil, err
+	}
+	if err := config.Liquidation.Validate(); err != nil {
 		return nil, err
 	}
 	return config, nil

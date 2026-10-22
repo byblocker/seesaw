@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"seesaw/internal/report"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
 	"strings"
@@ -52,10 +53,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	if err := plan.Liquidation.Validate(); err != nil {
-		return err
-	}
-	rates, err := loadTaxRates(plan)
+	user, err := config.LoadUser(userConfigPath)
 	if err != nil {
 		return err
 	}
@@ -67,8 +65,8 @@ func liquidate(cmd *cobra.Command, args []string) error {
 
 	selection, err := trading.Liquidate(cmd.Context(), *snapshot, client, models.LiquidationRequest{
 		Amount:      amount,
-		Settings:    plan.Liquidation,
-		TaxRates:    rates,
+		Settings:    user.Liquidation,
+		TaxRates:    taxRates(plan, user),
 		SearchLimit: liquidationSearchLimit,
 	})
 	if err != nil {

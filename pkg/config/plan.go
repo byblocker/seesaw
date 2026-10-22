@@ -1,20 +1,24 @@
 package config
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"iter"
+	"os"
 	"seesaw/internal/collections"
 	"slices"
+	"strings"
 
 	"github.com/shopspring/decimal"
+	"gopkg.in/yaml.v3"
 )
 
 type Plan struct {
-	Broker      string              `yaml:"broker"`
-	AccountId   string              `yaml:"accountId"`
-	IsTaxable   *bool               `yaml:"is_taxable"`
-	Rebalance   RebalanceSettings   `yaml:"rebalance"`
-	Liquidation LiquidationSettings `yaml:"liquidation"`
-	Assets      []AssetPlan         `yaml:"assets"`
+	Broker    string      `yaml:"broker"`
+	AccountId string      `yaml:"accountId"`
+	IsTaxable *bool       `yaml:"is_taxable"`
+	Assets    []AssetPlan `yaml:"assets"`
 }
 
 func (plan *Plan) Tickers() iter.Seq[string] {
@@ -38,24 +42,82 @@ func (asset AssetPlan) Tickers() iter.Seq[string] {
 	}
 }
 
-type RebalanceSettings struct {
-	// Minimum remainder to round a whole-share purchase up.
-	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round" validate:"required,gte=0,lte=1"`
-	// Extra purchase allowance as a fraction of total portfolio value.
-	MaxPctAlocDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation" validate:"required,gte=0,lte=1"`
-	// Loss threshold expressed as a nonpositive fraction of the lot's cost.
-	MinPctLossToHarvest *decimal.Decimal `yaml:"min_pct_loss_to_harvest" validate:"required,gte=-1,lte=0"`
+func LoadPlan(path string) (*Plan, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening portfolio plan %s: %w", path, err)
+	}
+	defer file.Close()
+
+	plan, err := ParsePlan(file)
+	if err != nil {
+		return nil, fmt.Errorf("loading portfolio plan %s: %w", path, err)
+	}
+	return plan, nil
 }
 
-func (settings RebalanceSettings) Validate() error {
-	return validateSettings(settings, "rebalance")
+func ParsePlan(file io.Reader) (*Plan, error) {
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to read portfolio plan at %w", err,
+		)
+	}
+
+	plan := &Plan{}
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(plan); err != nil {
+		return nil, fmt.Errorf(
+			"failed to parse portfolio plan at %w", err,
+		)
+	}
+	var extraDocument any
+	if err := decoder.Decode(&extraDocument); err != io.EOF {
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse portfolio plan: %w", err)
+		}
+		return nil, fmt.Errorf("portfolio plan must contain exactly one YAML document")
+	}
+
+	if plan.IsTaxable == nil {
+		return nil, fmt.Errorf("missing required is_taxable")
+	}
+
+	if err := normalizeAssets(plan.Assets); err != nil {
+		return nil, err
+	}
+
+	return plan, nil
 }
 
-type LiquidationSettings struct {
-	MaxAllocationDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation" validate:"required,gte=0,lte=1"`
-	MaxExcessCash          *decimal.Decimal `yaml:"max_excess_cash" validate:"required,gte=0"`
-}
+func normalizeAssets(assets []AssetPlan) error {
+	totalAllocation := decimal.Zero
+	seenTickers := collections.NewSet[string]()
 
-func (settings LiquidationSettings) Validate() error {
-	return validateSettings(settings, "liquidation")
+	for i := range assets {
+		assets[i].PrimaryTicker = strings.TrimSpace(assets[i].PrimaryTicker)
+		assets[i].AltTicker = strings.TrimSpace(assets[i].AltTicker)
+	}
+	if err := validateAssets(assets); err != nil {
+		return err
+	}
+
+	for _, asset := range assets {
+		for ticker := range asset.Tickers() {
+			if seenTickers.Contains(ticker) {
+				return fmt.Errorf("duplicate ticker %q", ticker)
+			}
+
+			seenTickers.Add(ticker)
+		}
+
+		totalAllocation = totalAllocation.Add(asset.TargetAllocation)
+	}
+
+	if !totalAllocation.Equal(decimal.NewFromInt(1)) {
+		return fmt.Errorf("target allocations must sum to 1.0; got %s", totalAllocation.String())
+	}
+
+	return nil
 }

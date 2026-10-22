@@ -48,15 +48,6 @@ broker: YOUR_BROKER_NAME
 accountId: "YOUR_ACCOUNT_ID"
 is_taxable: true
 
-rebalance:
-  min_fractional_share_to_round: 0.7
-  max_pct_allocation_deviation: 0.02
-  min_pct_loss_to_harvest: -0.005
-
-liquidation:
-  max_pct_allocation_deviation: 0.02
-  max_excess_cash: 100
-
 assets:
   - primary_ticker: TICKER_A
     alternate_ticker: TICKER_B
@@ -66,18 +57,13 @@ assets:
     target_allocation: 0.25
 ```
 
-All fields below are required except `assets[].alternate_ticker`. Values have no defaults or user-config overrides; explicit zeros are accepted where allowed.
+All fields below are required except `assets[].alternate_ticker`.
 
 | Field | Purpose | Values / constraints |
 | --- | --- | --- |
 | `broker` | Name of a supported brokerage | `ETRADE` |
 | `accountId` | Brokerage account number. | String |
 | `is_taxable` | Is the account taxable? | `true` or `false`. |
-| `rebalance.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
-| `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
-| `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
-| `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
-| `liquidation.max_excess_cash` | Maximum sale proceeds above the requested amount. Whole-share sales rarely land on the exact amount; a larger value gives the planner more room to lower estimated tax. | Non-negative number |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
 | `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `[0, 1]` |
@@ -86,7 +72,7 @@ _seesaw_ rejects unknown fields and multiple documents
 
 **WARNING:** _seesaw_ does not ensure ticker pairs are suitable for wash-sale avoidance. Please review this yourself.
 
-## User tax assumptions
+## User settings
 
 1. Create a personal copy of the example user config:
 ```sh
@@ -100,16 +86,30 @@ cp examples/user.yaml data/user.yaml
 tax:
   short_term_gain_rate: 0.35
   long_term_gain_rate: 0.20
+
+rebalance:
+  min_fractional_share_to_round: 0.7
+  max_pct_allocation_deviation: 0.02
+  min_pct_loss_to_harvest: -0.005
+
+liquidation:
+  max_pct_allocation_deviation: 0.02
+  max_excess_cash: 100
 ```
 
-| Field | Purpose |
-| --- | --- |
-| `tax.short_term_gain_rate` | Combined marginal tax rate used to estimate tax on short-term gains. |
-| `tax.long_term_gain_rate` | Combined marginal tax rate used to estimate tax on long-term gains. |
+| Field | Purpose | Values / constraints |
+| --- | --- | --- |
+| `tax.short_term_gain_rate` | Combined marginal tax rate used to estimate tax on short-term gains, including federal, state, and any additional taxes. | `[0, 1]` |
+| `tax.long_term_gain_rate` | Combined marginal tax rate used to estimate tax on long-term gains, including federal, state, and any additional taxes. | `[0, 1]` |
+| `rebalance.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
+| `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
+| `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
+| `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
+| `liquidation.max_excess_cash` | Maximum sale proceeds above the requested amount. Whole-share sales rarely land on the exact amount; a larger value gives the planner more room to lower estimated tax. | Non-negative number |
 
-Tax assumptions are shared across taxable portfolios. Both rates are required and are fractions between `[0, 1]`, including federal, state, and any additional taxes.
+These settings apply to every portfolio; tax rates are used only for taxable ones. All fields are required and have no defaults; explicit zeros are accepted where allowed.
 
-For taxable portfolios, `rebalance` and `liquidate` load these rates from `data/user.yaml` before connecting to the broker; non-taxable portfolios may omit this.
+`rebalance` and `liquidate` load `data/user.yaml` before connecting to the broker.
 
 Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
