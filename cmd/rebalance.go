@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"seesaw/internal/report"
+	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
 	"seesaw/pkg/trading"
 
@@ -38,7 +39,12 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	client, snapshot, err := takeSnapshot(cmd, plan)
+	client, err := broker.Connect(cmd.Context(), plan.Broker)
+	if err != nil {
+		return err
+	}
+
+	snapshot, err := takeSnapshot(cmd, client, plan)
 	if err != nil {
 		return err
 	}

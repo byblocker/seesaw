@@ -35,23 +35,22 @@ func showSnapshot(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, _, err = takeSnapshot(cmd, plan)
+	client, err := broker.Connect(cmd.Context(), plan.Broker)
+	if err != nil {
+		return err
+	}
+
+	_, err = takeSnapshot(cmd, client, plan)
 	return err
 }
 
-func takeSnapshot(cmd *cobra.Command, plan *config.Plan) (models.BrokerClient, *portfolio.Snapshot, error) {
-	ctx := cmd.Context()
-	client, err := broker.Connect(ctx, plan.Broker)
+func takeSnapshot(cmd *cobra.Command, client models.BrokerClient, plan *config.Plan) (*portfolio.Snapshot, error) {
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
 	if err != nil {
-		return nil, nil, err
-	}
-
-	snapshot, err := portfolio.TakeSnapshot(ctx, client, plan)
-	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(*snapshot)); err != nil {
-		return nil, nil, fmt.Errorf("write snapshot summary: %w", err)
+		return nil, fmt.Errorf("write snapshot summary: %w", err)
 	}
-	return client, snapshot, nil
+	return snapshot, nil
 }

@@ -13,7 +13,6 @@ import (
 func Liquidate(
 	ctx context.Context,
 	snapshot portfolio.Snapshot,
-	client models.BrokerClient,
 	request models.LiquidationRequest,
 ) (*models.LiquidationSelection, error) {
 	if err := ctx.Err(); err != nil {
