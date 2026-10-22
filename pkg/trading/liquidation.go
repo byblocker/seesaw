@@ -6,7 +6,6 @@ import (
 	"seesaw/internal/liquidation"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"time"
 )
 
 func Liquidate(
@@ -31,7 +30,7 @@ func Liquidate(
 		}, nil
 	}
 
-	saleDate := time.Now()
+	saleDate := snapshot.CreatedAt
 	quotes, err := client.QuoteAll(ctx, snapshot.Portfolio.ActiveTickers())
 	if err != nil {
 		return nil, err

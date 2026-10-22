@@ -8,7 +8,6 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"time"
 )
 
 func Rebalance(
@@ -25,7 +24,7 @@ func Rebalance(
 	}
 
 	r := rebalancer.New(settings)
-	tradeDate := time.Now()
+	tradeDate := snapshot.CreatedAt
 
 	log.Printf("Fetching quotes for %d ticker(s)", len(snapshot.Portfolio.AllTickers))
 	quotes, err := client.QuoteAll(ctx, snapshot.Portfolio.AllTickers)
