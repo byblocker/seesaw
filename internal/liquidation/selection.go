@@ -39,7 +39,6 @@ func PlanSales(
 		proposal := models.SellProposal{
 			Ticker: position.ticker,
 			Price:  position.bid,
-			Type:   models.Market,
 		}
 		for _, sale := range position.splitSaleAcrossLots(shares) {
 			proposal.Add(sale)

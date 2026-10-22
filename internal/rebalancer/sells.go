@@ -68,7 +68,6 @@ func (r *Rebalancer) harvestPosition(
 func harvestLots(position portfolio.Position, saleDate time.Time, minPctLossToHarvest decimal.Decimal) models.SellProposal {
 	proposal := models.SellProposal{
 		Ticker: position.Ticker,
-		Type:   models.Market,
 		Price:  position.Quote.Bid,
 	}
 

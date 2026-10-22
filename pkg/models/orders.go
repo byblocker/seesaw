@@ -9,13 +9,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type OrderType string
-
-const (
-	Market OrderType = "MARKET"
-	Limit  OrderType = "LIMIT"
-)
-
 type Buy struct {
 	Ticker        string
 	Price         decimal.Decimal
@@ -25,7 +18,6 @@ type Buy struct {
 
 type SellProposal struct {
 	Ticker     string
-	Type       OrderType
 	Price      decimal.Decimal
 	Lots       []LotSale
 	Proceeds   decimal.Decimal
