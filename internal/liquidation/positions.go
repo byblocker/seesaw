@@ -88,10 +88,10 @@ func (p *sellablePosition) splitSaleAcrossLots(count int64) []models.LotSale {
 
 func collectPositions(
 	snapshot portfolio.Snapshot,
-	settings config.LiquidationSettings,
-	rates *config.TaxSettings,
+	plan *models.LiquidationPlan,
 ) ([]sellablePosition, []sellableAsset) {
-	maxDeviation := settings.MaxAllocationDeviation
+	maxDeviation := plan.Request.Settings.MaxAllocationDeviation
+	rates := plan.Request.TaxRates
 
 	assets := make([]sellableAsset, len(snapshot.Assets))
 	var positions []sellablePosition

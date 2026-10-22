@@ -13,7 +13,7 @@ func PlanSales(
 	snapshot portfolio.Snapshot,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	positions, assets := collectPositions(snapshot, plan.Request.Settings, plan.Request.TaxRates)
+	positions, assets := collectPositions(snapshot, plan)
 
 	search, err := newSaleSearch(positions, assets, plan)
 	if err != nil {

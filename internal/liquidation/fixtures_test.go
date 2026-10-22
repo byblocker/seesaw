@@ -121,7 +121,7 @@ func (p *testPortfolio) wholeShareValue() decimal.Decimal {
 
 func (p *testPortfolio) search(request models.LiquidationRequest) (*saleSearch, error) {
 	plan := p.plan(request)
-	positions, assets := collectPositions(p.snapshot, plan.Request.Settings, plan.Request.TaxRates)
+	positions, assets := collectPositions(p.snapshot, plan)
 	return newSaleSearch(positions, assets, plan)
 }
 
