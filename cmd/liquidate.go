@@ -4,12 +4,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
 	"seesaw/internal/report"
-	"seesaw/pkg/broker"
-	"seesaw/pkg/config"
 	"seesaw/pkg/models"
-	"seesaw/pkg/portfolio"
 	"seesaw/pkg/trading"
 	"strings"
 
@@ -55,39 +51,24 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Print("Starting liquidation planning . . .")
-	ctx := cmd.Context()
-	plan, err := config.LoadPlan(filepath.Join(portfolioDir, liquidationPlanName+".yaml"))
+	plan, err := loadPlan(liquidationPlanName)
 	if err != nil {
 		return err
 	}
 	if err := plan.Liquidation.Validate(); err != nil {
 		return err
 	}
-
-	var rates *config.TaxSettings
-	if *plan.IsTaxable {
-		user, err := config.LoadUser(userConfigPath)
-		if err != nil {
-			return err
-		}
-		rates = &user.Tax
-	}
-
-	client, err := broker.Connect(ctx, plan.Broker)
+	rates, err := loadTaxRates(plan)
 	if err != nil {
 		return err
 	}
 
-	snapshot, err := portfolio.TakeSnapshot(ctx, client, plan)
+	client, snapshot, err := takeSnapshot(cmd, plan)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(*snapshot)); err != nil {
-		return fmt.Errorf("write snapshot summary: %w", err)
-	}
-
-	selection, err := trading.Liquidate(ctx, *snapshot, client, models.LiquidationRequest{
+	selection, err := trading.Liquidate(cmd.Context(), *snapshot, client, models.LiquidationRequest{
 		Amount:      amount,
 		Settings:    plan.Liquidation,
 		TaxRates:    rates,

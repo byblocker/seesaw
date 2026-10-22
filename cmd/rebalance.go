@@ -4,11 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"path/filepath"
 	"seesaw/internal/report"
-	"seesaw/pkg/broker"
-	"seesaw/pkg/config"
-	"seesaw/pkg/portfolio"
 	"seesaw/pkg/trading"
 
 	"github.com/spf13/cobra"
@@ -32,40 +28,24 @@ func init() {
 
 func rebalance(cmd *cobra.Command, args []string) error {
 	log.Print("Starting rebalance . . .")
-	ctx := cmd.Context()
-
-	pathToPlan := filepath.Join(portfolioDir, planName+".yaml")
-	plan, err := config.LoadPlan(pathToPlan)
+	plan, err := loadPlan(planName)
 	if err != nil {
 		return err
 	}
 	if err := plan.Rebalance.Validate(); err != nil {
 		return err
 	}
-
-	var rates *config.TaxSettings
-	if *plan.IsTaxable {
-		user, err := config.LoadUser(userConfigPath)
-		if err != nil {
-			return err
-		}
-		rates = &user.Tax
-	}
-
-	client, err := broker.Connect(ctx, plan.Broker)
+	rates, err := loadTaxRates(plan)
 	if err != nil {
 		return err
 	}
 
-	snapshot, err := portfolio.TakeSnapshot(ctx, client, plan)
+	client, snapshot, err := takeSnapshot(cmd, plan)
 	if err != nil {
 		return err
 	}
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(*snapshot)); err != nil {
-		return fmt.Errorf("write snapshot summary: %w", err)
-	}
 
-	orders, err := trading.Rebalance(ctx, *snapshot, client, plan.Rebalance)
+	orders, err := trading.Rebalance(cmd.Context(), *snapshot, client, plan.Rebalance)
 	if err != nil {
 		return err
 	}

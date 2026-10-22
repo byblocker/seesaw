@@ -9,11 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	portfolioDir   = "./data/portfolios"
-	userConfigPath = "./data/user.yaml"
-)
-
 var verbose bool
 
 var rootCmd = &cobra.Command{
