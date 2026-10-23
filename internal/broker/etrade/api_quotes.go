@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/async"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
@@ -27,20 +28,17 @@ type quoteResponse struct {
 	} `json:"QuoteResponse"`
 }
 
+// Concurrent requests return faster than one request listing every ticker.
 func (client *Client) QuoteAll(ctx context.Context, tickers []string) (map[string]models.Quote, error) {
-	quotes := make(map[string]models.Quote, len(tickers))
-	for _, ticker := range tickers {
-		quote, err := client.Quote(ctx, ticker)
-		if err != nil {
-			return nil, fmt.Errorf("quote %s: %w", ticker, err)
-		}
+	var timer utils.Timer
+	timer.Start(fmt.Sprintf("Fetching quotes for %d ticker(s)", len(tickers)))
+	quotes, err := async.MapByKey(ctx, tickers, client.fetchQuote)
+	timer.Stop(err)
 
-		quotes[ticker] = quote
-	}
-	return quotes, nil
+	return quotes, err
 }
 
-func (client *Client) Quote(ctx context.Context, ticker string) (models.Quote, error) {
+func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quote, error) {
 	ticker = strings.TrimSpace(ticker)
 	if ticker == "" {
 		return models.Quote{}, fmt.Errorf("invalid ticker: %s", ticker)
@@ -49,16 +47,13 @@ func (client *Client) Quote(ctx context.Context, ticker string) (models.Quote, e
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
 
-	var timer utils.Timer
-	timer.Start(fmt.Sprintf("Fetching quote for %s", ticker))
 	response, err := utils.FetchJSON[quoteResponse](
 		ctx,
 		client.httpClient,
 		endpoint,
 	)
-	timer.Stop(err)
 	if err != nil {
-		return models.Quote{}, err
+		return models.Quote{}, fmt.Errorf("quote %s: %w", ticker, err)
 	}
 
 	for _, quote := range response.QuoteResponse.QuoteData {
