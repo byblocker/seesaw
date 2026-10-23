@@ -43,12 +43,11 @@ func (client *Client) Accounts(ctx context.Context) ([]Account, error) {
 	}
 
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
-	var timer utils.Timer
-	timer.Start("Fetching brokerage accounts")
+	stop := utils.StartTimer("Fetching brokerage accounts")
 	response, err := utils.FetchJSON[listAccountsAPIResponse](
 		ctx, client.httpClient, endpoint,
 	)
-	timer.Stop(err)
+	stop(err)
 	if err != nil {
 		return nil, fmt.Errorf("could not load accounts: %w", err)
 	}

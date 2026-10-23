@@ -30,10 +30,9 @@ type quoteResponse struct {
 
 // Concurrent requests return faster than one request listing every ticker.
 func (client *Client) QuoteAll(ctx context.Context, tickers []string) (map[string]models.Quote, error) {
-	var timer utils.Timer
-	timer.Start(fmt.Sprintf("Fetching quotes for %d ticker(s)", len(tickers)))
+	stop := utils.StartTimer("Fetching quotes for %d ticker(s)", len(tickers))
 	quotes, err := async.MapByKey(ctx, tickers, client.fetchQuote)
-	timer.Stop(err)
+	stop(err)
 
 	return quotes, err
 }

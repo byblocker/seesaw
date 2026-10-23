@@ -8,24 +8,27 @@ import (
 	"time"
 )
 
-// Timer reports a sequential action on one line using the standard logger's writer.
-// Its zero value is ready to use. Other output must not interrupt Start and Stop.
-type Timer struct {
-	started time.Time
-	writer  io.Writer
-}
+func StartTimer(format string, arguments ...any) (stop func(err error, details ...string)) {
+	started := time.Now()
+	writer := log.Writer()
+	logger := log.New(actionWriter{writer}, log.Prefix(), log.Flags())
+	logger.Output(2, fmt.Sprintf(format, arguments...)+"... ")
 
-func (timer *Timer) Start(action string) {
-	if !timer.started.IsZero() {
-		return
+	return func(err error, details ...string) {
+		elapsed := time.Since(started).Milliseconds()
+		if err != nil {
+			fmt.Fprintf(writer, "FAILED: %s\n", strings.Join(strings.Fields(err.Error()), " "))
+			return
+		}
+		summary := fmt.Sprintf("%d ms", elapsed)
+		if len(details) > 0 {
+			summary += ", " + strings.Join(details, ", ")
+		}
+		fmt.Fprintf(writer, "SUCCESS! (%s)\n", summary)
 	}
-	timer.writer = log.Writer()
-	timer.started = time.Now()
-	logger := log.New(actionWriter{timer.writer}, log.Prefix(), log.Flags())
-	logger.Output(2, action+"... ")
 }
 
-// Go's logger always appends a newline; leave the action line open for Stop.
+// Go's logger always appends a newline; leave the action line open for stop.
 type actionWriter struct {
 	io.Writer
 }
@@ -40,21 +43,4 @@ func (writer actionWriter) Write(message []byte) (int, error) {
 		return length, nil
 	}
 	return written, err
-}
-
-func (timer *Timer) Stop(err error, details ...string) {
-	if timer.started.IsZero() {
-		return
-	}
-	elapsed := time.Since(timer.started).Milliseconds()
-	timer.started = time.Time{}
-	if err != nil {
-		fmt.Fprintf(timer.writer, "FAILED: %s\n", strings.Join(strings.Fields(err.Error()), " "))
-		return
-	}
-	summary := fmt.Sprintf("%d ms", elapsed)
-	if len(details) > 0 {
-		summary += ", " + strings.Join(details, ", ")
-	}
-	fmt.Fprintf(timer.writer, "SUCCESS! (%s)\n", summary)
 }

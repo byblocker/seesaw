@@ -69,14 +69,13 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 	holdings := &Holdings{
 		PositionByTicker: make(map[string]models.Position),
 	}
-	var timer utils.Timer
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
-		timer.Start("Fetching holdings")
+		stop := utils.StartTimer("Fetching holdings")
 		response, err := utils.FetchJSON[portfolioResponse](
 			ctx, client.httpClient, endpoint+"?"+query.Encode(),
 		)
-		timer.Stop(err)
+		stop(err)
 		if err != nil {
 			return nil, fmt.Errorf("fetch portfolio page %d: %w", currentPage, err)
 		}
@@ -143,7 +142,6 @@ func (client *Client) parsePositions(
 	pages []accountPortfolioResponse,
 	positions map[string]models.Position,
 ) error {
-	var timer utils.Timer
 	for _, page := range pages {
 		for _, pos := range page.Positions {
 			position := models.Position{
@@ -152,9 +150,9 @@ func (client *Client) parsePositions(
 			if _, exists := positions[position.Ticker]; exists {
 				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
 			}
-			timer.Start(fmt.Sprintf("Fetching tax lots for %s", position.Ticker))
+			stop := utils.StartTimer("Fetching tax lots for %s", position.Ticker)
 			lots, err := client.getPositionLots(ctx, accountKey, pos.Id)
-			timer.Stop(err)
+			stop(err)
 			if err != nil {
 				return fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 			}
