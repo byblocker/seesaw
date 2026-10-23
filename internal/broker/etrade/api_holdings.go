@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/async"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strconv"
@@ -66,9 +67,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		"view": {"COMPLETE"},
 	}
 
-	holdings := &Holdings{
-		PositionByTicker: make(map[string]models.Position),
-	}
+	byTicker := map[string]positionResponse{}
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
 		stop := utils.StartTimer("Fetching holdings")
@@ -92,8 +91,8 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		}
 
 		totalPages = max(totalPages, reportedPages)
-		positionsBeforePage := len(holdings.PositionByTicker)
-		if err := client.parsePositions(ctx, account.key, data.Portfolios, holdings.PositionByTicker); err != nil {
+		positionsBeforePage := len(byTicker)
+		if err := addPositions(byTicker, data.Portfolios); err != nil {
 			return nil, fmt.Errorf("load portfolio page %d: %w", currentPage, err)
 		}
 
@@ -104,7 +103,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 			break
 		}
 
-		if nextPage <= currentPage || len(holdings.PositionByTicker) == positionsBeforePage {
+		if nextPage <= currentPage || len(byTicker) == positionsBeforePage {
 			return nil, fmt.Errorf("portfolio pagination made no progress on page %d (next %d)", currentPage, nextPage)
 		}
 
@@ -112,7 +111,19 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		query.Set("pageNumber", strconv.Itoa(nextPage))
 	}
 
-	return holdings, nil
+	if len(byTicker) == 0 {
+		return &Holdings{PositionByTicker: map[string]models.Position{}}, nil
+	}
+
+	stop := utils.StartTimer("Fetching tax lots for %d position(s)", len(byTicker))
+	positions, err := async.ForValues(ctx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
+		return client.fetchPosition(ctx, account.key, pos)
+	})
+	stop(err)
+	if err != nil {
+		return nil, err
+	}
+	return &Holdings{PositionByTicker: positions}, nil
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {
@@ -136,43 +147,29 @@ func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err er
 	return nextPage, totalPages, nil
 }
 
-func (client *Client) parsePositions(
-	ctx context.Context,
-	accountKey string,
-	pages []accountPortfolioResponse,
-	positions map[string]models.Position,
-) error {
+func addPositions(byTicker map[string]positionResponse, pages []accountPortfolioResponse) error {
 	for _, page := range pages {
 		for _, pos := range page.Positions {
-			position := models.Position{
-				Ticker: strings.TrimSpace(pos.Ticker),
+			pos.Ticker = strings.TrimSpace(pos.Ticker)
+			if _, exists := byTicker[pos.Ticker]; exists {
+				return fmt.Errorf("duplicate portfolio ticker %q", pos.Ticker)
 			}
-			if _, exists := positions[position.Ticker]; exists {
-				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
-			}
-			stop := utils.StartTimer("Fetching tax lots for %s", position.Ticker)
-			lots, err := client.getPositionLots(ctx, accountKey, pos.Id)
-			stop(err)
-			if err != nil {
-				return fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
-			}
-			position.Lots = lots
-			positions[position.Ticker] = position
+			byTicker[pos.Ticker] = pos
 		}
 	}
 	return nil
 }
 
-func (client *Client) getPositionLots(
+func (client *Client) fetchPosition(
 	ctx context.Context,
 	accountKey string,
-	positionID int64,
-) ([]models.PositionLot, error) {
+	pos positionResponse,
+) (models.Position, error) {
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio/%d",
 		client.apiBaseURL,
 		url.PathEscape(accountKey),
-		positionID,
+		pos.Id,
 	)
 	response, err := utils.FetchJSON[getPositionLotResponse](
 		ctx,
@@ -180,7 +177,7 @@ func (client *Client) getPositionLots(
 		endpoint,
 	)
 	if err != nil {
-		return nil, err
+		return models.Position{}, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 	}
 
 	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
@@ -193,5 +190,5 @@ func (client *Client) getPositionLots(
 		})
 	}
 
-	return lots, nil
+	return models.Position{Ticker: pos.Ticker, Lots: lots}, nil
 }
