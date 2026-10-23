@@ -40,7 +40,14 @@ func preferLess(value, other decimal.Decimal) int {
 	return other.Cmp(value)
 }
 
-func compareTaxPerDollar(left, right saleTotals) int {
+// A whole lot's sale, and the asset it sells from.
+type lotTotals struct {
+	proceeds decimal.Decimal
+	tax      decimal.Decimal
+	asset    int
+}
+
+func compareTaxPerDollar(left, right lotTotals) int {
 	leftTaxPerDollar := left.tax.Mul(right.proceeds)
 	rightTaxPerDollar := right.tax.Mul(left.proceeds)
 	return leftTaxPerDollar.Cmp(rightTaxPerDollar)

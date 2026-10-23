@@ -24,7 +24,8 @@ type saleSearch struct {
 	totalValueAfterRequest   decimal.Decimal
 	proceedsTolerance        decimal.Decimal
 	maxProceedsByDepth       []decimal.Decimal
-	lotsCheapestFirstByDepth [][]saleTotals
+	lotsCheapestFirstByDepth [][]lotTotals
+	roomAboveMinLeft         []decimal.Decimal // scratch for lowestTaxToRaise
 	nodeLimit                int
 	visitedNodes             int
 
@@ -52,7 +53,8 @@ func newSaleSearch(
 		proceedsTolerance:        plan.Request.Amount.Mul(pctProceedsTolerance),
 		nodeLimit:                plan.Request.SearchLimit,
 		maxProceedsByDepth:       make([]decimal.Decimal, len(positions)+1),
-		lotsCheapestFirstByDepth: make([][]saleTotals, len(positions)+1),
+		lotsCheapestFirstByDepth: make([][]lotTotals, len(positions)+1),
+		roomAboveMinLeft:         make([]decimal.Decimal, len(assets)),
 		unsoldByDepth:            make([][]decimal.Decimal, len(positions)+1),
 		soldByDepth:              make([][]decimal.Decimal, len(positions)+1),
 		chosenSharesByPosition:   make([]int64, len(positions)),

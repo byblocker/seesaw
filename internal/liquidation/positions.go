@@ -50,17 +50,18 @@ func (p *sellablePosition) estimateSaleTax(count int64) decimal.Decimal {
 	return tax
 }
 
-func (p *sellablePosition) lotSaleTotals() []saleTotals {
-	var totals []saleTotals
+func (p *sellablePosition) lotSaleTotals() []lotTotals {
+	var totals []lotTotals
 	for _, lot := range p.lots {
 		if lot.wholeShares == 0 {
 			continue
 		}
 
 		shares := decimal.NewFromInt(lot.wholeShares)
-		totals = append(totals, saleTotals{
+		totals = append(totals, lotTotals{
 			proceeds: p.bid.Mul(shares),
 			tax:      lot.taxPerShare.Mul(shares),
+			asset:    p.asset.index,
 		})
 	}
 	return totals

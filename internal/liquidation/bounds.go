@@ -58,9 +58,21 @@ func (search *saleSearch) smallestShortfallBelowMin(depth int, proceedsSoFar dec
 // Estimate the least tax the undecided positions add while raising what is still needed.
 // Take lots cheapest tax per dollar first: losses up to the funding room, then gains only
 // as far as needed, splitting the last lot so the estimate stays at or below any real plan.
+//
+// Once the best plan keeps every asset at its minimum, a plan can only beat it by doing the
+// same, so each planned asset gives up no more than its room above minimum. With one cap per
+// asset and one overall limit, cheapest first still finds the least tax, so the estimate holds.
 func (search *saleSearch) lowestTaxToRaise(depth int, proceedsSoFar decimal.Decimal) decimal.Decimal {
 	stillNeeded := search.minSale.Sub(proceedsSoFar)
 	fundingRoom := search.maxSale.Sub(proceedsSoFar)
+
+	capRoom := search.found && search.bestTotals.shortfallBelowMin.IsZero()
+	room := search.roomAboveMinLeft
+	if capRoom {
+		for i := range search.assets {
+			room[i] = utils.ClampNonNegative(search.assets[i].roomAboveMin.Sub(search.soldByDepth[depth][i]))
+		}
+	}
 
 	tax := decimal.Zero
 	raised := decimal.Zero
@@ -74,18 +86,31 @@ func (search *saleSearch) lowestTaxToRaise(depth int, proceedsSoFar decimal.Deci
 		if !available.IsPositive() {
 			break
 		}
-		if lot.proceeds.GreaterThan(available) {
+
+		proceeds := lot.proceeds
+		if capRoom && search.assets[lot.asset].isPlanned {
+			proceeds = decimal.Min(proceeds, room[lot.asset])
+			room[lot.asset] = room[lot.asset].Sub(proceeds)
+		}
+		if !proceeds.IsPositive() {
+			continue
+		}
+		if proceeds.GreaterThan(available) {
 			return tax.Add(taxOnPartOfLot(lot, available))
 		}
 
-		tax = tax.Add(lot.tax)
-		raised = raised.Add(lot.proceeds)
+		if proceeds.Equal(lot.proceeds) {
+			tax = tax.Add(lot.tax)
+		} else {
+			tax = tax.Add(taxOnPartOfLot(lot, proceeds))
+		}
+		raised = raised.Add(proceeds)
 	}
 
 	return tax
 }
 
 // Round down so the estimate never overstates the lowest possible tax.
-func taxOnPartOfLot(lot saleTotals, proceeds decimal.Decimal) decimal.Decimal {
+func taxOnPartOfLot(lot lotTotals, proceeds decimal.Decimal) decimal.Decimal {
 	return lot.tax.Mul(proceeds).DivRound(lot.proceeds, 30).RoundFloor(8)
 }
