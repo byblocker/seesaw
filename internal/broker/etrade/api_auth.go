@@ -8,10 +8,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"seesaw/internal/calendar"
 	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
-
 	"time"
 
 	"github.com/dghubble/oauth1"
@@ -136,7 +136,7 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		"token": {requestToken},
 	}.Encode())
 
-	fmt.Printf("Sign in to %s at:\n%s\n", Name, authURL)
+	fmt.Fprintf(os.Stderr, "Sign in to %s at:\n%s\n", Name, authURL)
 	// Anyone who opened the link themselves can paste the code here instead of opening it again.
 	verificationCode, err := utils.AskForInput("Press ENTER to open it in your browser, or paste the verification code: ")
 	if err != nil {
@@ -144,7 +144,7 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 	}
 	if verificationCode == "" {
 		if err := utils.OpenUrl(authURL); err != nil {
-			fmt.Printf("%v. Open the link above instead.\n", err)
+			fmt.Fprintf(os.Stderr, "%v. Open the link above instead.\n", err)
 		}
 
 		verificationCode, err = utils.AskForInput("Enter verification code: ")

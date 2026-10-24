@@ -12,7 +12,7 @@ import (
 )
 
 func AskForInput(prompt string) (string, error) {
-	fmt.Print(prompt)
+	fmt.Fprint(os.Stderr, prompt)
 
 	reader := bufio.NewReader(os.Stdin)
 	text, err := reader.ReadString('\n')
