@@ -136,25 +136,26 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		"token": {requestToken},
 	}.Encode())
 
-	fmt.Fprintf(os.Stderr, "Sign in to %s at:\n%s\n", Name, authURL)
+	fmt.Fprintf(os.Stderr, "Sign in to %s to get a verification code:\n%s\n", Name, authURL)
 	// Anyone who opened the link themselves can paste the code here instead of opening it again.
-	verificationCode, err := utils.AskForInput("Press ENTER to open it in your browser, or paste the verification code: ")
+	verificationCode, err := utils.AskForInput("Press Enter to open this link in your browser, or paste the code: ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read verification code: %w", err)
 	}
 	if verificationCode == "" {
 		if err := utils.OpenUrl(authURL); err != nil {
-			fmt.Fprintf(os.Stderr, "%v. Open the link above instead.\n", err)
+			fmt.Fprintf(os.Stderr, "%v; open the link above.\n", err)
 		}
 
-		verificationCode, err = utils.AskForInput("Enter verification code: ")
+		verificationCode, err = utils.AskForInput("Verification code: ")
 		if err != nil {
 			return nil, fmt.Errorf("failed to read verification code: %w", err)
 		}
 	}
 
-	log.Print("Received verification code. Creating new access token...")
+	stop := utils.StartTimer("Creating %s access token", Name)
 	accessToken, accessSecret, err := oauth.AccessToken(requestToken, requestSecret, verificationCode)
+	stop(err)
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain access token: %w", err)
 	}
