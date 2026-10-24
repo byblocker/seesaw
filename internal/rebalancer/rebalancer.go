@@ -3,6 +3,7 @@ package rebalancer
 import (
 	"context"
 	"log"
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -27,9 +28,8 @@ func (r *Rebalancer) RebalanceAsset(
 		return r.harvestUnplanned(ctx, asset, tradeDate), nil
 	}
 
-	log.Printf("Evaluating %s: at %s%%, target %s%%",
-		asset.Label(),
-		asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
+	log.Printf("Evaluating %s: at %s, target %s",
+		asset.Label(), utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
 	for _, position := range asset.Positions {
 		if position.RecentlySold {
 			log.Printf("Skip buying %s: sold within the wash-sale window", position.Ticker)
@@ -52,7 +52,7 @@ func (r *Rebalancer) RebalanceAsset(
 		return nil, nil
 	}
 
-	log.Printf("Cover a $%s shortfall by buying %s", buy.Amount.StringFixed(2), buy.Ticker)
+	log.Printf("Cover a %s shortfall by buying %s", utils.FormatMoney(buy.Amount), buy.Ticker)
 	if sell.IsEmpty() {
 		return nil, []BuyRequest{buy}
 	}

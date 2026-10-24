@@ -45,7 +45,7 @@ func (r *Rebalancer) SizeBuys(
 	maxValueDeviationAllowed := snapshot.TotalValue.Mul(r.settings.MaxPctAllocDeviation)
 	allowFractionalShares := client.Settings().AllowFractionalShares
 
-	log.Printf("Sizing %d purchase(s) with $%s available, including proposed sales", len(requests), balance.StringFixed(2))
+	log.Printf("Sizing %d purchase(s) with %s available, including proposed sales", len(requests), utils.FormatMoney(balance))
 	var buys []models.Buy
 	for _, request := range requests {
 		if !balance.IsPositive() {
@@ -71,8 +71,8 @@ func (r *Rebalancer) SizeBuys(
 
 		buys = append(buys, buy)
 		balance = balance.Sub(buy.EstimatedCost)
-		log.Printf("Buy %s share(s) of %s at $%s for $%s",
-			buy.Quantity.String(), buy.Ticker, buy.Price.StringFixed(2), buy.EstimatedCost.StringFixed(2))
+		log.Printf("Buy %s share(s) of %s at %s for %s",
+			buy.Quantity.String(), buy.Ticker, utils.FormatPrice(buy.Price), utils.FormatMoney(buy.EstimatedCost))
 	}
 	return buys, balance, nil
 }

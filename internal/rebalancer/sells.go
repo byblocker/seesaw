@@ -3,6 +3,7 @@ package rebalancer
 import (
 	"context"
 	"log"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
@@ -56,11 +57,11 @@ func (r *Rebalancer) harvestPosition(
 	minPctLoss := r.settings.MinPctLossToHarvest
 	candidate := harvestLots(position, tradeDate, minPctLoss)
 	if candidate.IsEmpty() {
-		log.Printf("Skip harvesting %s: no lots down %s%% or more",
-			ticker, minPctLoss.Neg().Shift(2).StringFixed(2))
+		log.Printf("Skip harvesting %s: no lots down %s or more",
+			ticker, utils.FormatPercent(minPctLoss.Neg()))
 	} else {
-		log.Printf("Can harvest %d lot(s) of %s for $%s at a $%s loss",
-			len(candidate.Lots), ticker, candidate.Proceeds.StringFixed(2), candidate.RealizedPL.Neg().StringFixed(2))
+		log.Printf("Can harvest %d lot(s) of %s for %s at a %s loss",
+			len(candidate.Lots), ticker, utils.FormatMoney(candidate.Proceeds), utils.FormatMoney(candidate.RealizedPL.Neg()))
 	}
 	return candidate
 }

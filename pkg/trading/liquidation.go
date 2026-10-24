@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"seesaw/internal/liquidation"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 )
@@ -27,8 +28,8 @@ func Liquidate(
 	}
 
 	log.Printf(
-		"Selecting liquidation sales between $%s and $%s",
-		plan.MinTargetSale.StringFixed(2), plan.MaxTargetSale.StringFixed(2),
+		"Selecting liquidation sales between %s and %s",
+		utils.FormatMoney(plan.MinTargetSale), utils.FormatMoney(plan.MaxTargetSale),
 	)
 
 	selection, err := liquidation.PlanSales(ctx, snapshot, plan)
