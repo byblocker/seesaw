@@ -1,4 +1,4 @@
-package report
+package utils
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func money(amount decimal.Decimal) string {
+func FormatMoney(amount decimal.Decimal) string {
 	prefix := "$"
 	if amount.IsNegative() {
 		prefix = "-$"
@@ -25,14 +25,13 @@ func money(amount decimal.Decimal) string {
 	return output.String()
 }
 
-func percentage(ratio decimal.Decimal) string {
+func FormatPercent(ratio decimal.Decimal) string {
 	return ratio.Shift(2).StringFixed(2) + "%"
 }
 
-// Quotes and lot costs can have sub-cent precision; totals are displayed in cents.
-func price(amount decimal.Decimal) string {
+func FormatPrice(amount decimal.Decimal) string {
 	if amount.Equal(amount.Round(2)) {
-		return money(amount)
+		return FormatMoney(amount)
 	}
 
 	if amount.IsNegative() {

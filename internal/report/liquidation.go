@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
 )
@@ -20,15 +21,15 @@ func Liquidation(selection models.LiquidationSelection) string {
 	}
 
 	cashFlow := [][2]string{
-		{"Cash on hand:", money(plan.StartingCash)},
-		{"Sale proceeds:", money(selection.Proceeds)},
-		{"Withdrawal:", money(plan.Request.Amount.Neg())},
+		{"Cash on hand:", utils.FormatMoney(plan.StartingCash)},
+		{"Sale proceeds:", utils.FormatMoney(selection.Proceeds)},
+		{"Withdrawal:", utils.FormatMoney(plan.Request.Amount.Neg())},
 		summaryRule,
-		{"Left over:", money(selection.ExpectedBalance())},
+		{"Left over:", utils.FormatMoney(selection.ExpectedBalance())},
 	}
 	if formatted.showTax {
 		netTax := formatted.tax.Sub(formatted.relief)
-		writeSummaries(&output, cashFlow, [][2]string{{"Estimated tax:", money(netTax)}})
+		writeSummaries(&output, cashFlow, [][2]string{{"Estimated tax:", utils.FormatMoney(netTax)}})
 	} else {
 		writeSummaries(&output, cashFlow)
 	}
@@ -38,9 +39,9 @@ func Liquidation(selection models.LiquidationSelection) string {
 		for _, warning := range selection.AllocationWarnings {
 			fmt.Fprintf(&output, "  %s: %s (allowed %s to %s)\n",
 				warning.Asset,
-				percentage(warning.Allocation),
-				percentage(warning.MinAllocAllowed),
-				percentage(warning.MaxAllocAllowed),
+				utils.FormatPercent(warning.Allocation),
+				utils.FormatPercent(warning.MinAllocAllowed),
+				utils.FormatPercent(warning.MaxAllocAllowed),
 			)
 		}
 	}

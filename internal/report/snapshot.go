@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"seesaw/internal/utils"
 	"seesaw/pkg/portfolio"
 	"strings"
 	"time"
@@ -22,8 +23,8 @@ func Snapshot(snapshot portfolio.Snapshot) string {
 	}
 
 	writeSummaries(&output, [][2]string{
-		{"Balance:", money(snapshot.Balances.CashBalance)},
-		{"Total:", money(snapshot.TotalValue)},
+		{"Balance:", utils.FormatMoney(snapshot.Balances.CashBalance)},
+		{"Total:", utils.FormatMoney(snapshot.TotalValue)},
 	})
 	if divider != "" {
 		output.WriteString(divider)

@@ -1,6 +1,7 @@
 package report
 
 import (
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -42,13 +43,13 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 				"SELL",
 				lot.Lot.TimeAcquired.Format(time.DateOnly),
 				lot.Quantity.String(),
-				price(sell.Price),
-				money(lot.Proceeds()),
-				money(realizedPL),
+				utils.FormatPrice(sell.Price),
+				utils.FormatMoney(lot.Proceeds()),
+				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {
 				impact := lot.EstimatedTaxImpact(*rates)
-				row = append(row, money(impact))
+				row = append(row, utils.FormatMoney(impact))
 				if impact.IsNegative() {
 					result.relief = result.relief.Sub(impact)
 				} else {
@@ -89,8 +90,8 @@ func formatBuy(buy models.Buy) []string {
 		"BUY",
 		"—",
 		buy.Quantity.String(),
-		price(buy.Price),
-		money(buy.EstimatedCost.Neg()),
+		utils.FormatPrice(buy.Price),
+		utils.FormatMoney(buy.EstimatedCost.Neg()),
 		"—",
 	}
 }
@@ -107,15 +108,15 @@ func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 func formatAsset(asset portfolio.Asset) []string {
 	target, deviation := "—", "—"
 	if asset.Plan != nil {
-		target = percentage(asset.Plan.TargetAllocation)
+		target = utils.FormatPercent(asset.Plan.TargetAllocation)
 		deviation = formatDeviation(asset.AllocDrift)
 	}
-	return []string{asset.Label(), money(asset.Value), percentage(asset.Allocation), target, deviation}
+	return []string{asset.Label(), utils.FormatMoney(asset.Value), utils.FormatPercent(asset.Allocation), target, deviation}
 }
 
 func formatDeviation(drift decimal.Decimal) string {
 	if drift.IsPositive() {
-		return "+" + percentage(drift)
+		return "+" + utils.FormatPercent(drift)
 	}
-	return percentage(drift)
+	return utils.FormatPercent(drift)
 }

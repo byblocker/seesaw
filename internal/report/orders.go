@@ -1,6 +1,7 @@
 package report
 
 import (
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"strings"
@@ -27,14 +28,14 @@ func Orders(plan models.RebalancePlan, rates *config.TaxSettings) string {
 
 func orderSummaries(sells formattedSells, remainingCash decimal.Decimal) [][2]string {
 	summaries := [][2]string{
-		{"Total P/L:", money(sells.realizedPL)},
-		{"Remaining balance:", money(remainingCash)},
+		{"Total P/L:", utils.FormatMoney(sells.realizedPL)},
+		{"Remaining balance:", utils.FormatMoney(remainingCash)},
 	}
 
 	if sells.showTax {
 		summaries = append(summaries,
-			[2]string{"Estimated tax on gains:", money(sells.tax)},
-			[2]string{"Potential tax relief:", money(sells.relief)},
+			[2]string{"Estimated tax on gains:", utils.FormatMoney(sells.tax)},
+			[2]string{"Potential tax relief:", utils.FormatMoney(sells.relief)},
 		)
 	}
 
