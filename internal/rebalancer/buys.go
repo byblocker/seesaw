@@ -65,14 +65,14 @@ func (r *Rebalancer) SizeBuys(
 		}
 
 		if buy.Quantity.IsZero() {
-			utils.Verbosef(ctx, "Skip buying %s: sized quantity is zero under cash and rounding limits", request.Ticker)
+			log.Printf("Skip buying %s: not enough to buy one share", request.Ticker)
 			continue
 		}
 
 		buys = append(buys, buy)
 		balance = balance.Sub(buy.EstimatedCost)
-		utils.Verbosef(ctx, "Propose buying %s: %s share(s), cost $%s, remaining balance $%s",
-			buy.Ticker, buy.Quantity.String(), buy.EstimatedCost.StringFixed(2), balance.StringFixed(2))
+		log.Printf("Buy %s share(s) of %s at $%s for $%s",
+			buy.Quantity.String(), buy.Ticker, buy.Price.StringFixed(2), buy.EstimatedCost.StringFixed(2))
 	}
 	return buys, balance, nil
 }

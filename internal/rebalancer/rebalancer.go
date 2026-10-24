@@ -2,7 +2,7 @@ package rebalancer
 
 import (
 	"context"
-	"seesaw/internal/utils"
+	"log"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -23,16 +23,16 @@ func (r *Rebalancer) RebalanceAsset(
 	tradeDate time.Time,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
-		utils.Verbosef(ctx, "Evaluating holdings outside the portfolio plan for tax losses")
+		log.Print("Evaluating holdings outside the plan for tax losses")
 		return r.harvestUnplanned(ctx, asset, tradeDate), nil
 	}
 
-	utils.Verbosef(ctx, "Evaluating %s: current %s%%, target %s%%",
+	log.Printf("Evaluating %s: at %s%%, target %s%%",
 		asset.Label(),
 		asset.Allocation.Shift(2).StringFixed(2), asset.Plan.TargetAllocation.Shift(2).StringFixed(2))
 	for _, position := range asset.Positions {
 		if position.RecentlySold {
-			utils.Verbosef(ctx, "Skip buying %s: recent sales in the wash-sale window", position.Ticker)
+			log.Printf("Skip buying %s: sold within the wash-sale window", position.Ticker)
 		}
 	}
 
@@ -40,7 +40,7 @@ func (r *Rebalancer) RebalanceAsset(
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
-		utils.Verbosef(ctx, "Skip %s: no allocation shortfall after considering sales", asset.Label())
+		log.Printf("Skip %s: not underweight after sales", asset.Label())
 		return nil, nil
 	}
 
@@ -48,11 +48,11 @@ func (r *Rebalancer) RebalanceAsset(
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
-		utils.Verbosef(ctx, "Skip %s: no eligible purchase ticker", asset.Label())
+		log.Printf("Skip %s: no ticker to buy", asset.Label())
 		return nil, nil
 	}
 
-	utils.Verbosef(ctx, "Queue purchase of %s to cover a $%s shortfall", buy.Ticker, buy.Amount.StringFixed(2))
+	log.Printf("Cover a $%s shortfall by buying %s", buy.Amount.StringFixed(2), buy.Ticker)
 	if sell.IsEmpty() {
 		return nil, []BuyRequest{buy}
 	}

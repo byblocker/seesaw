@@ -1,10 +1,6 @@
 package utils
 
-import (
-	"context"
-	"fmt"
-	"log"
-)
+import "context"
 
 type verboseContextKey struct{}
 
@@ -15,10 +11,4 @@ func WithVerbose(ctx context.Context) context.Context {
 func IsVerbose(ctx context.Context) bool {
 	verbose, _ := ctx.Value(verboseContextKey{}).(bool)
 	return verbose
-}
-
-func Verbosef(ctx context.Context, format string, arguments ...any) {
-	if IsVerbose(ctx) {
-		log.Output(2, fmt.Sprintf(format, arguments...))
-	}
 }
