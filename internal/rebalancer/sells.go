@@ -1,7 +1,6 @@
 package rebalancer
 
 import (
-	"context"
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
@@ -13,7 +12,6 @@ import (
 )
 
 func (r *Rebalancer) harvestAsset(
-	ctx context.Context,
 	asset portfolio.Asset,
 	tradeDate time.Time,
 ) models.SellProposal {
@@ -22,7 +20,7 @@ func (r *Rebalancer) harvestAsset(
 		if !hasReplacement(asset, position.Ticker) {
 			continue
 		}
-		sell := r.harvestPosition(ctx, position, tradeDate)
+		sell := r.harvestPosition(position, tradeDate)
 		if sell.IsEmpty() {
 			continue
 		}
@@ -41,7 +39,6 @@ func hasReplacement(asset portfolio.Asset, ticker string) bool {
 }
 
 func (r *Rebalancer) harvestPosition(
-	ctx context.Context,
 	position portfolio.Position,
 	tradeDate time.Time,
 ) models.SellProposal {

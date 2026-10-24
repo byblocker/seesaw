@@ -1,7 +1,6 @@
 package rebalancer
 
 import (
-	"context"
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
@@ -19,13 +18,12 @@ func New(settings config.RebalanceSettings) *Rebalancer {
 }
 
 func (r *Rebalancer) RebalanceAsset(
-	ctx context.Context,
 	asset portfolio.Asset,
 	tradeDate time.Time,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
 		log.Print("Evaluating holdings outside the plan for tax losses")
-		return r.harvestUnplanned(ctx, asset, tradeDate), nil
+		return r.harvestUnplanned(asset, tradeDate), nil
 	}
 
 	log.Printf("Evaluating %s: at %s, target %s",
@@ -36,7 +34,7 @@ func (r *Rebalancer) RebalanceAsset(
 		}
 	}
 
-	sell := r.harvestAsset(ctx, asset, tradeDate)
+	sell := r.harvestAsset(asset, tradeDate)
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
@@ -62,13 +60,12 @@ func (r *Rebalancer) RebalanceAsset(
 // We should not force liquidation of unplanned positions while rebalancing,
 // but we should eagerly harvest any tax-loss these positions have accrued.
 func (r *Rebalancer) harvestUnplanned(
-	ctx context.Context,
 	asset portfolio.Asset,
 	tradeDate time.Time,
 ) []models.SellProposal {
 	var sells []models.SellProposal
 	for _, position := range asset.Positions {
-		if sell := r.harvestPosition(ctx, position, tradeDate); !sell.IsEmpty() {
+		if sell := r.harvestPosition(position, tradeDate); !sell.IsEmpty() {
 			sells = append(sells, sell)
 		}
 	}

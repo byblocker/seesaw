@@ -1,7 +1,6 @@
 package rebalancer
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"seesaw/internal/utils"
@@ -32,7 +31,6 @@ func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decima
 }
 
 func (r *Rebalancer) SizeBuys(
-	ctx context.Context,
 	client models.BrokerClient,
 	snapshot portfolio.Snapshot,
 	sells []models.SellProposal,
