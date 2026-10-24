@@ -7,22 +7,7 @@ import (
 )
 
 func FormatMoney(amount decimal.Decimal) string {
-	prefix := "$"
-	if amount.IsNegative() {
-		prefix = "-$"
-	}
-	formatted := amount.Abs().StringFixed(2)
-	decimalPoint := len(formatted) - 3
-	var output strings.Builder
-	output.WriteString(prefix)
-	for index, digit := range formatted[:decimalPoint] {
-		if index > 0 && (decimalPoint-index)%3 == 0 {
-			output.WriteByte(',')
-		}
-		output.WriteRune(digit)
-	}
-	output.WriteString(formatted[decimalPoint:])
-	return output.String()
+	return formatDollars(amount, amount.Abs().StringFixed(2))
 }
 
 func FormatPercent(ratio decimal.Decimal) string {
@@ -33,9 +18,24 @@ func FormatPrice(amount decimal.Decimal) string {
 	if amount.Equal(amount.Round(2)) {
 		return FormatMoney(amount)
 	}
+	return formatDollars(amount, amount.Abs().String())
+}
 
+func formatDollars(amount decimal.Decimal, digits string) string {
+	whole, fraction, _ := strings.Cut(digits, ".")
+	prefix := "$"
 	if amount.IsNegative() {
-		return "-$" + amount.Abs().String()
+		prefix = "-$"
 	}
-	return "$" + amount.String()
+	var output strings.Builder
+	output.WriteString(prefix)
+	for index, digit := range whole {
+		if index > 0 && (len(whole)-index)%3 == 0 {
+			output.WriteByte(',')
+		}
+		output.WriteRune(digit)
+	}
+	output.WriteByte('.')
+	output.WriteString(fraction)
+	return output.String()
 }
