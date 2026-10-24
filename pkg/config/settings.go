@@ -1,6 +1,9 @@
 package config
 
 import (
+	"log"
+	"seesaw/internal/utils"
+
 	"github.com/shopspring/decimal"
 )
 
@@ -60,6 +63,18 @@ func NewRebalanceSettings(
 func (settings RebalanceSettings) Validate() error {
 	_, err := NewRebalanceSettings(settings.MinFractionalShareToRound, settings.MaxPctAllocDeviation, settings.MinPctLossToHarvest)
 	return err
+}
+
+func (settings RebalanceSettings) Log(totalValue decimal.Decimal, allowFractionalShares bool) {
+	log.Print("Rebalance settings:")
+	log.Printf("  - Harvest losses of %s or more", utils.FormatPercent(settings.MinPctLossToHarvest.Neg()))
+	if allowFractionalShares {
+		log.Print("  - Buy fractional shares")
+		return
+	}
+	maxOvershoot := totalValue.Mul(settings.MaxPctAllocDeviation)
+	log.Printf("  - Round up from %s share", settings.MinFractionalShareToRound)
+	log.Printf("  - Allow at most %s deviation (~%s)", utils.FormatPercent(settings.MaxPctAllocDeviation), utils.FormatMoney(maxOvershoot))
 }
 
 type rebalanceYAML struct {

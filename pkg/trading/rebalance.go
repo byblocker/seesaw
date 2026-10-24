@@ -23,6 +23,7 @@ func Rebalance(
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
 
+	settings.Log(snapshot.TotalValue, client.Settings().AllowFractionalShares)
 	r := rebalancer.New(settings)
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
