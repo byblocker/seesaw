@@ -29,11 +29,11 @@ func init() {
 }
 
 func rebalance(cmd *cobra.Command, args []string) error {
-	log.Print("Starting rebalance . . .")
 	plan, err := loadPlan(planName)
 	if err != nil {
 		return err
 	}
+	log.Printf("Requested rebalance of %s with %s portfolio", plan.AccountLabel(), planName)
 	user, err := config.LoadUser(userConfigPath)
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"seesaw/internal/report"
+	"seesaw/internal/utils"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
@@ -46,11 +47,11 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--amount must be a decimal")
 	}
 
-	log.Print("Starting liquidation planning . . .")
 	plan, err := loadPlan(liquidationPlanName)
 	if err != nil {
 		return err
 	}
+	log.Printf("Requested liquidation of %s for %s", plan.AccountLabel(), utils.FormatMoney(amount))
 	user, err := config.LoadUser(userConfigPath)
 	if err != nil {
 		return err

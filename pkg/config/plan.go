@@ -28,6 +28,14 @@ type planYAML struct {
 	Assets    []AssetPlan `yaml:"assets"`
 }
 
+func (plan *Plan) AccountLabel() string {
+	id := plan.AccountId
+	if len(id) > 4 {
+		id = id[len(id)-4:]
+	}
+	return fmt.Sprintf("%s #%s", strings.ToUpper(strings.TrimSpace(plan.Broker)), id)
+}
+
 func (plan *Plan) Tickers() iter.Seq[string] {
 	return collections.FlatMap(slices.Values(plan.Assets), AssetPlan.Tickers)
 }
