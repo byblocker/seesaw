@@ -26,16 +26,6 @@ type sellableLot struct {
 	taxPerShare decimal.Decimal
 }
 
-// Lots are sorted cheapest first, and a position with no whole shares is never built.
-func (p *sellablePosition) cheapestSellableLot() sellableLot {
-	for _, lot := range p.lots {
-		if lot.wholeShares > 0 {
-			return lot
-		}
-	}
-	return p.lots[0]
-}
-
 func (p *sellablePosition) saleProceeds(count int64) decimal.Decimal {
 	return p.bid.Mul(decimal.NewFromInt(count))
 }
@@ -67,8 +57,6 @@ func collectPositions(
 		}
 	}
 
-	slices.SortStableFunc(positions, comparePositions)
-
 	return positions, assets
 }
 
@@ -89,33 +77,8 @@ func newSellablePosition(
 		position.sellableShares += lot.wholeShares
 	}
 
-	slices.SortFunc(position.lots, compareLots)
+	slices.SortFunc(position.lots, func(left, right sellableLot) int {
+		return cmp.Compare(left.sale.Lot.Id, right.sale.Lot.Id)
+	})
 	return position
-}
-
-func compareLots(left, right sellableLot) int {
-	if order := left.taxPerShare.Cmp(right.taxPerShare); order != 0 {
-		return order
-	}
-	return cmp.Compare(left.sale.Lot.Id, right.sale.Lot.Id)
-}
-
-func comparePositions(left, right sellablePosition) int {
-	leftAsset, rightAsset := left.asset, right.asset
-
-	// Order unplanned assets before planned ones.
-	if leftAsset.isPlanned != rightAsset.isPlanned {
-		if leftAsset.isPlanned {
-			return 1
-		}
-		return -1
-	}
-
-	// Order by the cheapest sellable lot's tax per dollar incurred
-	leftTaxPerDollar := left.cheapestSellableLot().taxPerShare.Mul(right.bid)
-	rightTaxPerDollar := right.cheapestSellableLot().taxPerShare.Mul(left.bid)
-	if order := leftTaxPerDollar.Cmp(rightTaxPerDollar); order != 0 {
-		return order
-	}
-	return rightAsset.currentValue.Cmp(leftAsset.currentValue)
 }

@@ -81,7 +81,7 @@ func cheapestLotsFirst(positions []sellablePosition) []candidateLot {
 		}
 	}
 
-	// Remaining ties keep position and lot order from collectPositions, so plans repeat exactly.
+	// Remaining ties keep plan order, then lot ID order, from collectPositions, so plans repeat exactly.
 	slices.SortStableFunc(candidates, compareCandidates)
 	return candidates
 }

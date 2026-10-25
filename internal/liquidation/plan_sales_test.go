@@ -77,7 +77,7 @@ func TestDoesNotSellExtraLosses(t *testing.T) {
 	}
 }
 
-func TestSellsUnplannedHoldingsOnTies(t *testing.T) {
+func TestSellsInPlanOrderOnTies(t *testing.T) {
 	p := newTestPortfolio("0").
 		holding("PLANNED", "100", testLot{"10", "100", 24}).
 		holding("UNPLANNED", "100", testLot{"10", "100", 24}).
@@ -86,8 +86,8 @@ func TestSellsUnplannedHoldingsOnTies(t *testing.T) {
 
 	selection := p.planSales(t, testRequest("300", "1", "0", nil))
 
-	if len(selection.Sells) != 1 || selection.Sells[0].Ticker != "UNPLANNED" {
-		t.Errorf("sold %+v, want only UNPLANNED", selection.Sells)
+	if len(selection.Sells) != 1 || selection.Sells[0].Ticker != "PLANNED" {
+		t.Errorf("sold %+v, want only PLANNED", selection.Sells)
 	}
 }
 

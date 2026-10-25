@@ -180,7 +180,7 @@ go run . liquidate --portfolio growth --amount 1000
 
 _seesaw_ uses existing cash first and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
-The planner ranks every lot you hold by its estimated tax per dollar raised, so lots compare fairly across share prices, and sells the lowest first. For taxable portfolios, that sells the deepest losses first and the smallest gains last, weighing each lot at its short- or long-term rate. Ties go to the asset furthest above its target.
+The planner ranks every lot you hold by its estimated tax per dollar raised, so lots compare fairly across share prices, and sells the lowest first. For taxable portfolios, that sells the deepest losses first and the smallest gains last, weighing each lot at its short- or long-term rate. Ties go to the asset furthest above its target, then follow your plan's asset order, with holdings outside your plan last.
 
 Each planned asset sells only down to its minimum allocation, though it may end up to one share below it when whole shares do not divide evenly. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance. The last lot sold rounds up to a whole share, so proceeds can exceed the amount needed by less than one share.
 
