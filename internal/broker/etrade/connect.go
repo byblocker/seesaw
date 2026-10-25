@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"seesaw/internal/keyring"
 	"seesaw/internal/utils"
@@ -50,7 +49,6 @@ func NewClient(ctx context.Context, config Config) (*Client, error) {
 	}
 
 	baseURL := strings.TrimRight(config.APIBaseURL, "/")
-	log.Printf("Connecting to %s . . .", Name)
 	httpClient, err := authenticate(ctx, config.APIKey, config.APISecret, baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to %s: %w", Name, err)

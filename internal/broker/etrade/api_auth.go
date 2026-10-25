@@ -61,7 +61,9 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	}
 	configurationHash := sha256.Sum256(configuration)
 	clear(configuration)
+	stop := utils.StartTimer("Connecting to %s", Name)
 	client, err := refreshETradeClient(ctx, oauth, configurationHash)
+	stop(err)
 	if err != nil {
 		log.Printf("CANNOT renew %s client: %v", Name, err)
 
@@ -109,9 +111,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 
 	if time.Since(access.LastRefreshed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
-		stop := utils.StartTimer("Renewing %s access token", Name)
 		_, err := client.R().SetContext(ctx).Get(etradeRenewAccessURL)
-		stop(err)
 		if err != nil {
 			return nil, fmt.Errorf("failed to renew token: %w", err)
 		}
