@@ -12,7 +12,7 @@ func Liquidation(selection models.LiquidationSelection, snapshot portfolio.Snaps
 	plan := selection.Plan
 	rates := plan.Request.TaxRates
 	var output strings.Builder
-	output.WriteString("\nSuggested Liquidation\n\n")
+	output.WriteString("\nSuggested Orders\n\n")
 
 	formatted := formatSells(selection.Sells, rates)
 	if len(formatted.rows) == 0 {
