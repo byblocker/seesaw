@@ -26,7 +26,7 @@ func PlanSales(
 		)
 	}
 
-	selection, err := selectLots(lots, assets, plan.MinTargetSale)
+	selection, err := selectLots(lots, plan.MinTargetSale)
 	if err != nil {
 		return nil, err
 	}
@@ -47,6 +47,6 @@ func PlanSales(
 		Plan:               plan,
 		Sells:              proposals,
 		Proceeds:           selection.proceeds,
-		AllocationWarnings: allocationWarnings(assets, selection.soldByAsset, totalValueAfterSale),
+		AllocationWarnings: allocationWarnings(assets, totalValueAfterSale),
 	}, nil
 }

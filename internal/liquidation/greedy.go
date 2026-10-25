@@ -11,15 +11,14 @@ import (
 )
 
 type lotSelection struct {
-	sales       []models.LotSale
-	proceeds    decimal.Decimal
-	soldByAsset []decimal.Decimal
+	sales    []models.LotSale
+	proceeds decimal.Decimal
 }
 
-func selectLots(lots []sellableLot, assets []sellableAsset, minSale decimal.Decimal) (lotSelection, error) {
+func selectLots(lots []sellableLot, minSale decimal.Decimal) (lotSelection, error) {
 	// Remaining ties keep plan order, then lot ID order, from collectLots, so plans repeat exactly.
 	slices.SortStableFunc(lots, compareLots)
-	selection := lotSelection{soldByAsset: make([]decimal.Decimal, len(assets))}
+	var selection lotSelection
 
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
 	for i := range lots {
@@ -30,7 +29,7 @@ func selectLots(lots []sellableLot, assets []sellableAsset, minSale decimal.Deci
 		sharesToSell := min(lot.wholeShares, sharesNeeded(amountNeeded, bid))
 
 		if asset.isPlanned {
-			valueLeftAboveMin := asset.valueAboveMinAllowed.Sub(selection.soldByAsset[asset.index])
+			valueLeftAboveMin := asset.valueAboveMinAllowed.Sub(asset.sold)
 			sharesToSell = min(sharesToSell, sharesNeeded(valueLeftAboveMin, bid))
 		}
 
@@ -44,7 +43,7 @@ func selectLots(lots []sellableLot, assets []sellableAsset, minSale decimal.Deci
 
 		proceeds := lot.saleProceeds(sharesToSell)
 		selection.proceeds = selection.proceeds.Add(proceeds)
-		selection.soldByAsset[asset.index] = selection.soldByAsset[asset.index].Add(proceeds)
+		asset.sold = asset.sold.Add(proceeds)
 	}
 
 	if selection.proceeds.LessThan(minSale) {

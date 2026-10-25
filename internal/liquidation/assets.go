@@ -9,7 +9,6 @@ import (
 )
 
 type sellableAsset struct {
-	index                int
 	label                string
 	isPlanned            bool
 	currentValue         decimal.Decimal
@@ -19,15 +18,15 @@ type sellableAsset struct {
 	maxValueAllowed      decimal.Decimal
 	valueAboveMinAllowed decimal.Decimal
 	drift                decimal.Decimal
+	sold                 decimal.Decimal
 }
 
 func newSellableAsset(
-	index int,
 	source portfolio.Asset,
 	maxDeviation decimal.Decimal,
 	totalValueAfterSale decimal.Decimal,
 ) sellableAsset {
-	asset := sellableAsset{index: index, label: source.Label(), currentValue: source.Value, drift: source.AllocDrift}
+	asset := sellableAsset{label: source.Label(), currentValue: source.Value, drift: source.AllocDrift}
 	if source.Plan != nil {
 		target := source.Plan.TargetAllocation
 		asset.isPlanned = true
@@ -44,7 +43,6 @@ func newSellableAsset(
 // Judge against the total the minimums were set from, so warnings match what the selection kept.
 func allocationWarnings(
 	assets []sellableAsset,
-	soldByAsset []decimal.Decimal,
 	totalValueAfterSale decimal.Decimal,
 ) []models.AllocationWarning {
 	if !totalValueAfterSale.IsPositive() {
@@ -54,12 +52,11 @@ func allocationWarnings(
 	var warnings []models.AllocationWarning
 	for i := range assets {
 		asset := &assets[i]
-		sold := soldByAsset[i]
-		if asset.isAllocationAllowed(sold) {
+		if asset.isAllocationAllowed() {
 			continue
 		}
 
-		valueAfterSale := asset.currentValue.Sub(sold)
+		valueAfterSale := asset.currentValue.Sub(asset.sold)
 		warnings = append(warnings, models.AllocationWarning{
 			Asset:           asset.label,
 			Allocation:      valueAfterSale.Div(totalValueAfterSale),
@@ -71,12 +68,12 @@ func allocationWarnings(
 	return warnings
 }
 
-func (a *sellableAsset) isAllocationAllowed(sold decimal.Decimal) bool {
+func (a *sellableAsset) isAllocationAllowed() bool {
 	if !a.isPlanned {
 		return true
 	}
 
-	valueAfterSale := a.currentValue.Sub(sold)
+	valueAfterSale := a.currentValue.Sub(a.sold)
 	isAboveMin := valueAfterSale.GreaterThanOrEqual(a.minValueAllowed)
 	isBelowMax := valueAfterSale.LessThanOrEqual(a.maxValueAllowed)
 

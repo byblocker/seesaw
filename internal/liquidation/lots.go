@@ -41,7 +41,7 @@ func collectLots(
 
 	for i, source := range snapshot.Assets {
 		asset := &assets[i]
-		*asset = newSellableAsset(i, source, maxDeviation, totalValueAfterSale)
+		*asset = newSellableAsset(source, maxDeviation, totalValueAfterSale)
 
 		for _, position := range source.Positions {
 			sales := position.LotSales(snapshot.CreatedAt)
