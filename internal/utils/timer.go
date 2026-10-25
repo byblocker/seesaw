@@ -12,7 +12,7 @@ func StartTimer(format string, arguments ...any) (stop func(err error, details .
 	started := time.Now()
 	writer := log.Writer()
 	logger := log.New(actionWriter{writer}, log.Prefix(), log.Flags())
-	logger.Output(2, fmt.Sprintf(format, arguments...)+"... ")
+	logger.Output(2, fmt.Sprintf(format, arguments...)+" . . . ")
 
 	return func(err error, details ...string) {
 		elapsed := time.Since(started).Milliseconds()
