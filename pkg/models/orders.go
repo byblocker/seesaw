@@ -1,6 +1,7 @@
 package models
 
 import (
+	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"time"
@@ -35,6 +36,10 @@ func (p SellProposal) IsEmpty() bool {
 
 func (p SellProposal) HarvestsAtLeast(other SellProposal) bool {
 	return p.RealizedPL.LessThanOrEqual(other.RealizedPL)
+}
+
+func (p SellProposal) LogProceeds() {
+	log.Printf("Estimated %s proceeds from selling %s", utils.FormatMoney(p.Proceeds), p.Ticker)
 }
 
 type LotSale struct {

@@ -51,6 +51,9 @@ func (r *Rebalancer) RebalanceAsset(
 		return nil, nil
 	}
 
+	if !sell.IsEmpty() {
+		sell.LogProceeds()
+	}
 	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), buy.Ticker)
 	if sell.IsEmpty() {
 		return nil, []BuyRequest{buy}
@@ -75,6 +78,7 @@ func (r *Rebalancer) harvestUnplanned(
 			continue
 		}
 		if sell := r.harvestPosition(position, tradeDate); !sell.IsEmpty() {
+			sell.LogProceeds()
 			sells = append(sells, sell)
 		}
 	}
