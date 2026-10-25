@@ -27,28 +27,6 @@ func TestUnderweightAssetIsNotSold(t *testing.T) {
 	if !selection.Proceeds.Equal(decimal.NewFromInt(7000)) {
 		t.Errorf("proceeds %s, want 7000", selection.Proceeds)
 	}
-
-	var warned []string
-	for _, warning := range selection.AllocationWarnings {
-		warned = append(warned, warning.Asset)
-	}
-	if strings.Join(warned, ", ") != "VOO, STIP / VTIP" {
-		t.Errorf("allocation warnings for %v, want VOO and STIP / VTIP", warned)
-	}
-}
-
-func TestNoWarningsWhenAllocationsStayInBand(t *testing.T) {
-	p := newTestPortfolio("0").
-		holding("STOCK", "100", testLot{"75", "90", 24}).
-		holding("BOND", "100", testLot{"25", "90", 24}).
-		asset("0.75", "STOCK").
-		asset("0.25", "BOND")
-
-	selection := p.planSales(t, testRequest("1000", "0.05", "0", testTaxRates))
-
-	if len(selection.AllocationWarnings) != 0 {
-		t.Errorf("allocation warnings %+v, want none", selection.AllocationWarnings)
-	}
 }
 
 func TestSellsLossesBeforeGains(t *testing.T) {

@@ -1,7 +1,6 @@
 package report
 
 import (
-	"fmt"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -37,17 +36,6 @@ func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snap
 
 	writeEstimatedPortfolio(&output, estimated)
 
-	if len(selection.AllocationWarnings) > 0 {
-		output.WriteString("\nThese assets end up outside their allocation band after this sale:\n")
-		for _, warning := range selection.AllocationWarnings {
-			fmt.Fprintf(&output, "  %s: %s (allowed %s to %s)\n",
-				warning.Asset,
-				utils.FormatPercent(warning.Allocation),
-				utils.FormatPercent(warning.MinAllocAllowed),
-				utils.FormatPercent(warning.MaxAllocAllowed),
-			)
-		}
-	}
 	if formatted.washSale {
 		output.WriteString("\n[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")
 	}

@@ -38,20 +38,12 @@ type LiquidationPlan struct {
 }
 
 type LiquidationSelection struct {
-	Plan               *LiquidationPlan
-	Sells              []SellProposal
-	Proceeds           decimal.Decimal
-	AllocationWarnings []AllocationWarning
+	Plan     *LiquidationPlan
+	Sells    []SellProposal
+	Proceeds decimal.Decimal
 }
 
 func (selection LiquidationSelection) ExpectedBalance() decimal.Decimal {
 	plan := selection.Plan
 	return plan.StartingCash.Sub(plan.Request.Amount).Add(selection.Proceeds)
-}
-
-type AllocationWarning struct {
-	Asset           string
-	Allocation      decimal.Decimal
-	MinAllocAllowed decimal.Decimal
-	MaxAllocAllowed decimal.Decimal
 }

@@ -21,12 +21,11 @@ func (lot *sellableLot) saleProceeds(shares int64) decimal.Decimal {
 	return lot.sale.Price.Mul(decimal.NewFromInt(shares))
 }
 
-// Collect every lot with whole shares to sell, in plan order and by lot ID within each position,
-// and the portfolio value the allocation minimums are measured against.
+// Collect every lot with whole shares to sell, in plan order and by lot ID within each position.
 func collectLots(
 	snapshot portfolio.Snapshot,
 	plan *models.LiquidationPlan,
-) ([]sellableLot, []sellableAsset, decimal.Decimal) {
+) []sellableLot {
 	maxDeviation := plan.Request.Settings.MaxAllocationDeviation
 	rates := plan.Request.TaxRates
 
@@ -62,5 +61,5 @@ func collectLots(
 		}
 	}
 
-	return lots, assets, totalValueAfterSale
+	return lots
 }

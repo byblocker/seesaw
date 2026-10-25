@@ -13,7 +13,7 @@ func PlanSales(
 	snapshot portfolio.Snapshot,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	lots, assets, totalValueAfterSale := collectLots(snapshot, plan)
+	lots := collectLots(snapshot, plan)
 
 	sellableValue := decimal.Zero
 	for i := range lots {
@@ -44,9 +44,8 @@ func PlanSales(
 	}
 
 	return &models.LiquidationSelection{
-		Plan:               plan,
-		Sells:              proposals,
-		Proceeds:           selection.proceeds,
-		AllocationWarnings: allocationWarnings(assets, totalValueAfterSale),
+		Plan:     plan,
+		Sells:    proposals,
+		Proceeds: selection.proceeds,
 	}, nil
 }
