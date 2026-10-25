@@ -43,11 +43,11 @@ func (r *Rebalancer) SizeBuys(
 	maxValueDeviationAllowed := snapshot.TotalValue.Mul(r.settings.MaxPctAllocDeviation)
 	allowFractionalShares := client.Settings().AllowFractionalShares
 
-	log.Printf("Sizing %d purchase(s) with %s available, including proposed sales", len(requests), utils.FormatMoney(balance))
+	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
 	var buys []models.Buy
 	for _, request := range requests {
 		if !balance.IsPositive() {
-			log.Print("No buying power remains; skipping remaining purchases")
+			log.Print("SKIP remaining buy requests: no buying power left")
 			break
 		}
 
@@ -63,14 +63,15 @@ func (r *Rebalancer) SizeBuys(
 		}
 
 		if buy.Quantity.IsZero() {
-			log.Printf("Skip buying %s: not enough to buy one share", request.Ticker)
+			log.Printf("CANNOT buy %s: not enough for one share", request.Ticker)
 			continue
 		}
 
 		buys = append(buys, buy)
 		balance = balance.Sub(buy.EstimatedCost)
-		log.Printf("Buy %s share(s) of %s at %s for %s",
+		log.Printf("BUY %s share(s) of %s at %s (~%s total)",
 			buy.Quantity.String(), buy.Ticker, utils.FormatPrice(buy.Price), utils.FormatMoney(buy.EstimatedCost))
+		log.Printf("Remaining balance: %s", utils.FormatMoney(balance))
 	}
 	return buys, balance, nil
 }

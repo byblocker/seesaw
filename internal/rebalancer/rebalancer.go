@@ -23,15 +23,15 @@ func (r *Rebalancer) RebalanceAsset(
 	tradeDate time.Time,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
-		log.Print("Evaluating holdings outside the plan for tax losses")
+		log.Printf("Rebalancing %s: harvest only", asset.Label())
 		return r.harvestUnplanned(asset, tradeDate), nil
 	}
 
-	log.Printf("Evaluating %s: at %s, target %s",
+	log.Printf("Rebalancing %s: %s --> %s",
 		asset.Label(), utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
 	for _, position := range asset.Positions {
 		if position.RecentlySold {
-			log.Printf("Skip buying %s: sold within the wash-sale window", position.Ticker)
+			log.Printf("CANNOT buy %s: sold within wash-sale window", position.Ticker)
 		}
 	}
 
@@ -39,7 +39,7 @@ func (r *Rebalancer) RebalanceAsset(
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
-		log.Printf("Skip %s: not underweight after sales", asset.Label())
+		log.Printf("CANNOT buy %s: position is overweight", asset.Label())
 		return nil, nil
 	}
 
@@ -47,11 +47,11 @@ func (r *Rebalancer) RebalanceAsset(
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
-		log.Printf("Skip %s: no ticker to buy", asset.Label())
+		log.Printf("CANNOT buy %s: all tickers sold within wash-sale window", asset.Label())
 		return nil, nil
 	}
 
-	log.Printf("Cover a %s shortfall by buying %s", utils.FormatMoney(buy.Amount), buy.Ticker)
+	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), buy.Ticker)
 	if sell.IsEmpty() {
 		return nil, []BuyRequest{buy}
 	}
