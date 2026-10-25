@@ -186,7 +186,7 @@ Each planned asset sells only down to its minimum allocation, though it may end 
 
 Each withdrawal is planned on its own at your configured rates. The planner does not net gains and losses across the tax year, apply loss carryforwards, or account for tax brackets.
 
-Review the proposed lots and the totals: cash on hand plus sale proceeds, minus the withdrawal, gives the cash left over. Taxable portfolios also show the net estimated tax, where a negative amount is potential relief. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+Review the proposed lots and the totals: cash on hand plus sale proceeds, minus the withdrawal, gives the cash left over. Taxable portfolios also show the net estimated tax, where a negative amount is potential relief. The Estimated Portfolio table then shows each asset's value, allocation, and deviation from target after the sale, counting the cash left over in the total. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
 The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `liquidation.max_pct_allocation_deviation` to allow more. It does not return an unfinished proposal.
 

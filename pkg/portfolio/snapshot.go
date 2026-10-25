@@ -75,3 +75,31 @@ func TakeSnapshot(
 		TotalValue: totalValue,
 	}, nil
 }
+
+// Estimate the portfolio after the sales, with cash as the balance left in the account. Positions
+// keep their lots; only asset values, allocations, the balance, and the total change. The snapshot
+// itself is left unchanged.
+func (snapshot Snapshot) Simulate(sells []models.SellProposal, cash decimal.Decimal) Snapshot {
+	proceedsByTicker := map[string]decimal.Decimal{}
+	for _, sell := range sells {
+		proceedsByTicker[sell.Ticker] = proceedsByTicker[sell.Ticker].Add(sell.Proceeds)
+	}
+
+	simulated := snapshot
+	simulated.Balances.CashBalance = cash
+	simulated.Assets = slices.Clone(snapshot.Assets)
+	simulated.TotalValue = cash
+	for i := range simulated.Assets {
+		asset := &simulated.Assets[i]
+		for _, ticker := range asset.Tickers {
+			asset.Value = asset.Value.Sub(proceedsByTicker[ticker])
+		}
+		simulated.TotalValue = simulated.TotalValue.Add(asset.Value)
+	}
+
+	for i := range simulated.Assets {
+		simulated.Assets[i].Allocation = decimal.Zero
+		simulated.Assets[i].allocate(simulated.TotalValue)
+	}
+	return simulated
+}

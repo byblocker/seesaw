@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"strings"
 )
 
-func Liquidation(selection models.LiquidationSelection) string {
+func Liquidation(selection models.LiquidationSelection, snapshot portfolio.Snapshot) string {
 	plan := selection.Plan
 	rates := plan.Request.TaxRates
 	var output strings.Builder
@@ -32,6 +33,11 @@ func Liquidation(selection models.LiquidationSelection) string {
 		writeSummaries(&output, cashFlow, [][2]string{{"Estimated tax:", utils.FormatMoney(netTax)}})
 	} else {
 		writeSummaries(&output, cashFlow)
+	}
+
+	if estimated := snapshot.Simulate(selection.Sells, selection.ExpectedBalance()); len(estimated.Assets) > 0 {
+		output.WriteString("\nEstimated Portfolio\n\n")
+		writeAssets(&output, estimated.Assets)
 	}
 
 	if len(selection.AllocationWarnings) > 0 {
