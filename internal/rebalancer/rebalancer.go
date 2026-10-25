@@ -6,6 +6,7 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"slices"
 	"time"
 )
 
@@ -63,8 +64,16 @@ func (r *Rebalancer) harvestUnplanned(
 	asset portfolio.Asset,
 	tradeDate time.Time,
 ) []models.SellProposal {
+	if !slices.ContainsFunc(asset.Positions, hasLoss) {
+		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label())
+		return nil
+	}
+
 	var sells []models.SellProposal
 	for _, position := range asset.Positions {
+		if !hasLoss(position) {
+			continue
+		}
 		if sell := r.harvestPosition(position, tradeDate); !sell.IsEmpty() {
 			sells = append(sells, sell)
 		}
