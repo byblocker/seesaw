@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -62,7 +63,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	clear(configuration)
 	client, err := refreshETradeClient(ctx, oauth, configurationHash)
 	if err != nil {
-		log.Printf("Could not renew %s client: %v", Name, err)
+		log.Printf("CANNOT renew %s client: %v", Name, err)
 
 		client, err = authNewETradeClient(ctx, oauth, configurationHash)
 	}
@@ -88,9 +89,10 @@ func cacheOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHa
 }
 
 func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	log.Printf("Attempting to renew %s credentials...", Name)
-
 	access, err := keyring.Get[oauthCache](accessTokenKey)
+	if errors.Is(err, keyring.ErrNotFound) {
+		return nil, fmt.Errorf("no cached token")
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +102,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 	}
 
 	if time.Now().After(access.ExpiresAt) {
-		return nil, fmt.Errorf("token expired yesterday")
+		return nil, fmt.Errorf("cached token expired")
 	}
 
 	client := utils.NewHTTPClient(oauth.Client(ctx, access.Token))
@@ -119,13 +121,10 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		}
 	}
 
-	log.Printf("Successfully renewed %s client!", Name)
 	return client, nil
 }
 
 func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	log.Printf("Reauthorizing with %s...", Name)
-
 	requestToken, requestSecret, err := oauth.RequestToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain request token: %w", err)
