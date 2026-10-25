@@ -76,13 +76,16 @@ func TakeSnapshot(
 	}, nil
 }
 
-// Estimate the portfolio after the sales, with cash as the balance left in the account. Positions
-// keep their lots; only asset values, allocations, the balance, and the total change. The snapshot
-// itself is left unchanged.
-func (snapshot Snapshot) Simulate(sells []models.SellProposal, cash decimal.Decimal) Snapshot {
-	proceedsByTicker := map[string]decimal.Decimal{}
+// Estimate the portfolio after the orders, with cash as the balance left in the account. Buys
+// count at their estimated cost. Positions keep their lots; only asset values, allocations, the
+// balance, and the total change. The snapshot itself is left unchanged.
+func (snapshot Snapshot) Simulate(sells []models.SellProposal, buys []models.Buy, cash decimal.Decimal) Snapshot {
+	changeByTicker := map[string]decimal.Decimal{}
 	for _, sell := range sells {
-		proceedsByTicker[sell.Ticker] = proceedsByTicker[sell.Ticker].Add(sell.Proceeds)
+		changeByTicker[sell.Ticker] = changeByTicker[sell.Ticker].Sub(sell.Proceeds)
+	}
+	for _, buy := range buys {
+		changeByTicker[buy.Ticker] = changeByTicker[buy.Ticker].Add(buy.EstimatedCost)
 	}
 
 	simulated := snapshot
@@ -92,13 +95,12 @@ func (snapshot Snapshot) Simulate(sells []models.SellProposal, cash decimal.Deci
 	for i := range simulated.Assets {
 		asset := &simulated.Assets[i]
 		for _, ticker := range asset.Tickers {
-			asset.Value = asset.Value.Sub(proceedsByTicker[ticker])
+			asset.Value = asset.Value.Add(changeByTicker[ticker])
 		}
 		simulated.TotalValue = simulated.TotalValue.Add(asset.Value)
 	}
 
 	for i := range simulated.Assets {
-		simulated.Assets[i].Allocation = decimal.Zero
 		simulated.Assets[i].allocate(simulated.TotalValue)
 	}
 	return simulated

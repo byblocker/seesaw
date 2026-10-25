@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func Liquidation(selection models.LiquidationSelection, snapshot portfolio.Snapshot) string {
+func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snapshot) string {
 	plan := selection.Plan
 	rates := plan.Request.TaxRates
 	var output strings.Builder
@@ -35,10 +35,7 @@ func Liquidation(selection models.LiquidationSelection, snapshot portfolio.Snaps
 		writeSummaries(&output, cashFlow)
 	}
 
-	if estimated := snapshot.Simulate(selection.Sells, selection.ExpectedBalance()); len(estimated.Assets) > 0 {
-		output.WriteString("\nEstimated Portfolio\n\n")
-		writeAssets(&output, estimated.Assets)
-	}
+	writeEstimatedPortfolio(&output, estimated)
 
 	if len(selection.AllocationWarnings) > 0 {
 		output.WriteString("\nThese assets end up outside their allocation band after this sale:\n")

@@ -4,12 +4,13 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 	"strings"
 
 	"github.com/shopspring/decimal"
 )
 
-func Orders(plan models.RebalancePlan, rates *config.TaxSettings) string {
+func Orders(plan models.RebalancePlan, estimated portfolio.Snapshot, rates *config.TaxSettings) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
@@ -23,6 +24,7 @@ func Orders(plan models.RebalancePlan, rates *config.TaxSettings) string {
 	writeOrderTable(&output, "Cost", append(sells.rows, buyRows...), rates)
 
 	writeSummaries(&output, orderSummaries(sells, plan.RemainingBalance))
+	writeEstimatedPortfolio(&output, estimated)
 	return output.String()
 }
 

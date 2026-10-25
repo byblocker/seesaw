@@ -105,6 +105,11 @@ func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 	return writeTable(output, headers, rows, 1)
 }
 
+func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot) {
+	output.WriteString("\nEstimated Portfolio\n\n")
+	writeAssets(output, estimated.Assets)
+}
+
 func formatAsset(asset portfolio.Asset) []string {
 	target, deviation := "—", "—"
 	if asset.Plan != nil {

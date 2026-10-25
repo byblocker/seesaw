@@ -157,6 +157,8 @@ Remaining balance:    $0.00
 
 When no trades qualify, you will see `No trades suggested.`
 
+4. Review the Estimated Portfolio table: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost and the remaining balance counted in the total.
+
 Rebalance logs show quote fetching for the snapshot, each asset's tax-loss and purchase decisions with the reasons for skipped trades, purchase sizing, and final trade counts.
 
 ### Rebalance Behavior
