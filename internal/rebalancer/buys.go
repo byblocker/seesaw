@@ -95,17 +95,30 @@ func proposeBuy(
 
 	whole := exact.Floor()
 	fractional := exact.Sub(whole)
-	if fractional.IsZero() || fractional.LessThan(minFractionalShareToRound) {
+	if fractional.IsZero() {
+		return req.buy(whole), nil
+	}
+
+	// Truncate so the shown count never rounds up to the whole share it falls short of.
+	cannotRound := fmt.Sprintf("CANNOT round up %s from %s share(s)", req.Ticker, exact.Truncate(2))
+	if fractional.LessThan(minFractionalShareToRound) {
+		log.Printf("%s: below rounding threshold", cannotRound)
 		return req.buy(whole), nil
 	}
 
 	rounded := whole.Add(decimal.NewFromInt(1))
 	cost := rounded.Mul(req.Ask)
+	if cost.GreaterThan(balance) {
+		log.Printf("%s: not enough funds", cannotRound)
+		return req.buy(whole), nil
+	}
 	maxAllowedCost := req.Amount.Add(maxValueDeviation)
-	if cost.GreaterThan(balance) || cost.GreaterThan(maxAllowedCost) {
+	if cost.GreaterThan(maxAllowedCost) {
+		log.Printf("%s: exceeds risk threshold", cannotRound)
 		return req.buy(whole), nil
 	}
 
+	log.Printf("CAN round up %s from %s to %s share(s)", req.Ticker, exact.Truncate(2), rounded)
 	return req.buy(rounded), nil
 }
 
