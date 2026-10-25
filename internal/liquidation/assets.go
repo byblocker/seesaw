@@ -8,15 +8,16 @@ import (
 )
 
 type sellableAsset struct {
-	index           int
-	label           string
-	isPlanned       bool
-	currentValue    decimal.Decimal
-	minAllocAllowed decimal.Decimal
-	maxAllocAllowed decimal.Decimal
-	minValueAllowed decimal.Decimal
-	maxValueAllowed decimal.Decimal
-	roomAboveMin    decimal.Decimal
+	index                int
+	label                string
+	isPlanned            bool
+	currentValue         decimal.Decimal
+	minAllocAllowed      decimal.Decimal
+	maxAllocAllowed      decimal.Decimal
+	minValueAllowed      decimal.Decimal
+	maxValueAllowed      decimal.Decimal
+	valueAboveMinAllowed decimal.Decimal
+	drift                decimal.Decimal
 }
 
 func newSellableAsset(
@@ -25,7 +26,7 @@ func newSellableAsset(
 	maxDeviation decimal.Decimal,
 	totalValueAfterSale decimal.Decimal,
 ) sellableAsset {
-	asset := sellableAsset{index: index, label: source.Label(), currentValue: source.Value}
+	asset := sellableAsset{index: index, label: source.Label(), currentValue: source.Value, drift: source.AllocDrift}
 	if source.Plan != nil {
 		target := source.Plan.TargetAllocation
 		asset.isPlanned = true
@@ -35,7 +36,7 @@ func newSellableAsset(
 
 	asset.minValueAllowed = totalValueAfterSale.Mul(asset.minAllocAllowed)
 	asset.maxValueAllowed = totalValueAfterSale.Mul(asset.maxAllocAllowed)
-	asset.roomAboveMin = asset.currentValue.Sub(asset.minValueAllowed)
+	asset.valueAboveMinAllowed = asset.currentValue.Sub(asset.minValueAllowed)
 	return asset
 }
 
@@ -44,7 +45,7 @@ func (a *sellableAsset) shortfallBelowMin(sold decimal.Decimal) decimal.Decimal 
 		return decimal.Zero
 	}
 
-	return utils.ClampNonNegative(sold.Sub(a.roomAboveMin))
+	return utils.ClampNonNegative(sold.Sub(a.valueAboveMinAllowed))
 }
 
 func (a *sellableAsset) isAllocationAllowed(sold decimal.Decimal) bool {

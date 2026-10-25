@@ -22,10 +22,11 @@ var testTaxRates = &config.TaxSettings{
 }
 
 type testPortfolio struct {
-	snapshot  portfolio.Snapshot
-	quotes    map[string]models.Quote
-	lots      map[string][]models.PositionLot
-	nextLotID int64
+	snapshot       portfolio.Snapshot
+	quotes         map[string]models.Quote
+	lots           map[string][]models.PositionLot
+	recentlyBought map[string]bool
+	nextLotID      int64
 }
 
 type testLot struct {
@@ -41,8 +42,9 @@ func newTestPortfolio(cash string) *testPortfolio {
 			CreatedAt: testSaleDate,
 			Balances:  models.Balances{CashBalance: balance},
 		},
-		quotes: map[string]models.Quote{},
-		lots:   map[string][]models.PositionLot{},
+		quotes:         map[string]models.Quote{},
+		lots:           map[string][]models.PositionLot{},
+		recentlyBought: map[string]bool{},
 	}
 }
 
@@ -51,9 +53,10 @@ func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 	asset := portfolio.Asset{Tickers: tickers}
 	for _, ticker := range tickers {
 		position := portfolio.Position{
-			Ticker: ticker,
-			Lots:   p.lots[ticker],
-			Quote:  p.quotes[ticker],
+			Ticker:         ticker,
+			Lots:           p.lots[ticker],
+			Quote:          p.quotes[ticker],
+			RecentlyBought: p.recentlyBought[ticker],
 		}
 		asset.Positions = append(asset.Positions, position)
 		asset.Value = asset.Value.Add(position.Value())
@@ -62,6 +65,18 @@ func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 		asset.Plan = &config.AssetPlan{TargetAllocation: decimal.RequireFromString(target)}
 	}
 	p.snapshot.Assets = append(p.snapshot.Assets, asset)
+	return p
+}
+
+// Set the drift of the asset added last.
+func (p *testPortfolio) drift(drift string) *testPortfolio {
+	p.snapshot.Assets[len(p.snapshot.Assets)-1].AllocDrift = decimal.RequireFromString(drift)
+	return p
+}
+
+// Mark a ticker as bought within the wash-sale window. Call before adding its asset.
+func (p *testPortfolio) boughtRecently(ticker string) *testPortfolio {
+	p.recentlyBought[ticker] = true
 	return p
 }
 

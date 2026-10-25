@@ -45,7 +45,7 @@ func (search *saleSearch) smallestShortfallBelowMin(depth int, proceedsSoFar dec
 			continue
 		}
 
-		room := utils.ClampNonNegative(asset.roomAboveMin.Sub(sold))
+		room := utils.ClampNonNegative(asset.valueAboveMinAllowed.Sub(sold))
 		roomLeft = roomLeft.Add(decimal.Min(room, unsold))
 	}
 
@@ -70,7 +70,7 @@ func (search *saleSearch) lowestTaxToRaise(depth int, proceedsSoFar decimal.Deci
 	room := search.roomAboveMinLeft
 	if capRoom {
 		for i := range search.assets {
-			room[i] = utils.ClampNonNegative(search.assets[i].roomAboveMin.Sub(search.soldByDepth[depth][i]))
+			room[i] = utils.ClampNonNegative(search.assets[i].valueAboveMinAllowed.Sub(search.soldByDepth[depth][i]))
 		}
 	}
 
