@@ -27,12 +27,9 @@ func Liquidate(
 		return &models.LiquidationSelection{Plan: plan}, nil
 	}
 
-	log.Printf(
-		"Selecting liquidation sales between %s and %s",
-		utils.FormatMoney(plan.MinTargetSale), utils.FormatMoney(plan.MaxTargetSale),
-	)
+	log.Printf("Selecting liquidation sales for at least %s", utils.FormatMoney(plan.MinTargetSale))
 
-	selection, err := liquidation.PlanSales(ctx, snapshot, plan)
+	selection, err := liquidation.PlanSales(snapshot, plan)
 	if err != nil {
 		return nil, err
 	}

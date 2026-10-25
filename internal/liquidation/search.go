@@ -156,30 +156,3 @@ func (search *saleSearch) countNode(ctx context.Context) error {
 
 	return nil
 }
-
-func (search *saleSearch) allocationWarnings() []models.AllocationWarning {
-	// Judge against the same total the search used, so warnings match what it optimized.
-	totalValueAfterSale := search.totalValueAfterRequest
-	if !totalValueAfterSale.IsPositive() {
-		return nil
-	}
-
-	var warnings []models.AllocationWarning
-	for i := range search.assets {
-		asset := &search.assets[i]
-		sold := search.bestSoldByAsset[i]
-		if asset.isAllocationAllowed(sold) {
-			continue
-		}
-
-		valueAfterSale := asset.currentValue.Sub(sold)
-		warnings = append(warnings, models.AllocationWarning{
-			Asset:           asset.label,
-			Allocation:      valueAfterSale.Div(totalValueAfterSale),
-			MinAllocAllowed: asset.minAllocAllowed,
-			MaxAllocAllowed: asset.maxAllocAllowed,
-		})
-	}
-
-	return warnings
-}

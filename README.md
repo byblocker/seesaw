@@ -180,17 +180,15 @@ go run . liquidate --portfolio growth --amount 1000
 
 _seesaw_ uses existing cash first and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
-Sale proceeds stay between the amount you need and that amount plus `liquidation.max_excess_cash`. Within that range, the planner chooses sales in this order of priority:
+The planner ranks every lot you hold by its estimated tax per dollar raised, so lots compare fairly across share prices, and sells the lowest first. For taxable portfolios, that sells the deepest losses first and the smallest gains last, weighing each lot at its short- or long-term rate. Ties go to the asset furthest above its target.
 
-1. Keep every asset at or above its minimum allocation. When that is impossible, fall short by as few dollars as possible.
-2. For taxable portfolios, owe the least estimated tax. Losses offset gains in the same sale, but the planner does not sell extra loss lots only to harvest them.
-3. Raise the amount closest to your request.
+Each planned asset sells only down to its minimum allocation, though it may end up to one share below it when whole shares do not divide evenly. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance. The last lot sold rounds up to a whole share, so proceeds can exceed the amount needed by less than one share.
 
-Remaining ties prefer holdings outside your plan, then lots with the lowest estimated tax per dollar. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance.
+Each withdrawal is planned on its own at your configured rates. The planner does not net gains and losses across the tax year, apply loss carryforwards, or account for tax brackets.
 
 Review the proposed lots and the totals: cash on hand plus sale proceeds, minus the withdrawal, gives the cash left over. Taxable portfolios also show the net estimated tax, where a negative amount is potential relief. If any asset ends up outside its allocation band, _seesaw_ lists it with its resulting allocation. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
-The search stops with an error if your whole-share holdings cannot raise the amount needed, if no combination of whole shares lands within `liquidation.max_excess_cash` of it, or if its search budget is exhausted. It does not return an unfinished proposal.
+The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `liquidation.max_pct_allocation_deviation` to allow more. It does not return an unfinished proposal.
 
 Typical requests finish in a few thousand nodes, well under a second. The default budget of 100,000 nodes leaves wide headroom while keeping a hard request from running for long. Rarely, a large request across many cheap and expensive shares needs more; raise the budget for that request:
 

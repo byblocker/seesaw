@@ -1,55 +1,58 @@
 package liquidation
 
 import (
-	"context"
 	"fmt"
 
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+
+	"github.com/shopspring/decimal"
 )
 
 func PlanSales(
-	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
 	positions, assets := collectPositions(snapshot, plan)
 
-	search, err := newSaleSearch(positions, assets, plan)
+	sellableValue := decimal.Zero
+	for i := range positions {
+		position := &positions[i]
+		sellableValue = sellableValue.Add(position.saleProceeds(position.sellableShares))
+	}
+	if sellableValue.LessThan(plan.MinTargetSale) {
+		return nil, fmt.Errorf(
+			"whole-share holdings can raise at most $%s of the $%s needed",
+			sellableValue.StringFixed(2), plan.MinTargetSale.StringFixed(2),
+		)
+	}
+
+	selection, err := selectLots(positions, assets, plan.MinTargetSale)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := search.run(ctx); err != nil {
-		return nil, err
-	}
-	if !search.found {
-		return nil, fmt.Errorf(
-			"no whole-share sale raises between $%s and $%s; increase liquidation.max_excess_cash",
-			search.minSale.StringFixed(2), search.maxSale.StringFixed(2),
-		)
+	var proposals []models.SellProposal
+	proposalByTicker := map[string]int{}
+	for _, sale := range selection.sales {
+		i, ok := proposalByTicker[sale.Ticker]
+		if !ok {
+			i = len(proposals)
+			proposalByTicker[sale.Ticker] = i
+			proposals = append(proposals, models.SellProposal{Ticker: sale.Ticker, Price: sale.Price})
+		}
+		proposals[i].Add(sale)
 	}
 
-	var proposals []models.SellProposal
-	for i, shares := range search.bestSharesByPosition {
-		if shares == 0 {
-			continue
-		}
-		position := &positions[i]
-		proposal := models.SellProposal{
-			Ticker: position.ticker,
-			Price:  position.bid,
-		}
-		for _, sale := range position.splitSaleAcrossLots(shares) {
-			proposal.Add(sale)
-		}
-		proposals = append(proposals, proposal)
+	totalValueAfterRequest := decimal.Zero.Sub(plan.MinTargetSale)
+	for _, asset := range assets {
+		totalValueAfterRequest = totalValueAfterRequest.Add(asset.currentValue)
 	}
 
 	return &models.LiquidationSelection{
 		Plan:               plan,
 		Sells:              proposals,
-		Proceeds:           search.bestTotals.proceeds,
-		AllocationWarnings: search.allocationWarnings(),
+		Proceeds:           selection.proceeds,
+		AllocationWarnings: allocationWarnings(assets, selection.soldByAsset, totalValueAfterRequest),
 	}, nil
 }

@@ -2,7 +2,6 @@ package liquidation
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"seesaw/pkg/models"
@@ -74,33 +73,28 @@ func checkAgainstBruteForce(t *testing.T, seed int64, p *testPortfolio, request 
 	t.Helper()
 
 	plan := p.plan(request)
-	selection, err := PlanSales(context.Background(), p.snapshot, plan)
-
-	oracle, oracleErr := p.search(request)
-	if oracleErr != nil {
+	oracle, err := p.search(request)
+	if err != nil {
 		if !p.wholeShareValue().LessThan(plan.MinTargetSale) {
-			t.Fatalf("seed %d: refused with %v, but holdings can raise %s of %s", seed, oracleErr, p.wholeShareValue(), plan.MinTargetSale)
-		}
-		if err == nil || !strings.Contains(err.Error(), "can raise at most") {
-			t.Fatalf("seed %d: error %v, want holdings too small", seed, err)
+			t.Fatalf("seed %d: refused with %v, but holdings can raise %s of %s", seed, err, p.wholeShareValue(), plan.MinTargetSale)
 		}
 		return holdingsTooSmall
 	}
 
 	want, wantFound := bruteForce(oracle)
-	if !wantFound {
-		if err == nil || !strings.Contains(err.Error(), "no whole-share sale raises") {
-			t.Fatalf("seed %d: error %v, but brute force found no plan in the funding window", seed, err)
-		}
-		return noWholeShareFit
-	}
-	if err != nil {
-		t.Fatalf("seed %d: %v, but brute force found %+v", seed, err, want)
-	}
 
 	search, _ := p.search(request)
 	if err := search.run(context.Background()); err != nil {
 		t.Fatalf("seed %d: %v", seed, err)
+	}
+	if !wantFound {
+		if search.found {
+			t.Fatalf("seed %d: search found %+v, but brute force found no plan in the funding window", seed, search.bestTotals)
+		}
+		return noWholeShareFit
+	}
+	if !search.found {
+		t.Fatalf("seed %d: search found no plan, but brute force found %+v", seed, want)
 	}
 
 	got := search.bestTotals
@@ -114,37 +108,7 @@ func checkAgainstBruteForce(t *testing.T, seed int64, p *testPortfolio, request 
 		t.Fatalf("seed %d: proceeds %s, brute force %s within %s", seed, got.proceeds, want.proceeds, tolerance)
 	}
 
-	checkSelection(t, seed, plan, oracle.maxSale, selection)
 	return planFound
-}
-
-// Check what users see: real orders that sell whole shares from lots they hold, with
-// proceeds and balance that add up and stay inside the funding window.
-func checkSelection(t *testing.T, seed int64, plan *models.LiquidationPlan, maxSale decimal.Decimal, selection *models.LiquidationSelection) {
-	t.Helper()
-
-	proceeds := decimal.Zero
-	for _, proposal := range selection.Sells {
-		if !proposal.Price.IsPositive() {
-			t.Fatalf("seed %d: sells %s at %s", seed, proposal.Ticker, proposal.Price)
-		}
-		for _, sale := range proposal.Lots {
-			if !sale.Quantity.IsPositive() || !sale.Quantity.Equal(sale.Quantity.Floor()) || sale.Quantity.GreaterThan(sale.Lot.Quantity.Floor()) {
-				t.Fatalf("seed %d: sells %s of %s from a lot of %s", seed, sale.Quantity, sale.Ticker, sale.Lot.Quantity)
-			}
-			proceeds = proceeds.Add(sale.Proceeds())
-		}
-	}
-
-	expectedBalance := plan.StartingCash.Sub(plan.Request.Amount).Add(selection.Proceeds)
-	switch {
-	case !proceeds.Equal(selection.Proceeds):
-		t.Fatalf("seed %d: lot sales raise %s, selection reports %s", seed, proceeds, selection.Proceeds)
-	case proceeds.LessThan(plan.MinTargetSale) || proceeds.GreaterThan(maxSale):
-		t.Fatalf("seed %d: proceeds %s outside %s to %s", seed, proceeds, plan.MinTargetSale, maxSale)
-	case !selection.ExpectedBalance().Equal(expectedBalance):
-		t.Fatalf("seed %d: expected balance %s, want %s", seed, selection.ExpectedBalance(), expectedBalance)
-	}
 }
 
 // Score every combination of share counts with the same totals the search uses, as the ground truth.

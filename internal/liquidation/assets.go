@@ -2,6 +2,7 @@ package liquidation
 
 import (
 	"seesaw/internal/utils"
+	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -46,6 +47,36 @@ func (a *sellableAsset) shortfallBelowMin(sold decimal.Decimal) decimal.Decimal 
 	}
 
 	return utils.ClampNonNegative(sold.Sub(a.valueAboveMinAllowed))
+}
+
+// Judge against the total the minimums were set from, so warnings match what the selection kept.
+func allocationWarnings(
+	assets []sellableAsset,
+	soldByAsset []decimal.Decimal,
+	totalValueAfterSale decimal.Decimal,
+) []models.AllocationWarning {
+	if !totalValueAfterSale.IsPositive() {
+		return nil
+	}
+
+	var warnings []models.AllocationWarning
+	for i := range assets {
+		asset := &assets[i]
+		sold := soldByAsset[i]
+		if asset.isAllocationAllowed(sold) {
+			continue
+		}
+
+		valueAfterSale := asset.currentValue.Sub(sold)
+		warnings = append(warnings, models.AllocationWarning{
+			Asset:           asset.label,
+			Allocation:      valueAfterSale.Div(totalValueAfterSale),
+			MinAllocAllowed: asset.minAllocAllowed,
+			MaxAllocAllowed: asset.maxAllocAllowed,
+		})
+	}
+
+	return warnings
 }
 
 func (a *sellableAsset) isAllocationAllowed(sold decimal.Decimal) bool {

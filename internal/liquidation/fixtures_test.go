@@ -1,7 +1,6 @@
 package liquidation
 
 import (
-	"context"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -115,7 +114,7 @@ func (p *testPortfolio) plan(request models.LiquidationRequest) *models.Liquidat
 func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationRequest) *models.LiquidationSelection {
 	t.Helper()
 
-	selection, err := PlanSales(context.Background(), p.snapshot, p.plan(request))
+	selection, err := PlanSales(p.snapshot, p.plan(request))
 	if err != nil {
 		t.Fatal(err)
 	}
