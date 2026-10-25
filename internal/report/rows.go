@@ -22,7 +22,7 @@ type formattedSells struct {
 func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]string, rates *config.TaxSettings) {
 	headers := []string{"Ticker", "Action", "Acquired", "Shares", "Price", amountHeader, "P/L"}
 	if rates != nil {
-		headers = append(headers, "Est. tax impact")
+		headers = append(headers, "Tax")
 	}
 	writeTable(output, headers, rows, 3)
 }
