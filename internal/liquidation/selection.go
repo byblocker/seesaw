@@ -13,12 +13,11 @@ func PlanSales(
 	snapshot portfolio.Snapshot,
 	plan *models.LiquidationPlan,
 ) (*models.LiquidationSelection, error) {
-	positions, assets := collectPositions(snapshot, plan)
+	lots, assets, totalValueAfterSale := collectLots(snapshot, plan)
 
 	sellableValue := decimal.Zero
-	for i := range positions {
-		position := &positions[i]
-		sellableValue = sellableValue.Add(position.saleProceeds(position.sellableShares))
+	for i := range lots {
+		sellableValue = sellableValue.Add(lots[i].saleProceeds(lots[i].wholeShares))
 	}
 	if sellableValue.LessThan(plan.MinTargetSale) {
 		return nil, fmt.Errorf(
@@ -27,7 +26,7 @@ func PlanSales(
 		)
 	}
 
-	selection, err := selectLots(positions, assets, plan.MinTargetSale)
+	selection, err := selectLots(lots, assets, plan.MinTargetSale)
 	if err != nil {
 		return nil, err
 	}
@@ -44,15 +43,10 @@ func PlanSales(
 		proposals[i].Add(sale)
 	}
 
-	totalValueAfterRequest := decimal.Zero.Sub(plan.MinTargetSale)
-	for _, asset := range assets {
-		totalValueAfterRequest = totalValueAfterRequest.Add(asset.currentValue)
-	}
-
 	return &models.LiquidationSelection{
 		Plan:               plan,
 		Sells:              proposals,
 		Proceeds:           selection.proceeds,
-		AllocationWarnings: allocationWarnings(assets, selection.soldByAsset, totalValueAfterRequest),
+		AllocationWarnings: allocationWarnings(assets, selection.soldByAsset, totalValueAfterSale),
 	}, nil
 }

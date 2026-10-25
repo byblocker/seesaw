@@ -10,43 +10,39 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type candidateLot struct {
-	position   *sellablePosition
-	lot        *sellableLot
-	soldShares int64
-}
-
 type lotSelection struct {
 	sales       []models.LotSale
 	proceeds    decimal.Decimal
 	soldByAsset []decimal.Decimal
 }
 
-func selectLots(positions []sellablePosition, assets []sellableAsset, minSale decimal.Decimal) (lotSelection, error) {
-	candidates := cheapestLotsFirst(positions)
+func selectLots(lots []sellableLot, assets []sellableAsset, minSale decimal.Decimal) (lotSelection, error) {
+	// Remaining ties keep plan order, then lot ID order, from collectLots, so plans repeat exactly.
+	slices.SortStableFunc(lots, compareLots)
 	selection := lotSelection{soldByAsset: make([]decimal.Decimal, len(assets))}
 
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
-	for i := range candidates {
-		candidate := &candidates[i]
-		position, asset := candidate.position, candidate.position.asset
+	for i := range lots {
+		lot := &lots[i]
+		asset, bid := lot.asset, lot.sale.Price
 
 		amountNeeded := minSale.Sub(selection.proceeds)
-		remainingShares := candidate.lot.wholeShares - candidate.soldShares
-
-		sharesToSell := min(remainingShares, sharesNeeded(amountNeeded, position.bid))
+		sharesToSell := min(lot.wholeShares, sharesNeeded(amountNeeded, bid))
 
 		if asset.isPlanned {
 			valueLeftAboveMin := asset.valueAboveMinAllowed.Sub(selection.soldByAsset[asset.index])
-			sharesToSell = min(sharesToSell, sharesNeeded(valueLeftAboveMin, position.bid))
+			sharesToSell = min(sharesToSell, sharesNeeded(valueLeftAboveMin, bid))
 		}
 
 		if sharesToSell <= 0 {
 			continue
 		}
 
-		candidate.soldShares += sharesToSell
-		proceeds := position.saleProceeds(sharesToSell)
+		sale := lot.sale
+		sale.Quantity = decimal.NewFromInt(sharesToSell)
+		selection.sales = append(selection.sales, sale)
+
+		proceeds := lot.saleProceeds(sharesToSell)
 		selection.proceeds = selection.proceeds.Add(proceeds)
 		selection.soldByAsset[asset.index] = selection.soldByAsset[asset.index].Add(proceeds)
 	}
@@ -58,43 +54,18 @@ func selectLots(positions []sellablePosition, assets []sellableAsset, minSale de
 		)
 	}
 
-	for _, candidate := range candidates {
-		if candidate.soldShares == 0 {
-			continue
-		}
-		sale := candidate.lot.sale
-		sale.Quantity = decimal.NewFromInt(candidate.soldShares)
-		selection.sales = append(selection.sales, sale)
-	}
-
 	return selection, nil
 }
 
-func cheapestLotsFirst(positions []sellablePosition) []candidateLot {
-	var candidates []candidateLot
-	for i := range positions {
-		position := &positions[i]
-		for j := range position.lots {
-			if position.lots[j].wholeShares > 0 {
-				candidates = append(candidates, candidateLot{position: position, lot: &position.lots[j]})
-			}
-		}
-	}
-
-	// Remaining ties keep plan order, then lot ID order, from collectPositions, so plans repeat exactly.
-	slices.SortStableFunc(candidates, compareCandidates)
-	return candidates
-}
-
-func compareCandidates(left, right candidateLot) int {
+func compareLots(left, right sellableLot) int {
 	// Compare exactly across share prices by scaling tax per share with the bid price
-	leftScaled := left.lot.taxPerShare.Mul(right.position.bid)
-	rightScaled := right.lot.taxPerShare.Mul(left.position.bid)
+	leftScaled := left.taxPerShare.Mul(right.sale.Price)
+	rightScaled := right.taxPerShare.Mul(left.sale.Price)
 
 	return cmp.Or(
 		leftScaled.Cmp(rightScaled),
 		// Ties go to the most overweight asset
-		right.position.asset.drift.Cmp(left.position.asset.drift),
+		right.asset.drift.Cmp(left.asset.drift),
 	)
 }
 
