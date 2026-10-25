@@ -40,53 +40,6 @@ func (p *sellablePosition) saleProceeds(count int64) decimal.Decimal {
 	return p.bid.Mul(decimal.NewFromInt(count))
 }
 
-func (p *sellablePosition) estimateSaleTax(count int64) decimal.Decimal {
-	tax := decimal.Zero
-	for _, lot := range p.lots {
-		sharesFromLot := min(count, lot.wholeShares)
-		tax = tax.Add(lot.taxPerShare.Mul(decimal.NewFromInt(sharesFromLot)))
-		count -= sharesFromLot
-	}
-	return tax
-}
-
-func (p *sellablePosition) lotSaleTotals() []lotTotals {
-	var totals []lotTotals
-	for _, lot := range p.lots {
-		if lot.wholeShares == 0 {
-			continue
-		}
-
-		shares := decimal.NewFromInt(lot.wholeShares)
-		totals = append(totals, lotTotals{
-			proceeds: p.bid.Mul(shares),
-			tax:      lot.taxPerShare.Mul(shares),
-			asset:    p.asset.index,
-		})
-	}
-	return totals
-}
-
-func (p *sellablePosition) splitSaleAcrossLots(count int64) []models.LotSale {
-	var sales []models.LotSale
-	for _, lot := range p.lots {
-		if count == 0 {
-			break
-		}
-
-		sharesFromLot := min(count, lot.wholeShares)
-		if sharesFromLot == 0 {
-			continue
-		}
-
-		sale := lot.sale
-		sale.Quantity = decimal.NewFromInt(sharesFromLot)
-		sales = append(sales, sale)
-		count -= sharesFromLot
-	}
-	return sales
-}
-
 func collectPositions(
 	snapshot portfolio.Snapshot,
 	plan *models.LiquidationPlan,

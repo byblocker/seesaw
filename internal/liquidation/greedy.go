@@ -97,3 +97,16 @@ func compareCandidates(left, right candidateLot) int {
 		right.position.asset.drift.Cmp(left.position.asset.drift),
 	)
 }
+
+func sharesNeeded(amount, price decimal.Decimal) int64 {
+	if !amount.IsPositive() {
+		return 0
+	}
+
+	shares, remainder := amount.QuoRem(price, 0)
+	if remainder.IsPositive() {
+		return shares.IntPart() + 1
+	}
+
+	return shares.IntPart()
+}

@@ -41,14 +41,6 @@ func newSellableAsset(
 	return asset
 }
 
-func (a *sellableAsset) shortfallBelowMin(sold decimal.Decimal) decimal.Decimal {
-	if !a.isPlanned {
-		return decimal.Zero
-	}
-
-	return utils.ClampNonNegative(sold.Sub(a.valueAboveMinAllowed))
-}
-
 // Judge against the total the minimums were set from, so warnings match what the selection kept.
 func allocationWarnings(
 	assets []sellableAsset,

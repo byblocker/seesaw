@@ -121,7 +121,7 @@ func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationReques
 	return selection
 }
 
-// Add up every whole share the portfolio could sell, without going through the search,
+// Add up every whole share the portfolio could sell, without going through the planner,
 // so tests can tell when a request is impossible.
 func (p *testPortfolio) wholeShareValue() decimal.Decimal {
 	value := decimal.Zero
@@ -135,25 +135,16 @@ func (p *testPortfolio) wholeShareValue() decimal.Decimal {
 	return value
 }
 
-func (p *testPortfolio) search(request models.LiquidationRequest) (*saleSearch, error) {
-	plan := p.plan(request)
-	positions, assets := collectPositions(p.snapshot, plan)
-	return newSaleSearch(positions, assets, plan)
-}
-
 type randomShape struct {
 	maxAssets    int
 	maxTickers   int
 	maxLotShares int
 }
 
-var (
-	smallShape = randomShape{maxAssets: 3, maxTickers: 4, maxLotShares: 4}
-	wideShape  = randomShape{maxAssets: 3, maxTickers: 3, maxLotShares: 12}
-)
+var wideShape = randomShape{maxAssets: 3, maxTickers: 3, maxLotShares: 12}
 
-// Build a portfolio small enough for brute force to try every share count. Report
-// false when existing cash already covers the request, since there is nothing to search.
+// Build a small random portfolio. Report false when existing cash already covers the
+// request, since there is nothing to sell.
 func randomCase(seed int64, shape randomShape) (*testPortfolio, models.LiquidationRequest, bool) {
 	random := rand.New(rand.NewSource(seed))
 	price := func(low, high float64) string {
@@ -223,43 +214,4 @@ func randomCase(seed int64, shape randomShape) (*testPortfolio, models.Liquidati
 
 	needsSale := p.plan(request).MinTargetSale.IsPositive()
 	return p, request, needsSale
-}
-
-// Build a portfolio sized like a real account, with three assets of two tickers each and
-// hundreds of shares split across many lots, where share-count ranges are wide.
-func realisticCase(seed int64, amount, maxExcessCash, maxDeviation string) (*testPortfolio, models.LiquidationRequest) {
-	random := rand.New(rand.NewSource(seed))
-	type ticker struct {
-		name      string
-		bid       float64
-		minShares int
-		maxShares int
-	}
-	assets := []struct {
-		target  string
-		tickers []ticker
-	}{
-		{"0.60", []ticker{{"VOO", 500 + random.Float64()*50, 60, 140}, {"SCHX", 24 + random.Float64()*3, 300, 900}}},
-		{"0.25", []ticker{{"STIP", 100 + random.Float64()*3, 50, 200}, {"VTIP", 49 + random.Float64()*2, 50, 250}}},
-		{"0.15", []ticker{{"SGOV", 100 + random.Float64(), 50, 200}, {"BIL", 91 + random.Float64(), 20, 120}}},
-	}
-
-	p := newTestPortfolio("0")
-	for _, asset := range assets {
-		var names []string
-		for _, t := range asset.tickers {
-			names = append(names, t.name)
-			var lots []testLot
-			for remaining := t.minShares + random.Intn(t.maxShares-t.minShares); remaining > 0; {
-				shares := min(remaining, 5+random.Intn(40))
-				remaining -= shares
-				paid := decimal.NewFromFloat(t.bid * (0.7 + random.Float64()*0.5)).StringFixed(2)
-				lots = append(lots, testLot{shares: fmt.Sprint(shares), paid: paid, monthsHeld: random.Intn(36)})
-			}
-			p.holding(t.name, decimal.NewFromFloat(t.bid).StringFixed(2), lots...)
-		}
-		p.asset(asset.target, names...)
-	}
-
-	return p, testRequest(amount, maxDeviation, maxExcessCash, testTaxRates)
 }
