@@ -58,6 +58,14 @@ func selectLots(lots []sellableLot, assets []sellableAsset, minSale decimal.Deci
 }
 
 func compareLots(left, right sellableLot) int {
+	// Sell holdings outside the plan before any planned lot
+	if left.asset.isPlanned != right.asset.isPlanned {
+		if left.asset.isPlanned {
+			return 1
+		}
+		return -1
+	}
+
 	// Compare exactly across share prices by scaling tax per share with the bid price
 	leftScaled := left.taxPerShare.Mul(right.sale.Price)
 	rightScaled := right.taxPerShare.Mul(left.sale.Price)

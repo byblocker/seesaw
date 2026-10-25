@@ -77,17 +77,23 @@ func TestDoesNotSellExtraLosses(t *testing.T) {
 	}
 }
 
-func TestSellsInPlanOrderOnTies(t *testing.T) {
+func TestSellsUnplannedHoldingsFirst(t *testing.T) {
 	p := newTestPortfolio("0").
-		holding("PLANNED", "100", testLot{"10", "100", 24}).
-		holding("UNPLANNED", "100", testLot{"10", "100", 24}).
+		holding("PLANNED", "100", testLot{"10", "150", 24}).
+		holding("UNPLANNED", "100", testLot{"2", "50", 24}).
 		asset("1", "PLANNED").
 		asset("", "UNPLANNED")
 
-	selection := p.planSales(t, testRequest("300", "1", "0", nil))
+	selection := p.planSales(t, testRequest("300", "1", "0", testTaxRates))
 
-	if len(selection.Sells) != 1 || selection.Sells[0].Ticker != "PLANNED" {
-		t.Errorf("sold %+v, want only PLANNED", selection.Sells)
+	var got []string
+	for _, sell := range selection.Sells {
+		for _, sale := range sell.Lots {
+			got = append(got, sell.Ticker+" x"+sale.Quantity.String())
+		}
+	}
+	if strings.Join(got, ", ") != "UNPLANNED x2, PLANNED x1" {
+		t.Errorf("sold %v, want the unplanned gain before the planned loss", got)
 	}
 }
 
