@@ -135,21 +135,16 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		"token": {requestToken},
 	}.Encode())
 
-	fmt.Fprintf(os.Stderr, "Sign in to %s to get a verification code:\n%s\n", Name, authURL)
-	// Anyone who opened the link themselves can paste the code here instead of opening it again.
-	verificationCode, err := utils.AskForInput("Press Enter to open this link in your browser, or paste the code: ")
+	if _, err := utils.AskForInput(fmt.Sprintf("Sign in to %s. Press ENTER to open the sign-in page in your browser. ", Name)); err != nil {
+		return nil, fmt.Errorf("failed to wait for ENTER: %w", err)
+	}
+	if err := utils.OpenUrl(authURL); err != nil {
+		fmt.Fprintf(os.Stderr, "%v; open this link instead:\n%s\n", err, authURL)
+	}
+
+	verificationCode, err := utils.AskForInput("Enter verification code: ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read verification code: %w", err)
-	}
-	if verificationCode == "" {
-		if err := utils.OpenUrl(authURL); err != nil {
-			fmt.Fprintf(os.Stderr, "%v; open the link above.\n", err)
-		}
-
-		verificationCode, err = utils.AskForInput("Verification code: ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to read verification code: %w", err)
-		}
 	}
 
 	stop := utils.StartTimer("Creating %s access token", Name)
