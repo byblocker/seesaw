@@ -120,7 +120,7 @@ func TestPlanSalesOnRandomPortfolios(t *testing.T) {
 
 	plans, holdingsTooSmall, minimumsBlocked := 0, 0, 0
 	for seed := range seeds {
-		p, request, needsSale := randomCase(seed, wideShape)
+		p, request, needsSale := randomCase(seed)
 		if !needsSale {
 			continue
 		}

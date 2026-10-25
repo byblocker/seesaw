@@ -21,11 +21,10 @@ var testTaxRates = &config.TaxSettings{
 }
 
 type testPortfolio struct {
-	snapshot       portfolio.Snapshot
-	quotes         map[string]models.Quote
-	lots           map[string][]models.PositionLot
-	recentlyBought map[string]bool
-	nextLotID      int64
+	snapshot  portfolio.Snapshot
+	quotes    map[string]models.Quote
+	lots      map[string][]models.PositionLot
+	nextLotID int64
 }
 
 type testLot struct {
@@ -41,9 +40,8 @@ func newTestPortfolio(cash string) *testPortfolio {
 			CreatedAt: testSaleDate,
 			Balances:  models.Balances{CashBalance: balance},
 		},
-		quotes:         map[string]models.Quote{},
-		lots:           map[string][]models.PositionLot{},
-		recentlyBought: map[string]bool{},
+		quotes: map[string]models.Quote{},
+		lots:   map[string][]models.PositionLot{},
 	}
 }
 
@@ -52,10 +50,9 @@ func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 	asset := portfolio.Asset{Tickers: tickers}
 	for _, ticker := range tickers {
 		position := portfolio.Position{
-			Ticker:         ticker,
-			Lots:           p.lots[ticker],
-			Quote:          p.quotes[ticker],
-			RecentlyBought: p.recentlyBought[ticker],
+			Ticker: ticker,
+			Lots:   p.lots[ticker],
+			Quote:  p.quotes[ticker],
 		}
 		asset.Positions = append(asset.Positions, position)
 		asset.Value = asset.Value.Add(position.Value())
@@ -64,18 +61,6 @@ func (p *testPortfolio) asset(target string, tickers ...string) *testPortfolio {
 		asset.Plan = &config.AssetPlan{TargetAllocation: decimal.RequireFromString(target)}
 	}
 	p.snapshot.Assets = append(p.snapshot.Assets, asset)
-	return p
-}
-
-// Set the drift of the asset added last.
-func (p *testPortfolio) drift(drift string) *testPortfolio {
-	p.snapshot.Assets[len(p.snapshot.Assets)-1].AllocDrift = decimal.RequireFromString(drift)
-	return p
-}
-
-// Mark a ticker as bought within the wash-sale window. Call before adding its asset.
-func (p *testPortfolio) boughtRecently(ticker string) *testPortfolio {
-	p.recentlyBought[ticker] = true
 	return p
 }
 
@@ -135,17 +120,10 @@ func (p *testPortfolio) wholeShareValue() decimal.Decimal {
 	return value
 }
 
-type randomShape struct {
-	maxAssets    int
-	maxTickers   int
-	maxLotShares int
-}
-
-var wideShape = randomShape{maxAssets: 3, maxTickers: 3, maxLotShares: 12}
-
 // Build a small random portfolio. Report false when existing cash already covers the
 // request, since there is nothing to sell.
-func randomCase(seed int64, shape randomShape) (*testPortfolio, models.LiquidationRequest, bool) {
+func randomCase(seed int64) (*testPortfolio, models.LiquidationRequest, bool) {
+	const maxAssets, maxTickers, maxLotShares = 3, 3, 12
 	random := rand.New(rand.NewSource(seed))
 	price := func(low, high float64) string {
 		return decimal.NewFromFloat(low + random.Float64()*(high-low)).StringFixed(2)
@@ -154,7 +132,7 @@ func randomCase(seed int64, shape randomShape) (*testPortfolio, models.Liquidati
 	cash := price(0, 20)
 	p := newTestPortfolio(cash)
 
-	assetCount := 1 + random.Intn(shape.maxAssets)
+	assetCount := 1 + random.Intn(maxAssets)
 	hasUnplanned := assetCount > 1 && random.Intn(3) == 0
 	weights := make([]float64, assetCount)
 	total := 0.0
@@ -167,7 +145,7 @@ func randomCase(seed int64, shape randomShape) (*testPortfolio, models.Liquidati
 	for i := range assetCount {
 		var assetTickers []string
 		for range 1 + random.Intn(2) {
-			if tickers == shape.maxTickers {
+			if tickers == maxTickers {
 				break
 			}
 			ticker := fmt.Sprintf("T%d", tickers)
@@ -177,7 +155,7 @@ func randomCase(seed int64, shape randomShape) (*testPortfolio, models.Liquidati
 			bid := price(5, 65)
 			var lots []testLot
 			for range 1 + random.Intn(2) {
-				shares := decimal.NewFromInt(int64(1 + random.Intn(shape.maxLotShares)))
+				shares := decimal.NewFromInt(int64(1 + random.Intn(maxLotShares)))
 				if random.Intn(4) == 0 {
 					shares = shares.Add(decimal.NewFromFloat(random.Float64()).Round(2))
 				}
