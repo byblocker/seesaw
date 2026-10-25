@@ -26,7 +26,7 @@ func (r *Rebalancer) harvestAsset(
 			continue
 		}
 		if !hasReplacement(asset, position.Ticker) {
-			log.Printf("CANNOT harvest %s: no replacement ticker to buy", position.Ticker)
+			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
 		sell := r.harvestPosition(position, tradeDate)
@@ -78,7 +78,9 @@ func (r *Rebalancer) harvestPosition(
 
 	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, utils.FormatMoney(candidate.RealizedPL.Neg()))
 	for _, sale := range sales {
-		logLot(sale, isHarvestable(sale, minPctLoss))
+		if sale.GainPct().IsNegative() {
+			logLot(sale, isHarvestable(sale, minPctLoss))
+		}
 	}
 	return candidate
 }
@@ -93,11 +95,6 @@ func logLot(sale models.LotSale, harvest bool) {
 	if harvest {
 		action = "HARVEST"
 	}
-	gainPct := sale.GainPct()
-	change := utils.FormatPercent(gainPct) + " gain"
-	if gainPct.IsNegative() {
-		change = utils.FormatPercent(gainPct.Neg()) + " loss"
-	}
-	log.Printf("  - %s %s share(s) bought %s with %s",
-		action, sale.Quantity, sale.Lot.TimeAcquired.Format(time.DateOnly), change)
+	log.Printf("  - %s %s share(s) bought %s with %s loss",
+		action, sale.Quantity, sale.Lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct().Neg()))
 }
