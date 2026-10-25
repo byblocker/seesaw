@@ -16,8 +16,9 @@ func StartTimer(format string, arguments ...any) (stop func(err error, details .
 
 	return func(err error, details ...string) {
 		elapsed := time.Since(started).Milliseconds()
+		// Callers return the error, which is reported once where it is handled.
 		if err != nil {
-			fmt.Fprintf(writer, "FAILED: %s\n", strings.Join(strings.Fields(err.Error()), " "))
+			fmt.Fprintln(writer, "FAILED")
 			return
 		}
 		summary := fmt.Sprintf("%d ms", elapsed)
