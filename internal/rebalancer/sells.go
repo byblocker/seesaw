@@ -1,6 +1,7 @@
 package rebalancer
 
 import (
+	"cmp"
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
@@ -100,4 +101,55 @@ func logLot(sale models.LotSale, harvest bool) {
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
 		action, sale.Quantity, sale.Lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct().Neg()))
+}
+
+// Sell whole shares of an asset more than maxValueDeviation above target, down to at or just above target.
+func sellExcess(
+	asset portfolio.Asset,
+	rates *config.TaxSettings,
+	tradeDate time.Time,
+	maxValueDeviation decimal.Decimal,
+) []models.SellProposal {
+	if asset.ValueDrift.LessThanOrEqual(maxValueDeviation) {
+		log.Printf("SKIP selling %s: within %s of target", asset.Label(), utils.FormatMoney(maxValueDeviation))
+		return nil
+	}
+
+	var sales []models.LotSale
+	for _, position := range asset.Positions {
+		sales = append(sales, position.LotSales(tradeDate)...)
+	}
+
+	// Ties fall back to lot ID so plans repeat exactly.
+	slices.SortFunc(sales, func(left, right models.LotSale) int {
+		return cmp.Or(
+			models.CompareTaxPerDollar(taxPerShare(left, rates), left.Price, taxPerShare(right, rates), right.Price),
+			cmp.Compare(left.Lot.Id, right.Lot.Id),
+		)
+	})
+
+	var sold []models.LotSale
+	remaining := asset.ValueDrift
+	for _, sale := range sales {
+		maxShares, _ := remaining.QuoRem(sale.Price, 0)
+		sale.Quantity = decimal.Min(sale.Quantity.Floor(), maxShares)
+		if !sale.Quantity.IsPositive() {
+			continue
+		}
+		sold = append(sold, sale)
+		remaining = remaining.Sub(sale.Proceeds())
+	}
+
+	proposals := models.GroupSales(sold)
+	for _, proposal := range proposals {
+		proposal.LogProceeds()
+	}
+	return proposals
+}
+
+func taxPerShare(sale models.LotSale, rates *config.TaxSettings) decimal.Decimal {
+	if rates == nil {
+		return decimal.Zero
+	}
+	return sale.TaxImpactPerShare(*rates)
 }

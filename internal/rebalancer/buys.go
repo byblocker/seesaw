@@ -37,12 +37,12 @@ func sizeBuys(
 	broker models.BrokerSettings,
 	sells []models.SellProposal,
 	requests []BuyRequest,
+	maxValueDeviation decimal.Decimal,
 ) ([]models.Buy, error) {
 	balance := snapshot.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
 	}
-	maxValueDeviationAllowed := snapshot.TotalValue.Mul(settings.AllocationUpperLimit)
 
 	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
 	var buys []models.Buy
@@ -55,7 +55,7 @@ func sizeBuys(
 		buy, err := proposeBuy(
 			request,
 			balance,
-			maxValueDeviationAllowed,
+			maxValueDeviation,
 			settings.MinFractionalShareToRound,
 			broker.AllowFractionalShares,
 		)

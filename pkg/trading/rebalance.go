@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/rebalancer"
-	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 )
@@ -12,16 +11,16 @@ import (
 func Rebalance(
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
-	settings config.Settings,
+	request models.RebalanceRequest,
 ) (*models.RebalancePlan, error) {
-	if err := settings.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		return nil, err
 	}
 	if !snapshot.TotalValue.IsPositive() {
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
 
-	plan, err := rebalancer.Plan(snapshot, settings, client.Settings())
+	plan, err := rebalancer.Plan(snapshot, request, client.Settings())
 	if err != nil {
 		return nil, err
 	}

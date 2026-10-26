@@ -6,6 +6,7 @@ import (
 	"log"
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
+	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
 
 	"github.com/shopspring/decimal"
@@ -50,7 +51,10 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(*snapshot, client, plan.Settings)
+	orders, err := trading.Rebalance(*snapshot, client, models.RebalanceRequest{
+		Settings: plan.Settings,
+		TaxRates: taxRates,
+	})
 	if err != nil {
 		return err
 	}

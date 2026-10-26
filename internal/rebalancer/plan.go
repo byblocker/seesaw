@@ -8,25 +8,31 @@ import (
 	"seesaw/pkg/portfolio"
 	"slices"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 func Plan(
 	snapshot portfolio.Snapshot,
-	settings config.Settings,
+	request models.RebalanceRequest,
 	broker models.BrokerSettings,
 ) (*models.RebalancePlan, error) {
-	settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
+	request.Settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
+	maxValueDeviation := snapshot.TotalValue.Mul(request.Settings.AllocationUpperLimit)
+	if request.Force {
+		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
+	}
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	var sells []models.SellProposal
 	var requests []BuyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetRequests := rebalanceAsset(asset, settings, snapshot.CreatedAt)
+		assetSells, assetRequests := rebalanceAsset(asset, request, snapshot.CreatedAt, maxValueDeviation)
 		sells = append(sells, assetSells...)
 		requests = append(requests, assetRequests...)
 	}
 
-	buys, err := sizeBuys(snapshot, settings, broker, sells, requests)
+	buys, err := sizeBuys(snapshot, request.Settings, broker, sells, requests, maxValueDeviation)
 	if err != nil {
 		return nil, err
 	}
@@ -35,12 +41,13 @@ func Plan(
 
 func rebalanceAsset(
 	asset portfolio.Asset,
-	settings config.Settings,
+	request models.RebalanceRequest,
 	tradeDate time.Time,
+	maxValueDeviation decimal.Decimal,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
 		log.Printf("Rebalancing %s: harvest only", asset.Label())
-		return harvestUnplanned(asset, settings, tradeDate), nil
+		return harvestUnplanned(asset, request.Settings, tradeDate), nil
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
@@ -51,11 +58,14 @@ func rebalanceAsset(
 		}
 	}
 
-	sell := harvestAsset(asset, settings, tradeDate)
+	sell := harvestAsset(asset, request.Settings, tradeDate)
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
 		log.Printf("CANNOT buy %s: position is overweight", asset.Label())
+		if request.Force {
+			return sellExcess(asset, request.TaxRates, tradeDate, maxValueDeviation), nil
+		}
 		return nil, nil
 	}
 
