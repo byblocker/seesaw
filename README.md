@@ -193,7 +193,7 @@ Use `broker.Connect(ctx, name)` from with a saved configuration in your OS keyri
 
 Load the YAML files with `config.LoadPlan(path)` and `config.LoadUser(path)` from `seesaw/pkg/config`, or parse any reader with `config.ParsePlan` and `config.ParseUser`.
 
-To build them in code, use the constructors. They apply the same rules as the files and return the same error messages:
+To build them in code, use the plan constructors and fill in the settings structs. The constructors and `Validate()` apply the same rules as the files and return the same error messages:
 
 ```go
 d := decimal.RequireFromString
@@ -203,14 +203,22 @@ stocks, err := config.NewAssetPlan("VTI", "ITOT", d("0.6"))
 bonds, err := config.NewAssetPlan("BND", "", d("0.4"))
 plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, []config.AssetPlan{stocks, bonds})
 
-tax, err := config.NewTaxSettings(d("0.35"), d("0.20"))
-settings, err := config.NewSettings(d("0.7"), d("-0.005"), d("0.02"), d("0.02"))
+tax := config.TaxSettings{
+	ShortTermGainRate: d("0.35"),
+	LongTermGainRate:  d("0.20"),
+}
+settings := config.Settings{
+	MinFractionalShareToRound: d("0.7"),
+	MinPctLossToHarvest:       d("-0.005"),
+	AllocationUpperLimit:      d("0.02"),
+	AllocationLowerLimit:      d("0.02"),
+}
 user, err := config.NewUser(&tax, settings) // nil tax: no taxable portfolios
 ```
 
 `NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil.
 
-Fields are exported, so you can read or change them directly; the constructors only check values when they build them. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the plan their snapshot was taken from.
+Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewUser` validates both structs, or call `Validate()` on either yourself. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the plan their snapshot was taken from.
 
 ## Development Choices
 

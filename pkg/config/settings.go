@@ -12,19 +12,15 @@ type TaxSettings struct {
 	LongTermGainRate  decimal.Decimal
 }
 
-func NewTaxSettings(shortTermGainRate, longTermGainRate decimal.Decimal) (TaxSettings, error) {
-	return taxYAML{
-		ShortTermGainRate: &shortTermGainRate,
-		LongTermGainRate:  &longTermGainRate,
-	}.build()
-}
-
 func (settings TaxSettings) Validate() error {
-	_, err := NewTaxSettings(settings.ShortTermGainRate, settings.LongTermGainRate)
+	_, err := taxYAML{
+		ShortTermGainRate: &settings.ShortTermGainRate,
+		LongTermGainRate:  &settings.LongTermGainRate,
+	}.build()
 	return err
 }
 
-// Settings as written in YAML or passed to a constructor, before they are checked.
+// Settings as written in YAML or held in a struct, before they are checked.
 // Pointers tell a missing key from an explicit zero, and the tags hold every rule.
 type taxYAML struct {
 	ShortTermGainRate *decimal.Decimal `yaml:"short_term_gain_rate" validate:"required,gte=0,lte=1"`
@@ -52,24 +48,13 @@ type Settings struct {
 	AllocationLowerLimit decimal.Decimal
 }
 
-func NewSettings(
-	minFractionalShareToRound, minPctLossToHarvest, allocationUpperLimit, allocationLowerLimit decimal.Decimal,
-) (Settings, error) {
-	return settingsYAML{
-		MinFractionalShareToRound: &minFractionalShareToRound,
-		MinPctLossToHarvest:       &minPctLossToHarvest,
-		AllocationUpperLimit:      &allocationUpperLimit,
-		AllocationLowerLimit:      &allocationLowerLimit,
-	}.build()
-}
-
 func (settings Settings) Validate() error {
-	_, err := NewSettings(
-		settings.MinFractionalShareToRound,
-		settings.MinPctLossToHarvest,
-		settings.AllocationUpperLimit,
-		settings.AllocationLowerLimit,
-	)
+	_, err := settingsYAML{
+		MinFractionalShareToRound: &settings.MinFractionalShareToRound,
+		MinPctLossToHarvest:       &settings.MinPctLossToHarvest,
+		AllocationUpperLimit:      &settings.AllocationUpperLimit,
+		AllocationLowerLimit:      &settings.AllocationLowerLimit,
+	}.build()
 	return err
 }
 
