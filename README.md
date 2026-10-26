@@ -94,7 +94,6 @@ rebalance:
 
 liquidation:
   max_pct_allocation_deviation: 0.02
-  max_excess_cash: 100
 ```
 
 | Field | Purpose | Values / constraints |
@@ -105,7 +104,6 @@ liquidation:
 | `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
 | `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
 | `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
-| `liquidation.max_excess_cash` | Maximum sale proceeds above the requested amount. Whole-share sales rarely land on the exact amount; a larger value gives the planner more room to lower estimated tax. | Non-negative number |
 
 These settings apply to every portfolio; tax rates are used only for taxable ones. All fields are required and have no defaults; explicit zeros are accepted where allowed.
 
@@ -221,7 +219,7 @@ plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, []config.AssetPla
 
 tax, err := config.NewTaxSettings(d("0.35"), d("0.20"))
 rebalance, err := config.NewRebalanceSettings(d("0.7"), d("0.02"), d("-0.005"))
-liquidation, err := config.NewLiquidationSettings(d("0.02"), d("100"))
+liquidation, err := config.NewLiquidationSettings(d("0.02"))
 user, err := config.NewUser(tax, rebalance, liquidation)
 ```
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 	"seesaw/internal/liquidation"
-	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 )
@@ -21,15 +20,7 @@ func Liquidate(
 		return nil, err
 	}
 
-	plan := liquidation.PlanFunding(snapshot.Balances, request)
-
-	if plan.MinTargetSale.IsZero() {
-		return &models.LiquidationSelection{Plan: plan}, nil
-	}
-
-	log.Printf("Selecting liquidation sales for at least %s", utils.FormatMoney(plan.MinTargetSale))
-
-	selection, err := liquidation.PlanSales(snapshot, plan)
+	selection, err := liquidation.PlanSales(snapshot, request)
 	if err != nil {
 		return nil, err
 	}

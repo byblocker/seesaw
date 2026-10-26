@@ -30,20 +30,13 @@ func (request LiquidationRequest) Validate() error {
 	return nil
 }
 
-type LiquidationPlan struct {
-	Request       LiquidationRequest
-	StartingCash  decimal.Decimal
-	MinTargetSale decimal.Decimal
-	MaxTargetSale decimal.Decimal
-}
-
 type LiquidationSelection struct {
-	Plan     *LiquidationPlan
-	Sells    []SellProposal
-	Proceeds decimal.Decimal
+	Request      LiquidationRequest
+	StartingCash decimal.Decimal
+	Sells        []SellProposal
+	Proceeds     decimal.Decimal
 }
 
 func (selection LiquidationSelection) ExpectedBalance() decimal.Decimal {
-	plan := selection.Plan
-	return plan.StartingCash.Sub(plan.Request.Amount).Add(selection.Proceeds)
+	return selection.StartingCash.Sub(selection.Request.Amount).Add(selection.Proceeds)
 }

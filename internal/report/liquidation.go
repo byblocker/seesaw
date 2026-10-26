@@ -8,8 +8,7 @@ import (
 )
 
 func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snapshot) string {
-	plan := selection.Plan
-	rates := plan.Request.TaxRates
+	rates := selection.Request.TaxRates
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
@@ -21,9 +20,9 @@ func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snap
 	}
 
 	cashFlow := [][2]string{
-		{"Cash on hand:", utils.FormatMoney(plan.StartingCash)},
+		{"Cash on hand:", utils.FormatMoney(selection.StartingCash)},
 		{"Sale proceeds:", utils.FormatMoney(selection.Proceeds)},
-		{"Withdrawal:", utils.FormatMoney(plan.Request.Amount.Neg())},
+		{"Withdrawal:", utils.FormatMoney(selection.Request.Amount.Neg())},
 		summaryRule,
 		{"Left over:", utils.FormatMoney(selection.ExpectedBalance())},
 	}

@@ -24,16 +24,17 @@ func (lot *sellableLot) saleProceeds(shares int64) decimal.Decimal {
 // Collect every lot with whole shares to sell, in plan order and by lot ID within each position.
 func collectLots(
 	snapshot portfolio.Snapshot,
-	plan *models.LiquidationPlan,
+	request models.LiquidationRequest,
+	amountNeeded decimal.Decimal,
 ) []sellableLot {
-	maxDeviation := plan.Request.Settings.MaxAllocationDeviation
-	rates := plan.Request.TaxRates
+	maxDeviation := request.Settings.MaxAllocationDeviation
+	rates := request.TaxRates
 
 	totalValue := decimal.Zero
 	for _, source := range snapshot.Assets {
 		totalValue = totalValue.Add(source.Value)
 	}
-	totalValueAfterSale := totalValue.Sub(plan.MinTargetSale)
+	totalValueAfterSale := totalValue.Sub(amountNeeded)
 
 	assets := make([]sellableAsset, len(snapshot.Assets))
 	var lots []sellableLot

@@ -96,24 +96,21 @@ func (raw rebalanceYAML) build() (RebalanceSettings, error) {
 
 type LiquidationSettings struct {
 	MaxAllocationDeviation decimal.Decimal
-	MaxExcessCash          decimal.Decimal
 }
 
-func NewLiquidationSettings(maxAllocationDeviation, maxExcessCash decimal.Decimal) (LiquidationSettings, error) {
+func NewLiquidationSettings(maxAllocationDeviation decimal.Decimal) (LiquidationSettings, error) {
 	return liquidationYAML{
 		MaxAllocationDeviation: &maxAllocationDeviation,
-		MaxExcessCash:          &maxExcessCash,
 	}.build()
 }
 
 func (settings LiquidationSettings) Validate() error {
-	_, err := NewLiquidationSettings(settings.MaxAllocationDeviation, settings.MaxExcessCash)
+	_, err := NewLiquidationSettings(settings.MaxAllocationDeviation)
 	return err
 }
 
 type liquidationYAML struct {
 	MaxAllocationDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation" validate:"required,gte=0,lte=1"`
-	MaxExcessCash          *decimal.Decimal `yaml:"max_excess_cash" validate:"required,gte=0"`
 }
 
 func (raw liquidationYAML) build() (LiquidationSettings, error) {
@@ -122,6 +119,5 @@ func (raw liquidationYAML) build() (LiquidationSettings, error) {
 	}
 	return LiquidationSettings{
 		MaxAllocationDeviation: *raw.MaxAllocationDeviation,
-		MaxExcessCash:          *raw.MaxExcessCash,
 	}, nil
 }

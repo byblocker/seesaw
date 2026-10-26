@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -80,26 +81,26 @@ func (p *testPortfolio) holding(ticker, bid string, lots ...testLot) *testPortfo
 	return p
 }
 
-func testRequest(amount, maxDeviation, maxExcessCash string, rates *config.TaxSettings) models.LiquidationRequest {
+func testRequest(amount, maxDeviation string, rates *config.TaxSettings) models.LiquidationRequest {
 	return models.LiquidationRequest{
 		Amount: decimal.RequireFromString(amount),
 		Settings: config.LiquidationSettings{
 			MaxAllocationDeviation: decimal.RequireFromString(maxDeviation),
-			MaxExcessCash:          decimal.RequireFromString(maxExcessCash),
 		},
 		TaxRates:    rates,
 		SearchLimit: 10_000_000,
 	}
 }
 
-func (p *testPortfolio) plan(request models.LiquidationRequest) *models.LiquidationPlan {
-	return PlanFunding(p.snapshot.Balances, request)
+// What PlanSales should sell for: existing cash goes first, and sales cover the rest.
+func (p *testPortfolio) amountNeeded(request models.LiquidationRequest) decimal.Decimal {
+	return utils.ClampNonNegative(request.Amount.Sub(p.snapshot.Balances.CashBalance))
 }
 
 func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationRequest) *models.LiquidationSelection {
 	t.Helper()
 
-	selection, err := PlanSales(p.snapshot, p.plan(request))
+	selection, err := PlanSales(p.snapshot, request)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +175,6 @@ func randomCase(seed int64) (*testPortfolio, models.LiquidationRequest, bool) {
 	}
 
 	deviations := []string{"0", "0.02", "0.1", "0.3"}
-	excesses := []string{"0", "3", "15", "60"}
 	var rates *config.TaxSettings
 	if random.Intn(4) != 0 {
 		rates = testTaxRates
@@ -183,13 +183,8 @@ func randomCase(seed int64) (*testPortfolio, models.LiquidationRequest, bool) {
 	if random.Intn(20) == 0 {
 		amount = price(holdingsValue, holdingsValue*1.3+1)
 	}
-	request := testRequest(
-		amount,
-		deviations[random.Intn(len(deviations))],
-		excesses[random.Intn(len(excesses))],
-		rates,
-	)
+	request := testRequest(amount, deviations[random.Intn(len(deviations))], rates)
 
-	needsSale := p.plan(request).MinTargetSale.IsPositive()
+	needsSale := p.amountNeeded(request).IsPositive()
 	return p, request, needsSale
 }
