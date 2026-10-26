@@ -33,11 +33,12 @@ Start-Process https://example.com
 
 ## Creating your portfolio plan
 
-1. Create a personal copy of the example portfolio plan:
+1. Create your user config and a portfolio plan from the examples:
 ```sh
-mkdir -p data/portfolios
-cp examples/portfolio.yaml data/portfolios/< your portfolio name here >.yaml
+go run . init < your portfolio name here >
 ```
+
+This writes `data/user.yaml`, unless it already exists, and `data/portfolios/< your portfolio name here >.yaml`. Rerun `init` with another name to add more plans.
 
 **NOTE**: `data/` holds your personal files and is ignored through `.gitignore`. The tracked examples live in `examples/`.
 
@@ -74,13 +75,7 @@ _seesaw_ rejects unknown fields and multiple documents
 
 ## User settings
 
-1. Create a personal copy of the example user config:
-```sh
-mkdir -p data
-cp examples/user.yaml data/user.yaml
-```
-
-2. Edit your local user config:
+Edit your local user config, `data/user.yaml`, created by `init`:
 
 ```yaml
 tax:
