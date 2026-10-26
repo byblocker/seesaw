@@ -100,7 +100,7 @@ liquidation:
 | `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
 | `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 
-These settings apply to every portfolio; tax rates are used only for taxable ones. All fields are required and have no defaults; explicit zeros are accepted where allowed.
+These settings apply to every portfolio. Tax rates are used only for taxable portfolios, so you can leave out the `tax` section if none of yours are taxable; _seesaw_ stops before connecting to the broker if a taxable portfolio has no rates. Every other field is required and has no default; explicit zeros are accepted where allowed.
 
 `rebalance` and `liquidate` load `data/user.yaml` before connecting to the broker.
 
@@ -208,10 +208,10 @@ plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, []config.AssetPla
 tax, err := config.NewTaxSettings(d("0.35"), d("0.20"))
 rebalance, err := config.NewRebalanceSettings(d("0.7"), d("0.02"), d("-0.005"))
 liquidation, err := config.NewLiquidationSettings(d("0.02"))
-user, err := config.NewUser(tax, rebalance, liquidation)
+user, err := config.NewUser(&tax, rebalance, liquidation) // nil tax: no taxable portfolios
 ```
 
-`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`.
+`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil.
 
 Fields are exported, so you can read or change them directly; the constructors only check values when they build them. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the plan their snapshot was taken from.
 

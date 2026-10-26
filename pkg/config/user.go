@@ -9,20 +9,23 @@ import (
 )
 
 type User struct {
-	Tax         TaxSettings
+	// Nil when no tax rates are configured; required for taxable portfolios.
+	Tax         *TaxSettings
 	Rebalance   RebalanceSettings
 	Liquidation LiquidationSettings
 }
 
 type userYAML struct {
-	Tax         taxYAML         `yaml:"tax"`
+	Tax         *taxYAML        `yaml:"tax"`
 	Rebalance   rebalanceYAML   `yaml:"rebalance"`
 	Liquidation liquidationYAML `yaml:"liquidation"`
 }
 
-func NewUser(tax TaxSettings, rebalance RebalanceSettings, liquidation LiquidationSettings) (*User, error) {
-	if err := tax.Validate(); err != nil {
-		return nil, err
+func NewUser(tax *TaxSettings, rebalance RebalanceSettings, liquidation LiquidationSettings) (*User, error) {
+	if tax != nil {
+		if err := tax.Validate(); err != nil {
+			return nil, err
+		}
 	}
 	if err := rebalance.Validate(); err != nil {
 		return nil, err
@@ -31,6 +34,16 @@ func NewUser(tax TaxSettings, rebalance RebalanceSettings, liquidation Liquidati
 		return nil, err
 	}
 	return &User{Tax: tax, Rebalance: rebalance, Liquidation: liquidation}, nil
+}
+
+func (user *User) TaxRates(isTaxable bool) (*TaxSettings, error) {
+	if !isTaxable {
+		return nil, nil
+	}
+	if user.Tax == nil {
+		return nil, fmt.Errorf("portfolio is taxable, but user config has no tax rates")
+	}
+	return user.Tax, nil
 }
 
 func LoadUser(path string) (*User, error) {
@@ -63,9 +76,13 @@ func ParseUser(file io.Reader) (*User, error) {
 		return nil, fmt.Errorf("user config must contain exactly one YAML document")
 	}
 
-	tax, err := decoded.Tax.build()
-	if err != nil {
-		return nil, err
+	var tax *TaxSettings
+	if decoded.Tax != nil {
+		built, err := decoded.Tax.build()
+		if err != nil {
+			return nil, err
+		}
+		tax = &built
 	}
 	rebalance, err := decoded.Rebalance.build()
 	if err != nil {

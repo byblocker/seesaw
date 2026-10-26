@@ -49,11 +49,15 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	taxRates, err := user.TaxRates(plan.IsTaxable)
+	if err != nil {
+		return err
+	}
 
 	request := models.LiquidationRequest{
 		Amount:   amount,
 		Settings: user.Liquidation,
-		TaxRates: taxRates(plan, user),
+		TaxRates: taxRates,
 	}
 	// Reject a bad request before the broker login, not after.
 	if err := request.Validate(); err != nil {

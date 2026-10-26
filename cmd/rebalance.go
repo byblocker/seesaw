@@ -35,6 +35,10 @@ func rebalance(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	taxRates, err := user.TaxRates(plan.IsTaxable)
+	if err != nil {
+		return err
+	}
 
 	client, err := broker.Connect(cmd.Context(), plan.Broker)
 	if err != nil {
@@ -52,7 +56,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 	}
 
 	estimated := snapshot.Simulate(orders.Sells, orders.Buys, decimal.Zero)
-	proposal := report.Proposal(orders.Sells, orders.Buys, estimated, taxRates(plan, user))
+	proposal := report.Proposal(orders.Sells, orders.Buys, estimated, taxRates)
 
 	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)

@@ -106,10 +106,3 @@ func loadUser() (*config.User, error) {
 	}
 	return user, err
 }
-
-func taxRates(plan *config.Plan, user *config.User) *config.TaxSettings {
-	if !plan.IsTaxable {
-		return nil
-	}
-	return &user.Tax
-}
