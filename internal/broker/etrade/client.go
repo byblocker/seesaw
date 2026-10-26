@@ -95,7 +95,7 @@ func (client *Client) Portfolio(
 		return err
 	})
 
-	// Concurrent requests return faster than one request listing every ticker.
+	// One request per ticker returns faster than one request listing every ticker.
 	group.Go(func() (err error) {
 		portfolio.Quotes, err = async.ForKeys(groupCtx, allTickers, client.fetchQuote)
 		return err
