@@ -8,18 +8,14 @@ import (
 )
 
 type LiquidationRequest struct {
-	Amount      decimal.Decimal
-	Settings    config.LiquidationSettings
-	TaxRates    *config.TaxSettings
-	SearchLimit int
+	Amount   decimal.Decimal
+	Settings config.LiquidationSettings
+	TaxRates *config.TaxSettings
 }
 
 func (request LiquidationRequest) Validate() error {
 	if !request.Amount.IsPositive() {
 		return fmt.Errorf("withdrawal must be positive")
-	}
-	if request.SearchLimit <= 0 {
-		return fmt.Errorf("search limit must be positive")
 	}
 	if err := request.Settings.Validate(); err != nil {
 		return err
@@ -28,30 +24,4 @@ func (request LiquidationRequest) Validate() error {
 		return request.TaxRates.Validate()
 	}
 	return nil
-}
-
-type LiquidationPlan struct {
-	Request       LiquidationRequest
-	StartingCash  decimal.Decimal
-	MinTargetSale decimal.Decimal
-	MaxTargetSale decimal.Decimal
-}
-
-type LiquidationSelection struct {
-	Plan               *LiquidationPlan
-	Sells              []SellProposal
-	Proceeds           decimal.Decimal
-	AllocationWarnings []AllocationWarning
-}
-
-func (selection LiquidationSelection) ExpectedBalance() decimal.Decimal {
-	plan := selection.Plan
-	return plan.StartingCash.Sub(plan.Request.Amount).Add(selection.Proceeds)
-}
-
-type AllocationWarning struct {
-	Asset           string
-	Allocation      decimal.Decimal
-	MinAllocAllowed decimal.Decimal
-	MaxAllocAllowed decimal.Decimal
 }

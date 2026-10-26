@@ -60,8 +60,6 @@ func writeTableRow(output *strings.Builder, row []string, widths []int, textColu
 	output.WriteByte('\n')
 }
 
-var summaryRule = [2]string{}
-
 // Align every group's labels and amounts together, separating groups with a blank line.
 func writeSummaries(output *strings.Builder, groups ...[][2]string) {
 	var labelWidth, amountWidth int
@@ -77,11 +75,6 @@ func writeSummaries(output *strings.Builder, groups ...[][2]string) {
 			output.WriteByte('\n')
 		}
 		for _, summary := range summaries {
-			if summary == summaryRule {
-				output.WriteString(strings.Repeat("_", labelWidth+1+amountWidth))
-				output.WriteByte('\n')
-				continue
-			}
 			fmt.Fprintf(output, "%-*s %*s\n", labelWidth, summary[0], amountWidth, summary[1])
 		}
 	}

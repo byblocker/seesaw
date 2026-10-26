@@ -1,7 +1,6 @@
 package trading
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"seesaw/internal/rebalancer"
@@ -11,7 +10,6 @@ import (
 )
 
 func Rebalance(
-	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	settings config.RebalanceSettings,
@@ -35,11 +33,11 @@ func Rebalance(
 		requests = append(requests, assetRequests...)
 	}
 
-	buys, remainingBalance, err := r.SizeBuys(client, snapshot, sells, requests)
+	buys, err := r.SizeBuys(client, snapshot, sells, requests)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
-	return &models.RebalancePlan{Buys: buys, Sells: sells, RemainingBalance: remainingBalance}, nil
+	return &models.RebalancePlan{Buys: buys, Sells: sells}, nil
 }

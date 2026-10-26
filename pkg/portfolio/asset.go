@@ -62,6 +62,7 @@ func groupByAsset(
 }
 
 func (asset *Asset) allocate(totalValue decimal.Decimal) {
+	asset.Allocation = decimal.Zero
 	if !totalValue.IsZero() {
 		asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
 	}

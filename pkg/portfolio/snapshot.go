@@ -75,3 +75,33 @@ func TakeSnapshot(
 		TotalValue: totalValue,
 	}, nil
 }
+
+func (snapshot Snapshot) Simulate(sells []models.SellProposal, buys []models.Buy, withdrawal decimal.Decimal) Snapshot {
+	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
+	changeByTicker := map[string]decimal.Decimal{}
+	for _, sell := range sells {
+		changeByTicker[sell.Ticker] = changeByTicker[sell.Ticker].Sub(sell.Proceeds)
+		cash = cash.Add(sell.Proceeds)
+	}
+	for _, buy := range buys {
+		changeByTicker[buy.Ticker] = changeByTicker[buy.Ticker].Add(buy.EstimatedCost)
+		cash = cash.Sub(buy.EstimatedCost)
+	}
+
+	simulated := snapshot
+	simulated.Balances.CashBalance = cash
+	simulated.Assets = slices.Clone(snapshot.Assets)
+	simulated.TotalValue = cash
+	for i := range simulated.Assets {
+		asset := &simulated.Assets[i]
+		for _, ticker := range asset.Tickers {
+			asset.Value = asset.Value.Add(changeByTicker[ticker])
+		}
+		simulated.TotalValue = simulated.TotalValue.Add(asset.Value)
+	}
+
+	for i := range simulated.Assets {
+		simulated.Assets[i].allocate(simulated.TotalValue)
+	}
+	return simulated
+}

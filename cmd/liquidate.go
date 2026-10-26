@@ -17,9 +17,8 @@ import (
 )
 
 var (
-	liquidationPlanName    string
-	liquidationAmount      string
-	liquidationSearchLimit int
+	liquidationPlanName string
+	liquidationAmount   string
 )
 
 var liquidatePortfolio = &cobra.Command{
@@ -33,7 +32,6 @@ func init() {
 	rootCmd.AddCommand(liquidatePortfolio)
 	liquidatePortfolio.Flags().StringVar(&liquidationPlanName, "portfolio", "", "name of portfolio plan")
 	liquidatePortfolio.Flags().StringVar(&liquidationAmount, "amount", "", "withdrawal amount in account currency")
-	liquidatePortfolio.Flags().IntVar(&liquidationSearchLimit, "search-limit", 100_000, "maximum search nodes before reporting an incomplete search")
 	for _, flag := range []string{"portfolio", "amount"} {
 		if err := liquidatePortfolio.MarkFlagRequired(flag); err != nil {
 			panic(err)
@@ -58,10 +56,9 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	}
 
 	request := models.LiquidationRequest{
-		Amount:      amount,
-		Settings:    user.Liquidation,
-		TaxRates:    taxRates(plan, user),
-		SearchLimit: liquidationSearchLimit,
+		Amount:   amount,
+		Settings: user.Liquidation,
+		TaxRates: taxRates(plan, user),
 	}
 	// Reject a bad request before the broker login, not after.
 	if err := request.Validate(); err != nil {
@@ -78,12 +75,14 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	selection, err := trading.Liquidate(cmd.Context(), *snapshot, request)
+	sells, err := trading.Liquidate(*snapshot, request)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*selection)); err != nil {
+	estimated := snapshot.Simulate(sells, nil, request.Amount)
+	proposal := report.Proposal(sells, nil, estimated, request.TaxRates)
+	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
 		return fmt.Errorf("write liquidation summary: %w", err)
 	}
 	return nil

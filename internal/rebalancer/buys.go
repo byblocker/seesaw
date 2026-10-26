@@ -35,7 +35,7 @@ func (r *Rebalancer) SizeBuys(
 	snapshot portfolio.Snapshot,
 	sells []models.SellProposal,
 	requests []BuyRequest,
-) ([]models.Buy, decimal.Decimal, error) {
+) ([]models.Buy, error) {
 	balance := snapshot.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
@@ -59,7 +59,7 @@ func (r *Rebalancer) SizeBuys(
 			allowFractionalShares,
 		)
 		if err != nil {
-			return nil, decimal.Zero, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
+			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
 		}
 
 		if buy.Quantity.IsZero() {
@@ -73,7 +73,7 @@ func (r *Rebalancer) SizeBuys(
 			buy.Quantity.String(), buy.Ticker, utils.FormatPrice(buy.Price), utils.FormatMoney(buy.EstimatedCost))
 		log.Printf("Remaining balance: %s", utils.FormatMoney(balance))
 	}
-	return buys, balance, nil
+	return buys, nil
 }
 
 func proposeBuy(

@@ -9,6 +9,7 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/trading"
 
+	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )
 
@@ -49,12 +50,15 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(cmd.Context(), *snapshot, client, user.Rebalance)
+	orders, err := trading.Rebalance(*snapshot, client, user.Rebalance)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Orders(*orders, taxRates(plan, user))); err != nil {
+	estimated := snapshot.Simulate(orders.Sells, orders.Buys, decimal.Zero)
+	proposal := report.Proposal(orders.Sells, orders.Buys, estimated, taxRates(plan, user))
+
+	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
 	}
 	return nil
