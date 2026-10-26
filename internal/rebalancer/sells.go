@@ -1,7 +1,6 @@
 package rebalancer
 
 import (
-	"cmp"
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
@@ -110,17 +109,10 @@ func sellExcess(
 	rates *config.TaxSettings,
 	tradeDate time.Time,
 ) []models.SellProposal {
-	var sales []models.LotSale
-	for _, position := range asset.Positions {
-		sales = append(sales, position.LotSales(tradeDate)...)
-	}
-
-	// Ties fall back to lot ID so plans repeat exactly.
-	slices.SortFunc(sales, func(left, right models.LotSale) int {
-		return cmp.Or(
-			models.CompareTaxPerDollar(taxPerShare(left, rates), left.Price, taxPerShare(right, rates), right.Price),
-			cmp.Compare(left.Lot.Id, right.Lot.Id),
-		)
+	sales := asset.LotSales(tradeDate)
+	// Ties keep plan order, then lot ID order, so plans repeat exactly.
+	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
+		return models.CompareTaxPerDollar(taxPerShare(left, rates), left.Price, taxPerShare(right, rates), right.Price)
 	})
 
 	var sold []models.LotSale

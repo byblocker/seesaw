@@ -1,9 +1,6 @@
 package liquidation
 
 import (
-	"cmp"
-	"slices"
-
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
@@ -44,22 +41,15 @@ func collectLots(
 		asset := &assets[i]
 		*asset = newSellableAsset(source, maxDeviation, totalValueAfterSale)
 
-		for _, position := range source.Positions {
-			sales := position.LotSales(snapshot.CreatedAt)
-			slices.SortFunc(sales, func(left, right models.LotSale) int {
-				return cmp.Compare(left.Lot.Id, right.Lot.Id)
-			})
-
-			for _, sale := range sales {
-				lot := sellableLot{sale: sale, asset: asset, wholeShares: sale.Quantity.Floor().IntPart()}
-				if lot.wholeShares == 0 {
-					continue
-				}
-				if rates != nil {
-					lot.taxPerShare = sale.TaxImpactPerShare(*rates)
-				}
-				lots = append(lots, lot)
+		for _, sale := range source.LotSales(snapshot.CreatedAt) {
+			lot := sellableLot{sale: sale, asset: asset, wholeShares: sale.Quantity.Floor().IntPart()}
+			if lot.wholeShares == 0 {
+				continue
 			}
+			if rates != nil {
+				lot.taxPerShare = sale.TaxImpactPerShare(*rates)
+			}
+			lots = append(lots, lot)
 		}
 	}
 
