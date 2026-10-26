@@ -24,6 +24,24 @@ type SellProposal struct {
 	RealizedPL decimal.Decimal
 }
 
+func GroupSales(sales []LotSale) []SellProposal {
+	var proposals []SellProposal
+	proposalByTicker := map[string]int{}
+
+	for _, sale := range sales {
+		i, exists := proposalByTicker[sale.Ticker]
+		if !exists {
+			i = len(proposals)
+			proposalByTicker[sale.Ticker] = i
+			proposals = append(proposals, SellProposal{Ticker: sale.Ticker, Price: sale.Price})
+		}
+
+		proposals[i].Add(sale)
+	}
+
+	return proposals
+}
+
 func (p *SellProposal) Add(sale LotSale) {
 	p.Lots = append(p.Lots, sale)
 	p.Proceeds = p.Proceeds.Add(sale.Proceeds())
