@@ -19,10 +19,11 @@ import (
 var liquidationAmount string
 
 var liquidatePortfolio = &cobra.Command{
-	Use:   "liquidate <portfolio>",
-	Short: "Plan whole-share sales to fund a withdrawal",
-	Args:  requirePlanName,
-	RunE:  liquidate,
+	Use:     "liquidate <portfolio>",
+	Short:   "Plan whole-share sales to fund a withdrawal",
+	Example: "  seesaw liquidate growth --amount 1000\n  seesaw liquidate growth -a '$1,000.50'",
+	Args:    requirePlanName,
+	RunE:    liquidate,
 }
 
 func init() {

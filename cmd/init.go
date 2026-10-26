@@ -15,10 +15,11 @@ import (
 const examplesDir = "examples"
 
 var initCmd = &cobra.Command{
-	Use:   "init <portfolio>",
-	Short: "Create the user config and a portfolio plan from the examples",
-	Args:  cobra.ExactArgs(1),
-	RunE:  initFiles,
+	Use:     "init <portfolio>",
+	Short:   "Create the user config and a portfolio plan from the examples",
+	Example: "  seesaw init growth",
+	Args:    cobra.ExactArgs(1),
+	RunE:    initFiles,
 }
 
 func init() {

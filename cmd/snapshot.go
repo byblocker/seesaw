@@ -13,10 +13,11 @@ import (
 )
 
 var snapshotPortfolio = &cobra.Command{
-	Use:   "snapshot <portfolio>",
-	Short: "Show the account's holdings against its portfolio plan",
-	Args:  requirePlanName,
-	RunE:  showSnapshot,
+	Use:     "snapshot <portfolio>",
+	Short:   "Show the account's holdings against its portfolio plan",
+	Example: "  seesaw snapshot growth",
+	Args:    requirePlanName,
+	RunE:    showSnapshot,
 }
 
 func init() {

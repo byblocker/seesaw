@@ -13,10 +13,11 @@ import (
 )
 
 var rebalancePortfolio = &cobra.Command{
-	Use:   "rebalance <portfolio>",
-	Short: "Rebalance portfolio according to portfolio plan",
-	Args:  requirePlanName,
-	RunE:  rebalance,
+	Use:     "rebalance <portfolio>",
+	Short:   "Rebalance portfolio according to portfolio plan",
+	Example: "  seesaw rebalance growth",
+	Args:    requirePlanName,
+	RunE:    rebalance,
 }
 
 func init() {

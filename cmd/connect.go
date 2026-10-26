@@ -15,10 +15,11 @@ var (
 	brokerName string
 
 	connectCmd = &cobra.Command{
-		Use:   "connect",
-		Short: "Configure and authenticate a broker",
-		Args:  cobra.NoArgs,
-		RunE:  connectBroker,
+		Use:     "connect",
+		Short:   "Configure and authenticate a broker",
+		Example: "  seesaw connect --broker ETRADE",
+		Args:    cobra.NoArgs,
+		RunE:    connectBroker,
 	}
 )
 
