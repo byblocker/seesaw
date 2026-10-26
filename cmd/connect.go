@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"seesaw/internal/broker"
 	"strings"
 
@@ -42,7 +41,7 @@ func connectBroker(cmd *cobra.Command, args []string) error {
 
 	if err := selectedBroker.Setup(ctx); err != nil {
 		if errors.Is(err, context.Canceled) {
-			log.Print("Connection setup canceled; configuration unchanged.")
+			fmt.Fprintln(cmd.ErrOrStderr(), "Connection setup canceled; configuration unchanged.")
 			return nil
 		}
 		return err
@@ -54,6 +53,6 @@ func connectBroker(cmd *cobra.Command, args []string) error {
 			"To replace the configuration, run: seesaw connect --broker %s", err, strings.ToUpper(strings.TrimSpace(brokerName)))
 	}
 
-	log.Print("Broker connected.")
+	fmt.Fprintln(cmd.ErrOrStderr(), "Broker connected.")
 	return nil
 }
