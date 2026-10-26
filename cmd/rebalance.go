@@ -13,23 +13,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var planName string
-
 var rebalancePortfolio = &cobra.Command{
-	Use:   "rebalance",
+	Use:   "rebalance <portfolio>",
 	Short: "Rebalance portfolio according to portfolio plan",
+	Args:  cobra.ExactArgs(1),
 	RunE:  rebalance,
 }
 
 func init() {
 	rootCmd.AddCommand(rebalancePortfolio)
-	rebalancePortfolio.Flags().StringVar(&planName, "portfolio", "", "name of portfolio plan")
-	if err := rebalancePortfolio.MarkFlagRequired("portfolio"); err != nil {
-		panic(err)
-	}
 }
 
 func rebalance(cmd *cobra.Command, args []string) error {
+	planName := args[0]
 	plan, err := loadPlan(planName)
 	if err != nil {
 		return err

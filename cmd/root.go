@@ -38,7 +38,7 @@ func Execute() {
 
 func loadPlan(name string) (*config.Plan, error) {
 	if strings.TrimSpace(name) == "" {
-		return nil, fmt.Errorf("--portfolio must not be empty")
+		return nil, fmt.Errorf("portfolio name must not be empty")
 	}
 
 	fileName := name + ".yaml"

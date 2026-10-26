@@ -16,26 +16,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	liquidationPlanName string
-	liquidationAmount   string
-)
+var liquidationAmount string
 
 var liquidatePortfolio = &cobra.Command{
-	Use:   "liquidate",
+	Use:   "liquidate <portfolio>",
 	Short: "Plan whole-share sales to fund a withdrawal",
-	Args:  cobra.NoArgs,
+	Args:  cobra.ExactArgs(1),
 	RunE:  liquidate,
 }
 
 func init() {
 	rootCmd.AddCommand(liquidatePortfolio)
-	liquidatePortfolio.Flags().StringVar(&liquidationPlanName, "portfolio", "", "name of portfolio plan")
 	liquidatePortfolio.Flags().StringVar(&liquidationAmount, "amount", "", "withdrawal amount in account currency")
-	for _, flag := range []string{"portfolio", "amount"} {
-		if err := liquidatePortfolio.MarkFlagRequired(flag); err != nil {
-			panic(err)
-		}
+	if err := liquidatePortfolio.MarkFlagRequired("amount"); err != nil {
+		panic(err)
 	}
 }
 
@@ -45,7 +39,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("--amount must be a decimal")
 	}
 
-	plan, err := loadPlan(liquidationPlanName)
+	plan, err := loadPlan(args[0])
 	if err != nil {
 		return err
 	}

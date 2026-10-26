@@ -118,7 +118,7 @@ Use `config.ParseUser(reader)` from `seesaw/pkg/config` to parse and validate. I
 See where your account stands without planning any trades:
 
 ```sh
-go run . snapshot --portfolio < name of your portfolio >
+go run . snapshot < name of your portfolio >
 ```
 
 A snapshot fetches your holdings and recent transactions, plus a quote for every ticker in your plan and every other ticker you hold.
@@ -127,10 +127,10 @@ A snapshot fetches your holdings and recent transactions, plus a quote for every
 
 ## Rebalance!
 
-1. Pass your portfolio filename `data/portfolios/` without `.yaml`. _seesaw_ reads files relative to your working directory.
+1. Pass the name of your portfolio plan in `data/portfolios/`, without `.yaml`. _seesaw_ reads files relative to your working directory.
 
 ```sh
-go run . rebalance --portfolio < name of your portfolio >
+go run . rebalance < name of your portfolio >
 ```
 
 2. Review the account snapshot: asset values at the bid, current and target allocations, cash balance, and portfolio total.
@@ -172,7 +172,7 @@ _seesaw_ uses recent purchases from the snapshot to help avoid wash sales; howev
 Request a withdrawal in your account's currency:
 
 ```sh
-go run . liquidate --portfolio growth --amount 1000
+go run . liquidate growth --amount 1000
 ```
 
 _seesaw_ uses existing cash first and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.

@@ -12,25 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var snapshotPlanName string
-
 var snapshotPortfolio = &cobra.Command{
-	Use:   "snapshot",
+	Use:   "snapshot <portfolio>",
 	Short: "Show the account's holdings against its portfolio plan",
-	Args:  cobra.NoArgs,
+	Args:  cobra.ExactArgs(1),
 	RunE:  showSnapshot,
 }
 
 func init() {
 	rootCmd.AddCommand(snapshotPortfolio)
-	snapshotPortfolio.Flags().StringVar(&snapshotPlanName, "portfolio", "", "name of portfolio plan")
-	if err := snapshotPortfolio.MarkFlagRequired("portfolio"); err != nil {
-		panic(err)
-	}
 }
 
 func showSnapshot(cmd *cobra.Command, args []string) error {
-	plan, err := loadPlan(snapshotPlanName)
+	plan, err := loadPlan(args[0])
 	if err != nil {
 		return err
 	}
