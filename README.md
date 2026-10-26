@@ -150,7 +150,7 @@ TICKER_C  BUY     —                5  $100.00    -$500.00         —
 ___________________________________________________________________
 ```
 
-When no trades qualify, you will see `No trades suggested.`
+When no trades qualify, you will see `No trades suggested.`, and the Estimated Portfolio matches the snapshot.
 
 4. Review the Estimated Portfolio: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost. Below the table, the balance is the cash left in the account, ready to withdraw or transfer, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief.
 

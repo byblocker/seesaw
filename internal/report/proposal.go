@@ -7,15 +7,21 @@ import (
 	"strings"
 )
 
-func Liquidation(sells []models.SellProposal, estimated portfolio.Snapshot, rates *config.TaxSettings) string {
+func Proposal(
+	sells []models.SellProposal,
+	buys []models.Buy,
+	estimated portfolio.Snapshot,
+	rates *config.TaxSettings,
+) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
 	formatted := formatSells(sells, rates)
-	if len(formatted.rows) == 0 {
-		output.WriteString("No sales required.\n\n")
+	rows := append(formatted.rows, formatBuys(buys, rates)...)
+	if len(rows) == 0 {
+		output.WriteString("No trades suggested.\n\n")
 	} else {
-		writeOrderTable(&output, "Proceeds", formatted.rows, rates)
+		writeOrderTable(&output, "Cost", rows, rates)
 	}
 
 	writeEstimatedPortfolio(&output, estimated, formatted)
