@@ -13,10 +13,11 @@ import (
 )
 
 type formattedSells struct {
-	rows              [][]string
-	realizedPL        decimal.Decimal
-	tax, relief       decimal.Decimal
-	washSale, showTax bool
+	rows                    [][]string
+	realizedPL              decimal.Decimal
+	shortTermPL, longTermPL decimal.Decimal
+	tax, relief             decimal.Decimal
+	washSale, showTax       bool
 }
 
 func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]string, rates *config.TaxSettings) {
@@ -38,6 +39,11 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 	for _, sell := range sells {
 		for _, lot := range sell.Lots {
 			realizedPL := lot.RealizedPL()
+			if lot.LongTerm {
+				result.longTermPL = result.longTermPL.Add(realizedPL)
+			} else {
+				result.shortTermPL = result.shortTermPL.Add(realizedPL)
+			}
 			row := []string{
 				sell.Ticker,
 				"SELL",

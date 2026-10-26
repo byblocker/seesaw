@@ -28,7 +28,11 @@ func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snap
 	}
 	if formatted.showTax {
 		netTax := formatted.tax.Sub(formatted.relief)
-		writeSummaries(&output, cashFlow, [][2]string{{"Estimated tax:", utils.FormatMoney(netTax)}})
+		writeSummaries(&output, cashFlow, [][2]string{
+			{"Short-term P/L:", utils.FormatMoney(formatted.shortTermPL)},
+			{"Long-term P/L:", utils.FormatMoney(formatted.longTermPL)},
+			{"Estimated tax:", utils.FormatMoney(netTax)},
+		})
 	} else {
 		writeSummaries(&output, cashFlow)
 	}
