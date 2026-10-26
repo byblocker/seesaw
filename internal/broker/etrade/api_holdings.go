@@ -49,11 +49,8 @@ type getPositionLotResponse struct {
 	} `json:"PositionLotsResponse"`
 }
 
-type Holdings struct {
-	PositionByTicker map[string]models.Position
-}
-
-func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings, error) {
+// List the account's positions by ticker, without their lots.
+func (client *Client) listPositions(ctx context.Context, account Account) (map[string]positionResponse, error) {
 	if account.key == "" {
 		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
@@ -111,8 +108,16 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		query.Set("pageNumber", strconv.Itoa(nextPage))
 	}
 
+	return byTicker, nil
+}
+
+func (client *Client) fetchLots(
+	ctx context.Context,
+	account Account,
+	byTicker map[string]positionResponse,
+) (map[string]models.Position, error) {
 	if len(byTicker) == 0 {
-		return &Holdings{PositionByTicker: map[string]models.Position{}}, nil
+		return map[string]models.Position{}, nil
 	}
 
 	stop := utils.StartTimer("Fetching tax lots for %d position(s)", len(byTicker))
@@ -120,10 +125,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		return client.fetchPosition(ctx, account.key, pos)
 	})
 	stop(err)
-	if err != nil {
-		return nil, err
-	}
-	return &Holdings{PositionByTicker: positions}, nil
+	return positions, err
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {
