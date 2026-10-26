@@ -27,7 +27,7 @@ var liquidatePortfolio = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(liquidatePortfolio)
-	liquidatePortfolio.Flags().StringVar(&liquidationAmount, "amount", "", "withdrawal amount in account currency")
+	liquidatePortfolio.Flags().StringVarP(&liquidationAmount, "amount", "a", "", "withdrawal amount in account currency")
 	if err := liquidatePortfolio.MarkFlagRequired("amount"); err != nil {
 		panic(err)
 	}

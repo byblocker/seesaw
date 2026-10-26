@@ -170,7 +170,7 @@ Request a withdrawal in your account's currency:
 go run . liquidate growth --amount 1000
 ```
 
-`--amount` also accepts a leading `$` and commas between thousands, such as `'$1,000.50'`. Quote amounts that start with `$` so your shell does not expand them.
+`-a` is short for `--amount`. Either accepts a leading `$` and commas between thousands, such as `'$1,000.50'`. Quote amounts that start with `$` so your shell does not expand them.
 
 _seesaw_ uses existing cash first and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
