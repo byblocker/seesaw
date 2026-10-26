@@ -116,16 +116,9 @@ func (client *Client) fetchLots(
 	account Account,
 	byTicker map[string]positionResponse,
 ) (map[string]models.Position, error) {
-	if len(byTicker) == 0 {
-		return map[string]models.Position{}, nil
-	}
-
-	stop := utils.StartTimer("Fetching tax lots for %d position(s)", len(byTicker))
-	positions, err := async.ForValues(ctx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
+	return async.ForValues(ctx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
 		return client.fetchPosition(ctx, account.key, pos)
 	})
-	stop(err)
-	return positions, err
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {

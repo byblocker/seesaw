@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"maps"
-	"seesaw/internal/async"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"golang.org/x/sync/errgroup"
 )
 
 type Client struct {
@@ -58,25 +58,10 @@ func (client *Client) Portfolio(
 		return nil, err
 	}
 
-	positions, err := client.fetchLots(ctx, selected, byTicker)
-	if err != nil {
-		return nil, err
-	}
-
-	balances, err := client.Balances(ctx, selected)
-	if err != nil {
-		return nil, err
-	}
-
-	portfolio := &models.Portfolio{
-		Balances:         balances,
-		PositionByTicker: positions,
-	}
-
 	// Include any held tickers along with the planned tickers
 	allTickers := collections.SetFrom(
 		slices.Values(tickers),
-		maps.Keys(portfolio.PositionByTicker),
+		maps.Keys(byTicker),
 	).Slice()
 
 	end := time.Now()
@@ -87,22 +72,29 @@ func (client *Client) Portfolio(
 		end.Format(time.DateOnly),
 	)
 
-	stop := utils.StartTimer("Fetching transactions for %d account(s)", len(accounts))
-	historyByAccount, err := async.ForKeys(ctx, accounts, func(ctx context.Context, account Account) (models.RecentTxByTicker, error) {
-		history, err := client.Transactions(ctx, account, start, end, allTickers)
-		if err != nil {
-			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
-		}
-		return history, nil
+	// One timer covers every request below, since concurrent timers would interleave their lines.
+	portfolio := &models.Portfolio{}
+	stop := utils.StartTimer("Fetching tax lots, balances, and transactions")
+	group, groupCtx := errgroup.WithContext(ctx)
+
+	group.Go(func() (err error) {
+		portfolio.PositionByTicker, err = client.fetchLots(groupCtx, selected, byTicker)
+		return err
 	})
+
+	group.Go(func() (err error) {
+		portfolio.Balances, err = client.Balances(groupCtx, selected)
+		return err
+	})
+
+	group.Go(func() (err error) {
+		portfolio.RecentTx, err = client.AllRecentTx(groupCtx, accounts, start, end, allTickers)
+		return err
+	})
+	err = group.Wait()
 	stop(err)
 	if err != nil {
 		return nil, err
-	}
-
-	portfolio.RecentTx = make(models.RecentTxByTicker)
-	for _, account := range accounts {
-		portfolio.RecentTx.Append(historyByAccount[account])
 	}
 
 	return portfolio, nil

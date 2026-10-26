@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/async"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
@@ -29,6 +30,30 @@ type transactionResponse struct {
 		} `json:"Transaction"`
 		NextPage string `json:"next"`
 	} `json:"TransactionListResponse"`
+}
+
+func (client *Client) AllRecentTx(
+	ctx context.Context,
+	accounts []Account,
+	start, end time.Time,
+	tickers []string,
+) (models.RecentTxByTicker, error) {
+	byAccount, err := async.ForKeys(ctx, accounts, func(ctx context.Context, account Account) (models.RecentTxByTicker, error) {
+		history, err := client.Transactions(ctx, account, start, end, tickers)
+		if err != nil {
+			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
+		}
+		return history, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	merged := make(models.RecentTxByTicker)
+	for _, account := range accounts {
+		merged.Append(byAccount[account])
+	}
+	return merged, nil
 }
 
 func (client *Client) Transactions(
