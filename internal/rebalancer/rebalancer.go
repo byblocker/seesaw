@@ -10,21 +10,37 @@ import (
 	"time"
 )
 
-type Rebalancer struct {
-	settings config.Settings
+func Plan(
+	snapshot portfolio.Snapshot,
+	settings config.Settings,
+	broker models.BrokerSettings,
+) (*models.RebalancePlan, error) {
+	settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
+
+	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
+	var sells []models.SellProposal
+	var requests []BuyRequest
+	for _, asset := range snapshot.Assets {
+		assetSells, assetRequests := rebalanceAsset(asset, settings, snapshot.CreatedAt)
+		sells = append(sells, assetSells...)
+		requests = append(requests, assetRequests...)
+	}
+
+	buys, err := sizeBuys(snapshot, settings, broker, sells, requests)
+	if err != nil {
+		return nil, err
+	}
+	return &models.RebalancePlan{Buys: buys, Sells: sells}, nil
 }
 
-func New(settings config.Settings) *Rebalancer {
-	return &Rebalancer{settings: settings}
-}
-
-func (r *Rebalancer) RebalanceAsset(
+func rebalanceAsset(
 	asset portfolio.Asset,
+	settings config.Settings,
 	tradeDate time.Time,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
 		log.Printf("Rebalancing %s: harvest only", asset.Label())
-		return r.harvestUnplanned(asset, tradeDate), nil
+		return harvestUnplanned(asset, settings, tradeDate), nil
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
@@ -35,7 +51,7 @@ func (r *Rebalancer) RebalanceAsset(
 		}
 	}
 
-	sell := r.harvestAsset(asset, tradeDate)
+	sell := harvestAsset(asset, settings, tradeDate)
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
@@ -63,8 +79,9 @@ func (r *Rebalancer) RebalanceAsset(
 
 // We should not force liquidation of unplanned positions while rebalancing,
 // but we should eagerly harvest any tax-loss these positions have accrued.
-func (r *Rebalancer) harvestUnplanned(
+func harvestUnplanned(
 	asset portfolio.Asset,
+	settings config.Settings,
 	tradeDate time.Time,
 ) []models.SellProposal {
 	if !slices.ContainsFunc(asset.Positions, hasLoss) {
@@ -77,7 +94,7 @@ func (r *Rebalancer) harvestUnplanned(
 		if !hasLoss(position) {
 			continue
 		}
-		if sell := r.harvestPosition(position, tradeDate); !sell.IsEmpty() {
+		if sell := harvestPosition(position, settings, tradeDate); !sell.IsEmpty() {
 			sell.LogProceeds()
 			sells = append(sells, sell)
 		}

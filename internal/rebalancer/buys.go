@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
@@ -30,9 +31,10 @@ func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decima
 	return BuyRequest{}, false
 }
 
-func (r *Rebalancer) SizeBuys(
-	client models.BrokerClient,
+func sizeBuys(
 	snapshot portfolio.Snapshot,
+	settings config.Settings,
+	broker models.BrokerSettings,
 	sells []models.SellProposal,
 	requests []BuyRequest,
 ) ([]models.Buy, error) {
@@ -40,8 +42,7 @@ func (r *Rebalancer) SizeBuys(
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
 	}
-	maxValueDeviationAllowed := snapshot.TotalValue.Mul(r.settings.AllocationUpperLimit)
-	allowFractionalShares := client.Settings().AllowFractionalShares
+	maxValueDeviationAllowed := snapshot.TotalValue.Mul(settings.AllocationUpperLimit)
 
 	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
 	var buys []models.Buy
@@ -55,8 +56,8 @@ func (r *Rebalancer) SizeBuys(
 			request,
 			balance,
 			maxValueDeviationAllowed,
-			r.settings.MinFractionalShareToRound,
-			allowFractionalShares,
+			settings.MinFractionalShareToRound,
+			broker.AllowFractionalShares,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
