@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"seesaw/internal/async"
 	"seesaw/internal/collections"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -80,13 +82,22 @@ func (client *Client) Portfolio(
 		end.Format(time.DateOnly),
 	)
 
-	portfolio.RecentTx = make(models.RecentTxByTicker)
-	for _, account := range accounts {
+	stop := utils.StartTimer("Fetching transactions for %d account(s)", len(accounts))
+	historyByAccount, err := async.ForKeys(ctx, accounts, func(ctx context.Context, account Account) (models.RecentTxByTicker, error) {
 		history, err := client.Transactions(ctx, account, start, end, allTickers)
 		if err != nil {
 			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
 		}
-		portfolio.RecentTx.Append(history)
+		return history, nil
+	})
+	stop(err)
+	if err != nil {
+		return nil, err
+	}
+
+	portfolio.RecentTx = make(models.RecentTxByTicker)
+	for _, account := range accounts {
+		portfolio.RecentTx.Append(historyByAccount[account])
 	}
 
 	return portfolio, nil

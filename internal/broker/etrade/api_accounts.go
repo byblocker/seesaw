@@ -18,10 +18,6 @@ type Account struct {
 
 func (account Account) ID() string { return account.id }
 
-func (account Account) maskedID() string {
-	return account.id[len(account.id)-4:]
-}
-
 type accountResponse struct {
 	Id     string `json:"accountId" validate:"min=4"`
 	Key    string `json:"accountIdKey" validate:"required"`
