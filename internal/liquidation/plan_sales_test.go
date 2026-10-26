@@ -17,14 +17,14 @@ func TestUnderweightAssetIsNotSold(t *testing.T) {
 		asset("0.75", "VOO").
 		asset("0.25", "STIP", "VTIP")
 
-	selection := p.planSales(t, testRequest("7000", "0.10", testTaxRates))
+	sells := p.planSales(t, testRequest("7000", "0.10", testTaxRates))
 
-	for _, sell := range selection.Sells {
+	for _, sell := range sells {
 		if sell.Ticker != "VOO" {
 			t.Errorf("sold %s from the underweight asset", sell.Ticker)
 		}
 	}
-	if proceeds := soldProceeds(selection); !proceeds.Equal(decimal.NewFromInt(7000)) {
+	if proceeds := soldProceeds(sells); !proceeds.Equal(decimal.NewFromInt(7000)) {
 		t.Errorf("proceeds %s, want 7000", proceeds)
 	}
 }
@@ -36,10 +36,10 @@ func TestSellsLossesBeforeGains(t *testing.T) {
 		asset("0.5", "GAIN").
 		asset("0.5", "LOSS")
 
-	selection := p.planSales(t, testRequest("500", "0.5", testTaxRates))
+	sells := p.planSales(t, testRequest("500", "0.5", testTaxRates))
 
-	if len(selection.Sells) != 1 || selection.Sells[0].Ticker != "LOSS" {
-		t.Errorf("sold %+v, want only LOSS", selection.Sells)
+	if len(sells) != 1 || sells[0].Ticker != "LOSS" {
+		t.Errorf("sold %+v, want only LOSS", sells)
 	}
 }
 
@@ -48,9 +48,9 @@ func TestDoesNotSellExtraLosses(t *testing.T) {
 		holding("LOSS", "100", testLot{"50", "150", 24}).
 		asset("1", "LOSS")
 
-	selection := p.planSales(t, testRequest("1000", "0", testTaxRates))
+	sells := p.planSales(t, testRequest("1000", "0", testTaxRates))
 
-	if proceeds := soldProceeds(selection); !proceeds.Equal(decimal.NewFromInt(1000)) {
+	if proceeds := soldProceeds(sells); !proceeds.Equal(decimal.NewFromInt(1000)) {
 		t.Errorf("proceeds %s, want exactly the 1000 requested", proceeds)
 	}
 }
@@ -62,10 +62,10 @@ func TestSellsUnplannedHoldingsFirst(t *testing.T) {
 		asset("1", "PLANNED").
 		asset("", "UNPLANNED")
 
-	selection := p.planSales(t, testRequest("300", "1", testTaxRates))
+	sells := p.planSales(t, testRequest("300", "1", testTaxRates))
 
 	var got []string
-	for _, sell := range selection.Sells {
+	for _, sell := range sells {
 		for _, sale := range sell.Lots {
 			got = append(got, sell.Ticker+" x"+sale.Quantity.String())
 		}
@@ -126,7 +126,7 @@ func TestPlanSalesOnRandomPortfolios(t *testing.T) {
 		}
 
 		amountNeeded := p.amountNeeded(request)
-		selection, err := PlanSales(p.snapshot, request)
+		sells, err := PlanSales(p.snapshot, request)
 		switch {
 		case p.wholeShareValue().LessThan(amountNeeded):
 			if err == nil || !strings.Contains(err.Error(), "whole-share holdings can raise at most") {
@@ -143,7 +143,7 @@ func TestPlanSalesOnRandomPortfolios(t *testing.T) {
 			for _, quote := range p.quotes {
 				highestBid = decimal.Max(highestBid, quote.Bid)
 			}
-			checkSelection(t, seed, p, request, amountNeeded.Add(highestBid), selection)
+			checkSelection(t, seed, p, request, amountNeeded.Add(highestBid), sells)
 			plans++
 		}
 	}
@@ -163,12 +163,12 @@ func checkSelection(
 	p *testPortfolio,
 	request models.LiquidationRequest,
 	maxSale decimal.Decimal,
-	selection *models.LiquidationSelection,
+	sells []models.SellProposal,
 ) {
 	t.Helper()
 
 	proceeds := decimal.Zero
-	for _, proposal := range selection.Sells {
+	for _, proposal := range sells {
 		if !proposal.Price.IsPositive() {
 			t.Fatalf("seed %d: sells %s at %s", seed, proposal.Ticker, proposal.Price)
 		}
@@ -186,9 +186,9 @@ func checkSelection(
 	}
 }
 
-func soldProceeds(selection *models.LiquidationSelection) decimal.Decimal {
+func soldProceeds(sells []models.SellProposal) decimal.Decimal {
 	proceeds := decimal.Zero
-	for _, sell := range selection.Sells {
+	for _, sell := range sells {
 		proceeds = proceeds.Add(sell.Proceeds)
 	}
 	return proceeds

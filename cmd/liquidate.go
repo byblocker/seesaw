@@ -75,13 +75,13 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	selection, err := trading.Liquidate(cmd.Context(), *snapshot, request)
+	sells, err := trading.Liquidate(*snapshot, request)
 	if err != nil {
 		return err
 	}
 
-	estimated := snapshot.Simulate(selection.Sells, nil, selection.Request.Amount)
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*selection, estimated)); err != nil {
+	estimated := snapshot.Simulate(sells, nil, request.Amount)
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(sells, estimated, request.TaxRates)); err != nil {
 		return fmt.Errorf("write liquidation summary: %w", err)
 	}
 	return nil

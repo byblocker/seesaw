@@ -96,14 +96,14 @@ func (p *testPortfolio) amountNeeded(request models.LiquidationRequest) decimal.
 	return utils.ClampNonNegative(request.Amount.Sub(p.snapshot.Balances.CashBalance))
 }
 
-func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationRequest) *models.LiquidationSelection {
+func (p *testPortfolio) planSales(t testing.TB, request models.LiquidationRequest) []models.SellProposal {
 	t.Helper()
 
-	selection, err := PlanSales(p.snapshot, request)
+	sells, err := PlanSales(p.snapshot, request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return selection
+	return sells
 }
 
 // Add up every whole share the portfolio could sell, without going through the planner,

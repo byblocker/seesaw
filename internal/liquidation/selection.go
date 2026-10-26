@@ -14,13 +14,11 @@ import (
 func PlanSales(
 	snapshot portfolio.Snapshot,
 	request models.LiquidationRequest,
-) (*models.LiquidationSelection, error) {
-	result := &models.LiquidationSelection{Request: request}
-
+) ([]models.SellProposal, error) {
 	// Use existing cash first, and sell only for the rest of the withdrawal.
 	amountNeeded := utils.ClampNonNegative(request.Amount.Sub(snapshot.Balances.CashBalance))
 	if amountNeeded.IsZero() {
-		return result, nil
+		return nil, nil
 	}
 
 	log.Printf("Selecting liquidation sales for at least %s", utils.FormatMoney(amountNeeded))
@@ -54,6 +52,5 @@ func PlanSales(
 		proposals[i].Add(sale)
 	}
 
-	result.Sells = proposals
-	return result, nil
+	return proposals, nil
 }

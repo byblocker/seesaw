@@ -1,17 +1,17 @@
 package report
 
 import (
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"strings"
 )
 
-func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snapshot) string {
-	rates := selection.Request.TaxRates
+func Liquidation(sells []models.SellProposal, estimated portfolio.Snapshot, rates *config.TaxSettings) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
-	formatted := formatSells(selection.Sells, rates)
+	formatted := formatSells(sells, rates)
 	if len(formatted.rows) == 0 {
 		output.WriteString("No sales required.\n\n")
 	} else {

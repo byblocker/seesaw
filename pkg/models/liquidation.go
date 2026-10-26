@@ -25,8 +25,3 @@ func (request LiquidationRequest) Validate() error {
 	}
 	return nil
 }
-
-type LiquidationSelection struct {
-	Request LiquidationRequest
-	Sells   []SellProposal
-}

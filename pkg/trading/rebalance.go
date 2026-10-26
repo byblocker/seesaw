@@ -1,7 +1,6 @@
 package trading
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"seesaw/internal/rebalancer"
@@ -11,7 +10,6 @@ import (
 )
 
 func Rebalance(
-	ctx context.Context,
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	settings config.RebalanceSettings,
