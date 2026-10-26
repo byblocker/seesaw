@@ -3,6 +3,7 @@ package rebalancer
 import (
 	"log"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
@@ -11,8 +12,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func (r *Rebalancer) harvestAsset(
+func harvestAsset(
 	asset portfolio.Asset,
+	settings config.Settings,
 	tradeDate time.Time,
 ) models.SellProposal {
 	if !slices.ContainsFunc(asset.Positions, hasLoss) {
@@ -29,7 +31,7 @@ func (r *Rebalancer) harvestAsset(
 			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
-		sell := r.harvestPosition(position, tradeDate)
+		sell := harvestPosition(position, settings, tradeDate)
 		if sell.IsEmpty() {
 			continue
 		}
@@ -53,8 +55,9 @@ func hasReplacement(asset portfolio.Asset, ticker string) bool {
 	})
 }
 
-func (r *Rebalancer) harvestPosition(
+func harvestPosition(
 	position portfolio.Position,
+	settings config.Settings,
 	tradeDate time.Time,
 ) models.SellProposal {
 	ticker := position.Ticker
@@ -63,7 +66,7 @@ func (r *Rebalancer) harvestPosition(
 		return models.SellProposal{}
 	}
 
-	minPctLoss := r.settings.MinPctLossToHarvest
+	minPctLoss := settings.MinPctLossToHarvest
 	sales := position.LotSales(tradeDate)
 	candidate := models.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
 	for _, sale := range sales {
@@ -97,4 +100,36 @@ func logLot(sale models.LotSale, harvest bool) {
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
 		action, sale.Quantity, sale.Lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct().Neg()))
+}
+
+// Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
+func sellExcess(
+	asset portfolio.Asset,
+	excess decimal.Decimal,
+	rates *config.TaxSettings,
+	tradeDate time.Time,
+) []models.SellProposal {
+	sales := asset.LotSales(tradeDate)
+	// Ties keep plan order, then lot ID order, so plans repeat exactly.
+	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
+		return models.CompareTaxPerDollar(left.TaxImpactPerShare(rates), left.Price, right.TaxImpactPerShare(rates), right.Price)
+	})
+
+	var sold []models.LotSale
+	remaining := excess
+	for _, sale := range sales {
+		maxShares, _ := remaining.QuoRem(sale.Price, 0)
+		sale.Quantity = decimal.Min(sale.Quantity.Floor(), maxShares)
+		if !sale.Quantity.IsPositive() {
+			continue
+		}
+		sold = append(sold, sale)
+		remaining = remaining.Sub(sale.Proceeds())
+	}
+
+	proposals := models.GroupSales(sold)
+	for _, proposal := range proposals {
+		proposal.LogProceeds()
+	}
+	return proposals
 }

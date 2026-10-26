@@ -40,17 +40,5 @@ func PlanSales(
 		return nil, err
 	}
 
-	var proposals []models.SellProposal
-	proposalByTicker := map[string]int{}
-	for _, sale := range sales {
-		i, ok := proposalByTicker[sale.Ticker]
-		if !ok {
-			i = len(proposals)
-			proposalByTicker[sale.Ticker] = i
-			proposals = append(proposals, models.SellProposal{Ticker: sale.Ticker, Price: sale.Price})
-		}
-		proposals[i].Add(sale)
-	}
-
-	return proposals, nil
+	return models.GroupSales(sales), nil
 }

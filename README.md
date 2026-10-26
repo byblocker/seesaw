@@ -73,7 +73,7 @@ All fields below are required except `assets[].alternate_ticker`. None have defa
 | `is_taxable` | Is the account taxable? | `true` or `false`. |
 | `settings.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
 | `settings.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
-| `settings.allocation_upper_limit` | How far `rebalance` may lift an asset above its target when rounding a buy up to a whole share, measured against the portfolio before trading and limited by buying power. | `[0, 1]` |
+| `settings.allocation_upper_limit` | How far `rebalance` may lift an asset above its target when rounding a buy up to a whole share, measured against the portfolio before trading and limited by buying power. With `rebalance --force`, also how far an asset may drift above its target before it is sold back down. | `[0, 1]` |
 | `settings.allocation_lower_limit` | How far `liquidate` may sell an asset below its target, measured against the portfolio after the withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
@@ -153,12 +153,27 @@ Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`,
 
 `rebalance` fetches a snapshot of your account and then . . .
 1. Assigns positions to `Assets` according to the provided portfolio plan;
-2. Identifies lots with tax loss and simulates sales, if any;
+2. Identifies lots with tax loss and simulates sales, if any, in taxable portfolios only;
 3. Sizes purchases using available cash balance and proceeds from suggested sells
 
-For any holdings outside of the planned positions, _seesaw_ will attempt to harvest any tax-loss; it does not force liquidation to reduce tax liability. Similarly, _seesaw_ will not force liquidation of overweight assets to reduce allocation.
+By default, _seesaw_ only harvests tax losses from holdings outside the plan, and it does not sell overweight assets to reduce their allocation. Use `--force` to sell both.
+
+Portfolios with `is_taxable: false` skip tax-loss harvesting: a loss there brings no tax relief, and buying the replacement ticker could disallow a loss in one of your taxable accounts as a wash sale.
 
 _seesaw_ uses recent purchases from the snapshot to help avoid wash sales; however, the available transaction history is limited to a single broker. Review its setup guide for coverage and limitations. Avoid wash-sales by ensuring different portfolios use different securities.
+
+### Forced Rebalance
+
+```sh
+go run . rebalance < name of your portfolio > --force
+```
+
+With `--force` (`-f`), _seesaw_ also . . .
+1. Sells each planned asset more than `settings.allocation_upper_limit` above its target down to its target, in whole shares, so it may stay up to one share above;
+2. Sells every whole share of holdings outside the plan;
+3. Adds the proceeds to the cash used to size purchases for underweight assets. Proceeds beyond what those purchases need stay as cash.
+
+It sells the lots with the lowest estimated tax per dollar raised first, so taxable portfolios sell the deepest losses first and the smallest gains last; without tax rates, lots sell in lot order. Fractional shares are not sold. Review each sale's estimated tax in taxable portfolios: `--force` suits tax-advantaged accounts best.
 
 ## Liquidate!
 

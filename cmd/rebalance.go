@@ -6,22 +6,26 @@ import (
 	"log"
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
+	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
 
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )
 
+var forceRebalance bool
+
 var rebalancePortfolio = &cobra.Command{
 	Use:     "rebalance <portfolio>",
 	Short:   "Rebalance portfolio according to portfolio plan",
-	Example: "  seesaw rebalance growth",
+	Example: "  seesaw rebalance growth\n  seesaw rebalance retirement --force",
 	Args:    requirePlanName,
 	RunE:    rebalance,
 }
 
 func init() {
 	rootCmd.AddCommand(rebalancePortfolio)
+	rebalancePortfolio.Flags().BoolVarP(&forceRebalance, "force", "f", false, "sell overweight assets and holdings outside the plan to fund underweight assets")
 }
 
 func rebalance(cmd *cobra.Command, args []string) error {
@@ -50,7 +54,11 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(*snapshot, client, plan.Settings)
+	orders, err := trading.Rebalance(*snapshot, client, models.RebalanceRequest{
+		Settings: plan.Settings,
+		TaxRates: taxRates,
+		Force:    forceRebalance,
+	})
 	if err != nil {
 		return err
 	}

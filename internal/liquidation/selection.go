@@ -61,12 +61,8 @@ func compareLots(left, right sellableLot) int {
 		return -1
 	}
 
-	// Compare exactly across share prices by scaling tax per share with the bid price
-	leftScaled := left.taxPerShare.Mul(right.sale.Price)
-	rightScaled := right.taxPerShare.Mul(left.sale.Price)
-
 	return cmp.Or(
-		leftScaled.Cmp(rightScaled),
+		models.CompareTaxPerDollar(left.taxPerShare, left.sale.Price, right.taxPerShare, right.sale.Price),
 		// Ties go to the most overweight asset
 		right.asset.drift.Cmp(left.asset.drift),
 	)

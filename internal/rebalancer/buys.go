@@ -4,22 +4,23 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
 )
 
-type BuyRequest struct {
+type buyRequest struct {
 	Ticker string
 	Amount decimal.Decimal
 	Ask    decimal.Decimal
 }
 
-func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (BuyRequest, bool) {
+func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
 	for _, position := range asset.Positions {
 		if position.Ticker != sell.Ticker && !position.RecentlySold {
-			return BuyRequest{
+			return buyRequest{
 				Ticker: position.Ticker,
 				Amount: shortfall,
 				Ask:    position.Quote.Ask,
@@ -27,21 +28,21 @@ func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decima
 		}
 	}
 
-	return BuyRequest{}, false
+	return buyRequest{}, false
 }
 
-func (r *Rebalancer) SizeBuys(
-	client models.BrokerClient,
+func sizeBuys(
 	snapshot portfolio.Snapshot,
+	settings config.Settings,
+	broker models.BrokerSettings,
 	sells []models.SellProposal,
-	requests []BuyRequest,
+	requests []buyRequest,
+	maxValueDeviation decimal.Decimal,
 ) ([]models.Buy, error) {
 	balance := snapshot.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
 	}
-	maxValueDeviationAllowed := snapshot.TotalValue.Mul(r.settings.AllocationUpperLimit)
-	allowFractionalShares := client.Settings().AllowFractionalShares
 
 	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
 	var buys []models.Buy
@@ -54,9 +55,9 @@ func (r *Rebalancer) SizeBuys(
 		buy, err := proposeBuy(
 			request,
 			balance,
-			maxValueDeviationAllowed,
-			r.settings.MinFractionalShareToRound,
-			allowFractionalShares,
+			maxValueDeviation,
+			settings.MinFractionalShareToRound,
+			broker.AllowFractionalShares,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
@@ -77,7 +78,7 @@ func (r *Rebalancer) SizeBuys(
 }
 
 func proposeBuy(
-	req BuyRequest,
+	req buyRequest,
 	balance,
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
@@ -122,7 +123,7 @@ func proposeBuy(
 	return req.buy(rounded), nil
 }
 
-func (req BuyRequest) buy(quantity decimal.Decimal) models.Buy {
+func (req buyRequest) buy(quantity decimal.Decimal) models.Buy {
 	return models.Buy{
 		Ticker:        req.Ticker,
 		Price:         req.Ask,

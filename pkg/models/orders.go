@@ -24,6 +24,24 @@ type SellProposal struct {
 	RealizedPL decimal.Decimal
 }
 
+func GroupSales(sales []LotSale) []SellProposal {
+	var proposals []SellProposal
+	proposalByTicker := map[string]int{}
+
+	for _, sale := range sales {
+		i, exists := proposalByTicker[sale.Ticker]
+		if !exists {
+			i = len(proposals)
+			proposalByTicker[sale.Ticker] = i
+			proposals = append(proposals, SellProposal{Ticker: sale.Ticker, Price: sale.Price})
+		}
+
+		proposals[i].Add(sale)
+	}
+
+	return proposals
+}
+
 func (p *SellProposal) Add(sale LotSale) {
 	p.Lots = append(p.Lots, sale)
 	p.Proceeds = p.Proceeds.Add(sale.Proceeds())
@@ -71,8 +89,9 @@ func NewLotSale(
 	}
 }
 
-func (sale LotSale) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal {
-	if sale.IsWashSale {
+// Zero without rates, as for an account that is not taxable.
+func (sale LotSale) TaxImpactPerShare(rates *config.TaxSettings) decimal.Decimal {
+	if rates == nil || sale.IsWashSale {
 		return decimal.Zero
 	}
 
@@ -81,6 +100,11 @@ func (sale LotSale) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal 
 		rate = rates.LongTermGainRate
 	}
 	return sale.GainPerShare.Mul(rate)
+}
+
+// Compare tax per dollar raised exactly across share prices by scaling each tax per share with the other price.
+func CompareTaxPerDollar(leftTaxPerShare, leftPrice, rightTaxPerShare, rightPrice decimal.Decimal) int {
+	return leftTaxPerShare.Mul(rightPrice).Cmp(rightTaxPerShare.Mul(leftPrice))
 }
 
 func (sale LotSale) Proceeds() decimal.Decimal {
@@ -102,5 +126,5 @@ func (sale LotSale) GainPct() decimal.Decimal {
 }
 
 func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
-	return sale.Quantity.Mul(sale.TaxImpactPerShare(rates))
+	return sale.Quantity.Mul(sale.TaxImpactPerShare(&rates))
 }

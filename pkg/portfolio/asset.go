@@ -1,12 +1,14 @@
 package portfolio
 
 import (
+	"cmp"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -28,6 +30,19 @@ func (asset Asset) Label() string {
 		return "OTHER"
 	}
 	return strings.Join(asset.Tickers, " / ")
+}
+
+// Every lot of the asset at the bid, in position order and by lot ID within each position.
+func (asset Asset) LotSales(saleDate time.Time) []models.LotSale {
+	var sales []models.LotSale
+	for _, position := range asset.Positions {
+		positionSales := position.LotSales(saleDate)
+		slices.SortFunc(positionSales, func(left, right models.LotSale) int {
+			return cmp.Compare(left.Lot.Id, right.Lot.Id)
+		})
+		sales = append(sales, positionSales...)
+	}
+	return sales
 }
 
 func groupByAsset(
