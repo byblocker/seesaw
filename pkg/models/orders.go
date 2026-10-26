@@ -89,8 +89,9 @@ func NewLotSale(
 	}
 }
 
-func (sale LotSale) TaxImpactPerShare(rates config.TaxSettings) decimal.Decimal {
-	if sale.IsWashSale {
+// Zero without rates, as for an account that is not taxable.
+func (sale LotSale) TaxImpactPerShare(rates *config.TaxSettings) decimal.Decimal {
+	if rates == nil || sale.IsWashSale {
 		return decimal.Zero
 	}
 
@@ -125,5 +126,5 @@ func (sale LotSale) GainPct() decimal.Decimal {
 }
 
 func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
-	return sale.Quantity.Mul(sale.TaxImpactPerShare(rates))
+	return sale.Quantity.Mul(sale.TaxImpactPerShare(&rates))
 }

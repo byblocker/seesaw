@@ -112,7 +112,7 @@ func sellExcess(
 	sales := asset.LotSales(tradeDate)
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
-		return models.CompareTaxPerDollar(taxPerShare(left, rates), left.Price, taxPerShare(right, rates), right.Price)
+		return models.CompareTaxPerDollar(left.TaxImpactPerShare(rates), left.Price, right.TaxImpactPerShare(rates), right.Price)
 	})
 
 	var sold []models.LotSale
@@ -132,11 +132,4 @@ func sellExcess(
 		proposal.LogProceeds()
 	}
 	return proposals
-}
-
-func taxPerShare(sale models.LotSale, rates *config.TaxSettings) decimal.Decimal {
-	if rates == nil {
-		return decimal.Zero
-	}
-	return sale.TaxImpactPerShare(*rates)
 }
