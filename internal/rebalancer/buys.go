@@ -11,16 +11,16 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type BuyRequest struct {
+type buyRequest struct {
 	Ticker string
 	Amount decimal.Decimal
 	Ask    decimal.Decimal
 }
 
-func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (BuyRequest, bool) {
+func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
 	for _, position := range asset.Positions {
 		if position.Ticker != sell.Ticker && !position.RecentlySold {
-			return BuyRequest{
+			return buyRequest{
 				Ticker: position.Ticker,
 				Amount: shortfall,
 				Ask:    position.Quote.Ask,
@@ -28,7 +28,7 @@ func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decima
 		}
 	}
 
-	return BuyRequest{}, false
+	return buyRequest{}, false
 }
 
 func sizeBuys(
@@ -36,7 +36,7 @@ func sizeBuys(
 	settings config.Settings,
 	broker models.BrokerSettings,
 	sells []models.SellProposal,
-	requests []BuyRequest,
+	requests []buyRequest,
 	maxValueDeviation decimal.Decimal,
 ) ([]models.Buy, error) {
 	balance := snapshot.Balances.BuyingPower
@@ -78,7 +78,7 @@ func sizeBuys(
 }
 
 func proposeBuy(
-	req BuyRequest,
+	req buyRequest,
 	balance,
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
@@ -123,7 +123,7 @@ func proposeBuy(
 	return req.buy(rounded), nil
 }
 
-func (req BuyRequest) buy(quantity decimal.Decimal) models.Buy {
+func (req buyRequest) buy(quantity decimal.Decimal) models.Buy {
 	return models.Buy{
 		Ticker:        req.Ticker,
 		Price:         req.Ask,

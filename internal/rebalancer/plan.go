@@ -25,7 +25,7 @@ func Plan(
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	var sells []models.SellProposal
-	var requests []BuyRequest
+	var requests []buyRequest
 	for _, asset := range snapshot.Assets {
 		assetSells, assetRequests := rebalanceAsset(asset, request, snapshot.CreatedAt, maxValueDeviation)
 		sells = append(sells, assetSells...)
@@ -44,7 +44,7 @@ func rebalanceAsset(
 	request models.RebalanceRequest,
 	tradeDate time.Time,
 	maxValueDeviation decimal.Decimal,
-) ([]models.SellProposal, []BuyRequest) {
+) ([]models.SellProposal, []buyRequest) {
 	if asset.Plan == nil {
 		if request.Force {
 			log.Printf("Rebalancing %s: sell all", asset.Label())
@@ -90,9 +90,9 @@ func rebalanceAsset(
 	}
 	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), buy.Ticker)
 	if sell.IsEmpty() {
-		return nil, []BuyRequest{buy}
+		return nil, []buyRequest{buy}
 	}
-	return []models.SellProposal{sell}, []BuyRequest{buy}
+	return []models.SellProposal{sell}, []buyRequest{buy}
 }
 
 // Unless forced, we should not liquidate unplanned positions while rebalancing,
