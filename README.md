@@ -170,6 +170,8 @@ Request a withdrawal in your account's currency:
 go run . liquidate growth --amount 1000
 ```
 
+`--amount` also accepts a leading `$` and commas between thousands, such as `'$1,000.50'`. Quote amounts that start with `$` so your shell does not expand them.
+
 _seesaw_ uses existing cash first and proposes whole-share sales for any shortfall. Fractional holdings still count toward allocation, but are not sold.
 
 The planner sells holdings outside your plan first. Within each group, it ranks lots by their estimated tax per dollar raised, so lots compare fairly across share prices, and sells the lowest first. For taxable portfolios, that sells the deepest losses first and the smallest gains last, weighing each lot at its short- or long-term rate. Ties go to the asset furthest above its target, then follow your plan's asset order.

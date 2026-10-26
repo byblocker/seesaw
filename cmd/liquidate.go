@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"regexp"
 	"seesaw/internal/report"
 	"seesaw/internal/utils"
 	"seesaw/pkg/broker"
@@ -33,9 +34,9 @@ func init() {
 }
 
 func liquidate(cmd *cobra.Command, args []string) error {
-	amount, err := decimal.NewFromString(strings.TrimSpace(liquidationAmount))
+	amount, err := parseAmount(liquidationAmount)
 	if err != nil {
-		return fmt.Errorf("--amount must be a decimal")
+		return err
 	}
 
 	plan, err := loadPlan(args[0])
@@ -79,4 +80,15 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("write liquidation summary: %w", err)
 	}
 	return nil
+}
+
+var amountPattern = regexp.MustCompile(`^\$?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$`)
+
+func parseAmount(text string) (decimal.Decimal, error) {
+	trimmed := strings.TrimSpace(text)
+	if !amountPattern.MatchString(trimmed) {
+		return decimal.Zero, fmt.Errorf("--amount must be a number, such as 1000 or '$1,000.50'; got %q", text)
+	}
+	cleaned := strings.ReplaceAll(strings.TrimPrefix(trimmed, "$"), ",", "")
+	return decimal.NewFromString(cleaned)
 }
