@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"seesaw/internal/async"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
@@ -26,15 +25,6 @@ type quoteResponse struct {
 			All quoteResponsePrices `json:"All"`
 		} `json:"QuoteData"`
 	} `json:"QuoteResponse"`
-}
-
-// Concurrent requests return faster than one request listing every ticker.
-func (client *Client) QuoteAll(ctx context.Context, tickers []string) (map[string]models.Quote, error) {
-	stop := utils.StartTimer("Fetching quotes for %d ticker(s)", len(tickers))
-	quotes, err := async.ForKeys(ctx, tickers, client.fetchQuote)
-	stop(err)
-
-	return quotes, err
 }
 
 func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quote, error) {

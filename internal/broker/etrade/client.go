@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"seesaw/internal/async"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
@@ -74,7 +75,7 @@ func (client *Client) Portfolio(
 
 	// One timer covers every request below, since concurrent timers would interleave their lines.
 	portfolio := &models.Portfolio{}
-	stop := utils.StartTimer("Fetching tax lots, balances, and transactions")
+	stop := utils.StartTimer("Fetching tax lots, balances, transactions, and quotes")
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	group.Go(func() (err error) {
@@ -91,13 +92,15 @@ func (client *Client) Portfolio(
 		portfolio.RecentTx, err = client.AllRecentTx(groupCtx, accounts, start, end, allTickers)
 		return err
 	})
+
+	// Concurrent requests return faster than one request listing every ticker.
+	group.Go(func() (err error) {
+		portfolio.Quotes, err = async.ForKeys(groupCtx, allTickers, client.fetchQuote)
+		return err
+	})
+
 	err = group.Wait()
 	stop(err)
-	if err != nil {
-		return nil, err
-	}
-
-	portfolio.Quotes, err = client.QuoteAll(ctx, allTickers)
 	if err != nil {
 		return nil, err
 	}
