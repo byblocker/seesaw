@@ -183,6 +183,11 @@ func (client *Client) fetchPosition(
 		return models.Position{}, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 	}
 
+	// A position without lots would look like zero shares to the rebalancer.
+	if len(response.PositionLotsResponse.PositionLots) == 0 {
+		return models.Position{}, fmt.Errorf("no lots returned for position %d (%s)", pos.Id, pos.Ticker)
+	}
+
 	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
 		if err := utils.ValidateFields(lot, "lot."); err != nil {
