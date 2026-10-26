@@ -64,6 +64,10 @@ func (client *Client) Transactions(
 		"endDate":   {end.Format(dateFormat)},
 	}
 	endpoint += "?" + query.Encode()
+	firstPage, err := url.Parse(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("parse transactions endpoint: %w", err)
+	}
 
 	tickerSet := collections.NewSet(tickers...)
 	visitedPages := collections.NewSet[string]()
@@ -104,6 +108,11 @@ func (client *Client) Transactions(
 		endpoint = response.Page.NextPage
 		if endpoint == "" {
 			break
+		}
+		// The client signs every request, so only follow pages of this endpoint.
+		nextPage, err := url.Parse(endpoint)
+		if err != nil || nextPage.Scheme != firstPage.Scheme || nextPage.Host != firstPage.Host || nextPage.Path != firstPage.Path {
+			return nil, fmt.Errorf("transaction next page is outside the transactions endpoint")
 		}
 	}
 
