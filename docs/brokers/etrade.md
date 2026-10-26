@@ -26,7 +26,7 @@ Use `broker: ETRADE` and your ETRADE account number as `accountId` in your portf
 
 Re-run `connect` to replace credentials or change the endpoint. If a configuration currently exits, _seesaw_ will ask before overwriting it. Changing credentials requires a new OAuth sign-in.
 
-If authentication fails after saving, re-run `connect` to replace it.
+If authentication fails after saving, run `seesaw snapshot <portfolio>` to retry sign-in with the saved configuration, or re-run `connect` to replace it.
 
 ## Authentication
 

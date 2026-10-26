@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"seesaw/internal/broker"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -47,7 +48,9 @@ func connectBroker(cmd *cobra.Command, args []string) error {
 	}
 
 	if _, err := selectedBroker.Connect(ctx); err != nil {
-		return fmt.Errorf("configuration saved, but authentication failed; retry with rebalance or rerun connect to replace the configuration: %w", err)
+		return fmt.Errorf("configuration saved, but authentication failed: %w\n"+
+			"To retry sign-in, run: seesaw snapshot <portfolio>\n"+
+			"To replace the configuration, run: seesaw connect --broker %s", err, strings.ToUpper(strings.TrimSpace(brokerName)))
 	}
 
 	log.Print("Broker connected.")
