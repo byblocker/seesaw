@@ -190,12 +190,6 @@ Review the proposed lots and the totals: cash on hand plus sale proceeds, minus 
 
 The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `liquidation.max_pct_allocation_deviation` to allow more. It does not return an unfinished proposal.
 
-Typical requests finish in a few thousand nodes, well under a second. The default budget of 100,000 nodes leaves wide headroom while keeping a hard request from running for long. Rarely, a large request across many cheap and expensive shares needs more; raise the budget for that request:
-
-```sh
-go run . liquidate --portfolio growth --amount 60000 --search-limit 5000000
-```
-
 Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
 
 ## Library Usage

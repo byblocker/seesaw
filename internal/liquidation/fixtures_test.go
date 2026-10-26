@@ -87,8 +87,7 @@ func testRequest(amount, maxDeviation string, rates *config.TaxSettings) models.
 		Settings: config.LiquidationSettings{
 			MaxAllocationDeviation: decimal.RequireFromString(maxDeviation),
 		},
-		TaxRates:    rates,
-		SearchLimit: 10_000_000,
+		TaxRates: rates,
 	}
 }
 

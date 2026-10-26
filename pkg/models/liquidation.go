@@ -8,18 +8,14 @@ import (
 )
 
 type LiquidationRequest struct {
-	Amount      decimal.Decimal
-	Settings    config.LiquidationSettings
-	TaxRates    *config.TaxSettings
-	SearchLimit int
+	Amount   decimal.Decimal
+	Settings config.LiquidationSettings
+	TaxRates *config.TaxSettings
 }
 
 func (request LiquidationRequest) Validate() error {
 	if !request.Amount.IsPositive() {
 		return fmt.Errorf("withdrawal must be positive")
-	}
-	if request.SearchLimit <= 0 {
-		return fmt.Errorf("search limit must be positive")
 	}
 	if err := request.Settings.Validate(); err != nil {
 		return err
