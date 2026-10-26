@@ -28,7 +28,7 @@ type taxYAML struct {
 }
 
 func (raw taxYAML) build() (TaxSettings, error) {
-	if err := validateSettings(raw, "tax"); err != nil {
+	if err := utils.ValidateFields(raw, "tax."); err != nil {
 		return TaxSettings{}, err
 	}
 	return TaxSettings{
@@ -78,7 +78,7 @@ type settingsYAML struct {
 }
 
 func (raw settingsYAML) build() (Settings, error) {
-	if err := validateSettings(raw, "settings"); err != nil {
+	if err := utils.ValidateFields(raw, "settings."); err != nil {
 		return Settings{}, err
 	}
 	return Settings{

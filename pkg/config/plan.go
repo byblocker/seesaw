@@ -7,6 +7,7 @@ import (
 	"iter"
 	"os"
 	"seesaw/internal/collections"
+	"seesaw/internal/utils"
 	"slices"
 	"strings"
 
@@ -69,7 +70,7 @@ func newAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Deci
 		AltTicker:        strings.TrimSpace(altTicker),
 		TargetAllocation: targetAllocation,
 	}
-	if err := validateFields(asset, fieldPrefix); err != nil {
+	if err := utils.ValidateFields(asset, fieldPrefix); err != nil {
 		return AssetPlan{}, err
 	}
 	return asset, nil
@@ -79,8 +80,10 @@ func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
-	if err := validateAssets(assets); err != nil {
-		return nil, err
+	for i, asset := range assets {
+		if err := utils.ValidateFields(asset, fmt.Sprintf("assets[%d].", i)); err != nil {
+			return nil, err
+		}
 	}
 	if err := validateAllocations(assets); err != nil {
 		return nil, err

@@ -1,4 +1,4 @@
-package config
+package utils
 
 import (
 	"errors"
@@ -10,9 +10,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var settingsValidator = newSettingsValidator()
+var validate = newValidator()
 
-func newSettingsValidator() *validator.Validate {
+func newValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
 
 	v.RegisterTagNameFunc(func(field reflect.StructField) string {
@@ -28,30 +28,15 @@ func newSettingsValidator() *validator.Validate {
 	return v
 }
 
-func validateSettings(settings any, section string) error {
-	return validateFields(settings, section+".")
-}
-
-func validateFields(value any, prefix string) error {
-	return describeFieldError(settingsValidator.Struct(value), func(fieldError validator.FieldError) string {
-		return prefix + fieldError.Field()
-	})
-}
-
-func validateAssets(assets []AssetPlan) error {
-	return describeFieldError(settingsValidator.Var(assets, "dive"), func(fieldError validator.FieldError) string {
-		return "assets" + fieldError.Namespace()
-	})
-}
-
-func describeFieldError(err error, nameOf func(validator.FieldError) string) error {
+func ValidateFields(value any, prefix string) error {
+	err := validate.Struct(value)
 	var fieldErrors validator.ValidationErrors
 	if !errors.As(err, &fieldErrors) {
 		return err
 	}
 
 	fieldError := fieldErrors[0]
-	name := nameOf(fieldError)
+	name := prefix + fieldError.Field()
 
 	switch fieldError.ActualTag() {
 	case "required":
