@@ -3,10 +3,8 @@ tax:
   short_term_gain_rate: 0.35
   long_term_gain_rate: 0.20
 
-rebalance:
+settings:
   min_fractional_share_to_round: 0.7
-  allocation_upper_limit: 0.02
   min_pct_loss_to_harvest: -0.005
-
-liquidation:
+  allocation_upper_limit: 0.02
   allocation_lower_limit: 0.02

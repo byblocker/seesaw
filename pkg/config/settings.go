@@ -41,31 +41,39 @@ func (raw taxYAML) build() (TaxSettings, error) {
 	}, nil
 }
 
-type RebalanceSettings struct {
+type Settings struct {
 	// Minimum remainder to round a whole-share purchase up.
 	MinFractionalShareToRound decimal.Decimal
-	// How far rounding a buy up may lift an asset above its target, as a fraction of total portfolio value.
-	AllocationUpperLimit decimal.Decimal
 	// Loss threshold expressed as a nonpositive fraction of the lot's cost.
 	MinPctLossToHarvest decimal.Decimal
+	// How far rounding a buy up may lift an asset above its target, as a fraction of total portfolio value.
+	AllocationUpperLimit decimal.Decimal
+	// How far a sale may drop an asset below its target, as a fraction of the portfolio after the withdrawal.
+	AllocationLowerLimit decimal.Decimal
 }
 
-func NewRebalanceSettings(
-	minFractionalShareToRound, allocationUpperLimit, minPctLossToHarvest decimal.Decimal,
-) (RebalanceSettings, error) {
-	return rebalanceYAML{
+func NewSettings(
+	minFractionalShareToRound, minPctLossToHarvest, allocationUpperLimit, allocationLowerLimit decimal.Decimal,
+) (Settings, error) {
+	return settingsYAML{
 		MinFractionalShareToRound: &minFractionalShareToRound,
-		AllocationUpperLimit:      &allocationUpperLimit,
 		MinPctLossToHarvest:       &minPctLossToHarvest,
+		AllocationUpperLimit:      &allocationUpperLimit,
+		AllocationLowerLimit:      &allocationLowerLimit,
 	}.build()
 }
 
-func (settings RebalanceSettings) Validate() error {
-	_, err := NewRebalanceSettings(settings.MinFractionalShareToRound, settings.AllocationUpperLimit, settings.MinPctLossToHarvest)
+func (settings Settings) Validate() error {
+	_, err := NewSettings(
+		settings.MinFractionalShareToRound,
+		settings.MinPctLossToHarvest,
+		settings.AllocationUpperLimit,
+		settings.AllocationLowerLimit,
+	)
 	return err
 }
 
-func (settings RebalanceSettings) Log(totalValue decimal.Decimal, allowFractionalShares bool) {
+func (settings Settings) Log(totalValue decimal.Decimal, allowFractionalShares bool) {
 	log.Print("Rebalance settings:")
 	log.Printf("  - Harvest losses of %s or more", utils.FormatPercent(settings.MinPctLossToHarvest.Neg()))
 	if allowFractionalShares {
@@ -77,48 +85,21 @@ func (settings RebalanceSettings) Log(totalValue decimal.Decimal, allowFractiona
 	log.Printf("  - Allow at most %s above target (~%s)", utils.FormatPercent(settings.AllocationUpperLimit), utils.FormatMoney(maxOvershoot))
 }
 
-type rebalanceYAML struct {
+type settingsYAML struct {
 	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round" validate:"required,gte=0,lte=1"`
-	AllocationUpperLimit      *decimal.Decimal `yaml:"allocation_upper_limit" validate:"required,gte=0,lte=1"`
 	MinPctLossToHarvest       *decimal.Decimal `yaml:"min_pct_loss_to_harvest" validate:"required,gte=-1,lte=0"`
+	AllocationUpperLimit      *decimal.Decimal `yaml:"allocation_upper_limit" validate:"required,gte=0,lte=1"`
+	AllocationLowerLimit      *decimal.Decimal `yaml:"allocation_lower_limit" validate:"required,gte=0,lte=1"`
 }
 
-func (raw rebalanceYAML) build() (RebalanceSettings, error) {
-	if err := validateSettings(raw, "rebalance"); err != nil {
-		return RebalanceSettings{}, err
+func (raw settingsYAML) build() (Settings, error) {
+	if err := validateSettings(raw, "settings"); err != nil {
+		return Settings{}, err
 	}
-	return RebalanceSettings{
+	return Settings{
 		MinFractionalShareToRound: *raw.MinFractionalShareToRound,
-		AllocationUpperLimit:      *raw.AllocationUpperLimit,
 		MinPctLossToHarvest:       *raw.MinPctLossToHarvest,
-	}, nil
-}
-
-type LiquidationSettings struct {
-	// How far a sale may drop an asset below its target, as a fraction of the portfolio after the withdrawal.
-	AllocationLowerLimit decimal.Decimal
-}
-
-func NewLiquidationSettings(allocationLowerLimit decimal.Decimal) (LiquidationSettings, error) {
-	return liquidationYAML{
-		AllocationLowerLimit: &allocationLowerLimit,
-	}.build()
-}
-
-func (settings LiquidationSettings) Validate() error {
-	_, err := NewLiquidationSettings(settings.AllocationLowerLimit)
-	return err
-}
-
-type liquidationYAML struct {
-	AllocationLowerLimit *decimal.Decimal `yaml:"allocation_lower_limit" validate:"required,gte=0,lte=1"`
-}
-
-func (raw liquidationYAML) build() (LiquidationSettings, error) {
-	if err := validateSettings(raw, "liquidation"); err != nil {
-		return LiquidationSettings{}, err
-	}
-	return LiquidationSettings{
-		AllocationLowerLimit: *raw.AllocationLowerLimit,
+		AllocationUpperLimit:      *raw.AllocationUpperLimit,
+		AllocationLowerLimit:      *raw.AllocationLowerLimit,
 	}, nil
 }

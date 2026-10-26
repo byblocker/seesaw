@@ -12,7 +12,7 @@ import (
 func Rebalance(
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
-	settings config.RebalanceSettings,
+	settings config.Settings,
 ) (*models.RebalancePlan, error) {
 	if err := settings.Validate(); err != nil {
 		return nil, err

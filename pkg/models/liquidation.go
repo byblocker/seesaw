@@ -9,7 +9,7 @@ import (
 
 type LiquidationRequest struct {
 	Amount   decimal.Decimal
-	Settings config.LiquidationSettings
+	Settings config.Settings
 	TaxRates *config.TaxSettings
 }
 

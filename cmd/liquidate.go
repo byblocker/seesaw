@@ -56,7 +56,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 
 	request := models.LiquidationRequest{
 		Amount:   amount,
-		Settings: user.Liquidation,
+		Settings: user.Settings,
 		TaxRates: taxRates,
 	}
 	// Reject a bad request before the broker login, not after.

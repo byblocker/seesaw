@@ -44,7 +44,7 @@ func selectLots(lots []sellableLot, amountNeeded decimal.Decimal) ([]models.LotS
 
 	if proceeds.LessThan(amountNeeded) {
 		return nil, fmt.Errorf(
-			"sales within allocation minimums raise at most $%s of the $%s needed; increase liquidation.allocation_lower_limit",
+			"sales within allocation minimums raise at most $%s of the $%s needed; increase settings.allocation_lower_limit",
 			proceeds.StringFixed(2), amountNeeded.StringFixed(2),
 		)
 	}

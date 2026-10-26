@@ -11,10 +11,10 @@ import (
 )
 
 type Rebalancer struct {
-	settings config.RebalanceSettings
+	settings config.Settings
 }
 
-func New(settings config.RebalanceSettings) *Rebalancer {
+func New(settings config.Settings) *Rebalancer {
 	return &Rebalancer{settings: settings}
 }
 
