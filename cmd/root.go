@@ -3,7 +3,9 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"seesaw/pkg/config"
@@ -17,6 +19,8 @@ const (
 	userConfigPath = "data/user.yaml"
 )
 
+var verbose bool
+
 var rootCmd = &cobra.Command{
 	Use:           "seesaw",
 	Short:         "Seesaw: An investment portfolio rebalancing engine",
@@ -25,6 +29,15 @@ var rootCmd = &cobra.Command{
 	CompletionOptions: cobra.CompletionOptions{
 		HiddenDefaultCmd: true,
 	},
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if !verbose {
+			log.SetOutput(io.Discard)
+		}
+	},
+}
+
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "show progress logs")
 }
 
 func Execute() {

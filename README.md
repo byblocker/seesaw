@@ -149,7 +149,7 @@ When no trades qualify, you will see `No trades suggested.`, and the Estimated P
 
 4. Review the Estimated Portfolio: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost. Below the table, the balance is the cash left in the account, ready to withdraw or transfer, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief.
 
-Rebalance logs show quote fetching for the snapshot, each asset's tax-loss and purchase decisions with the reasons for skipped trades, purchase sizing, and final trade counts.
+Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`, they show quote fetching for the snapshot, each asset's tax-loss and purchase decisions with the reasons for skipped trades, purchase sizing, and final trade counts.
 
 ### Rebalance Behavior
 
