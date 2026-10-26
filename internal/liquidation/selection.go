@@ -35,14 +35,14 @@ func PlanSales(
 		)
 	}
 
-	selection, err := selectLots(lots, amountNeeded)
+	sales, err := selectLots(lots, amountNeeded)
 	if err != nil {
 		return nil, err
 	}
 
 	var proposals []models.SellProposal
 	proposalByTicker := map[string]int{}
-	for _, sale := range selection.sales {
+	for _, sale := range sales {
 		i, ok := proposalByTicker[sale.Ticker]
 		if !ok {
 			i = len(proposals)

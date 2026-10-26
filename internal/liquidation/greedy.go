@@ -10,22 +10,18 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type lotSelection struct {
-	sales    []models.LotSale
-	proceeds decimal.Decimal
-}
-
-func selectLots(lots []sellableLot, minSale decimal.Decimal) (lotSelection, error) {
+func selectLots(lots []sellableLot, minSale decimal.Decimal) ([]models.LotSale, error) {
 	// Remaining ties keep plan order, then lot ID order, from collectLots, so plans repeat exactly.
 	slices.SortStableFunc(lots, compareLots)
-	var selection lotSelection
+	var sales []models.LotSale
+	proceeds := decimal.Zero
 
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
 	for i := range lots {
 		lot := &lots[i]
 		asset, bid := lot.asset, lot.sale.Price
 
-		amountNeeded := minSale.Sub(selection.proceeds)
+		amountNeeded := minSale.Sub(proceeds)
 		sharesToSell := min(lot.wholeShares, sharesNeeded(amountNeeded, bid))
 
 		if asset.isPlanned {
@@ -39,21 +35,21 @@ func selectLots(lots []sellableLot, minSale decimal.Decimal) (lotSelection, erro
 
 		sale := lot.sale
 		sale.Quantity = decimal.NewFromInt(sharesToSell)
-		selection.sales = append(selection.sales, sale)
+		sales = append(sales, sale)
 
-		proceeds := lot.saleProceeds(sharesToSell)
-		selection.proceeds = selection.proceeds.Add(proceeds)
-		asset.sold = asset.sold.Add(proceeds)
+		saleProceeds := lot.saleProceeds(sharesToSell)
+		proceeds = proceeds.Add(saleProceeds)
+		asset.sold = asset.sold.Add(saleProceeds)
 	}
 
-	if selection.proceeds.LessThan(minSale) {
-		return lotSelection{}, fmt.Errorf(
+	if proceeds.LessThan(minSale) {
+		return nil, fmt.Errorf(
 			"sales within allocation minimums raise at most $%s of the $%s needed; increase liquidation.max_pct_allocation_deviation",
-			selection.proceeds.StringFixed(2), minSale.StringFixed(2),
+			proceeds.StringFixed(2), minSale.StringFixed(2),
 		)
 	}
 
-	return selection, nil
+	return sales, nil
 }
 
 func compareLots(left, right sellableLot) int {
