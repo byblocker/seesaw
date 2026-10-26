@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	portfolioDir   = "./data/portfolios"
-	userConfigPath = "./data/user.yaml"
+	portfolioDir   = "data/portfolios"
+	userConfigPath = "data/user.yaml"
 )
 
 var rootCmd = &cobra.Command{

@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const examplesDir = "./examples"
+const examplesDir = "examples"
 
 var initCmd = &cobra.Command{
 	Use:   "init <portfolio>",
