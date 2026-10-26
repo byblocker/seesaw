@@ -4,6 +4,7 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"slices"
 	"strings"
 )
 
@@ -17,7 +18,7 @@ func Proposal(
 	output.WriteString("\nSuggested Orders\n\n")
 
 	formatted := formatSells(sells, rates)
-	rows := append(formatted.rows, formatBuys(buys, rates)...)
+	rows := slices.Concat(formatted.rows, formatBuys(buys, rates))
 	if len(rows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
