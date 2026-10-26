@@ -50,7 +50,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(*snapshot, client, user.Settings)
+	orders, err := trading.Rebalance(*snapshot, client, plan.Settings)
 	if err != nil {
 		return err
 	}

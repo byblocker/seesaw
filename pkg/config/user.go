@@ -10,25 +10,20 @@ import (
 
 type User struct {
 	// Nil when no tax rates are configured; required for taxable portfolios.
-	Tax      *TaxSettings
-	Settings Settings
+	Tax *TaxSettings
 }
 
 type userYAML struct {
-	Tax      *taxYAML     `yaml:"tax"`
-	Settings settingsYAML `yaml:"settings"`
+	Tax *taxYAML `yaml:"tax"`
 }
 
-func NewUser(tax *TaxSettings, settings Settings) (*User, error) {
+func NewUser(tax *TaxSettings) (*User, error) {
 	if tax != nil {
 		if err := tax.Validate(); err != nil {
 			return nil, err
 		}
 	}
-	if err := settings.Validate(); err != nil {
-		return nil, err
-	}
-	return &User{Tax: tax, Settings: settings}, nil
+	return &User{Tax: tax}, nil
 }
 
 func (user *User) TaxRates(isTaxable bool) (*TaxSettings, error) {
@@ -59,7 +54,8 @@ func ParseUser(file io.Reader) (*User, error) {
 	var decoded userYAML
 	decoder := yaml.NewDecoder(file)
 	decoder.KnownFields(true)
-	if err := decoder.Decode(&decoded); err != nil {
+	// An empty file is a config with no tax rates.
+	if err := decoder.Decode(&decoded); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("failed to parse user config: %w", err)
 	}
 
@@ -79,9 +75,5 @@ func ParseUser(file io.Reader) (*User, error) {
 		}
 		tax = &built
 	}
-	settings, err := decoded.Settings.build()
-	if err != nil {
-		return nil, err
-	}
-	return NewUser(tax, settings)
+	return NewUser(tax)
 }

@@ -2,6 +2,12 @@ broker: YOUR_BROKER_NAME
 accountId: "YOUR_ACCOUNT_ID"
 is_taxable: true
 
+settings:
+  min_fractional_share_to_round: 0.7
+  min_pct_loss_to_harvest: -0.005
+  allocation_upper_limit: 0.02
+  allocation_lower_limit: 0.02
+
 assets:
   - primary_ticker: TICKER_A
     alternate_ticker: TICKER_B

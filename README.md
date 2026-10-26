@@ -49,6 +49,12 @@ broker: YOUR_BROKER_NAME
 accountId: "YOUR_ACCOUNT_ID"
 is_taxable: true
 
+settings:
+  min_fractional_share_to_round: 0.7
+  min_pct_loss_to_harvest: -0.005
+  allocation_upper_limit: 0.02
+  allocation_lower_limit: 0.02
+
 assets:
   - primary_ticker: TICKER_A
     alternate_ticker: TICKER_B
@@ -58,13 +64,17 @@ assets:
     target_allocation: 0.25
 ```
 
-All fields below are required except `assets[].alternate_ticker`.
+All fields below are required except `assets[].alternate_ticker`. None have defaults; explicit zeros are accepted where allowed.
 
 | Field | Purpose | Values / constraints |
 | --- | --- | --- |
 | `broker` | Name of a supported brokerage | `ETRADE` |
 | `accountId` | Brokerage account number. | String |
 | `is_taxable` | Is the account taxable? | `true` or `false`. |
+| `settings.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
+| `settings.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
+| `settings.allocation_upper_limit` | How far `rebalance` may lift an asset above its target when rounding a buy up to a whole share, measured against the portfolio before trading and limited by buying power. | `[0, 1]` |
+| `settings.allocation_lower_limit` | How far `liquidate` may sell an asset below its target, measured against the portfolio after the withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
 | `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `[0, 1]` |
@@ -81,24 +91,14 @@ Edit your local user config, `data/user.yaml`, created by `init`:
 tax:
   short_term_gain_rate: 0.35
   long_term_gain_rate: 0.20
-
-settings:
-  min_fractional_share_to_round: 0.7
-  min_pct_loss_to_harvest: -0.005
-  allocation_upper_limit: 0.02
-  allocation_lower_limit: 0.02
 ```
 
 | Field | Purpose | Values / constraints |
 | --- | --- | --- |
 | `tax.short_term_gain_rate` | Combined marginal tax rate used to estimate tax on short-term gains, including federal, state, and any additional taxes. | `[0, 1]` |
 | `tax.long_term_gain_rate` | Combined marginal tax rate used to estimate tax on long-term gains, including federal, state, and any additional taxes. | `[0, 1]` |
-| `settings.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
-| `settings.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
-| `settings.allocation_upper_limit` | How far `rebalance` may lift an asset above its target when rounding a buy up to a whole share, measured against the portfolio before trading and limited by buying power. | `[0, 1]` |
-| `settings.allocation_lower_limit` | How far `liquidate` may sell an asset below its target, measured against the portfolio after the withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 
-These settings apply to every portfolio. Tax rates are used only for taxable portfolios, so you can leave out the `tax` section if none of yours are taxable; _seesaw_ stops before connecting to the broker if a taxable portfolio has no rates. Every other field is required and has no default; explicit zeros are accepted where allowed.
+These rates apply to every portfolio. They are used only for taxable portfolios, so you can leave out the `tax` section, leaving the file empty, if none of yours are taxable; _seesaw_ stops before connecting to the broker if a taxable portfolio has no rates.
 
 `rebalance` and `liquidate` load `data/user.yaml` before connecting to the broker.
 
@@ -199,26 +199,26 @@ To build them in code, use the plan constructors and fill in the settings struct
 d := decimal.RequireFromString
 
 // Check each err before continuing.
-stocks, err := config.NewAssetPlan("VTI", "ITOT", d("0.6"))
-bonds, err := config.NewAssetPlan("BND", "", d("0.4"))
-plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, []config.AssetPlan{stocks, bonds})
-
-tax := config.TaxSettings{
-	ShortTermGainRate: d("0.35"),
-	LongTermGainRate:  d("0.20"),
-}
 settings := config.Settings{
 	MinFractionalShareToRound: d("0.7"),
 	MinPctLossToHarvest:       d("-0.005"),
 	AllocationUpperLimit:      d("0.02"),
 	AllocationLowerLimit:      d("0.02"),
 }
-user, err := config.NewUser(&tax, settings) // nil tax: no taxable portfolios
+stocks, err := config.NewAssetPlan("VTI", "ITOT", d("0.6"))
+bonds, err := config.NewAssetPlan("BND", "", d("0.4"))
+plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, settings, []config.AssetPlan{stocks, bonds})
+
+tax := config.TaxSettings{
+	ShortTermGainRate: d("0.35"),
+	LongTermGainRate:  d("0.20"),
+}
+user, err := config.NewUser(&tax) // nil tax: no taxable portfolios
 ```
 
 `NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil.
 
-Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewUser` validates both structs, or call `Validate()` on either yourself. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the plan their snapshot was taken from.
+Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
 
 ## Development Choices
 

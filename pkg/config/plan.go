@@ -18,14 +18,16 @@ type Plan struct {
 	Broker    string
 	AccountId string
 	IsTaxable bool
+	Settings  Settings
 	Assets    []AssetPlan
 }
 
 type planYAML struct {
-	Broker    string      `yaml:"broker"`
-	AccountId string      `yaml:"accountId"`
-	IsTaxable *bool       `yaml:"is_taxable"`
-	Assets    []AssetPlan `yaml:"assets"`
+	Broker    string       `yaml:"broker"`
+	AccountId string       `yaml:"accountId"`
+	IsTaxable *bool        `yaml:"is_taxable"`
+	Settings  settingsYAML `yaml:"settings"`
+	Assets    []AssetPlan  `yaml:"assets"`
 }
 
 func (plan *Plan) AccountLabel() string {
@@ -73,7 +75,10 @@ func newAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Deci
 	return asset, nil
 }
 
-func NewPlan(broker, accountId string, isTaxable bool, assets []AssetPlan) (*Plan, error) {
+func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets []AssetPlan) (*Plan, error) {
+	if err := settings.Validate(); err != nil {
+		return nil, err
+	}
 	if err := validateAssets(assets); err != nil {
 		return nil, err
 	}
@@ -85,6 +90,7 @@ func NewPlan(broker, accountId string, isTaxable bool, assets []AssetPlan) (*Pla
 		Broker:    broker,
 		AccountId: accountId,
 		IsTaxable: isTaxable,
+		Settings:  settings,
 		Assets:    slices.Clone(assets),
 	}, nil
 }
@@ -130,6 +136,10 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 	if decoded.IsTaxable == nil {
 		return nil, fmt.Errorf("missing required is_taxable")
 	}
+	settings, err := decoded.Settings.build()
+	if err != nil {
+		return nil, err
+	}
 
 	assets := make([]AssetPlan, 0, len(decoded.Assets))
 	for i, asset := range decoded.Assets {
@@ -140,7 +150,7 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 		assets = append(assets, built)
 	}
 
-	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, assets)
+	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, settings, assets)
 }
 
 // Tickers must be unique across assets, and target allocations must sum to 1.
