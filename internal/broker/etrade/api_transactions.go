@@ -7,6 +7,7 @@ import (
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -89,6 +90,7 @@ func (client *Client) Transactions(
 		pages++
 
 		for _, tx := range response.Page.Transactions {
+			tx.Brokerage.Ticker = strings.TrimSpace(tx.Brokerage.Ticker)
 			if !tickerSet.Contains(tx.Brokerage.Ticker) || !models.TransactionType(tx.Type).IsSupported() {
 				continue
 			}
