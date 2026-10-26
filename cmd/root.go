@@ -27,10 +27,6 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	rootCmd.SetHelpCommand(&cobra.Command{Hidden: true})
-}
-
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
