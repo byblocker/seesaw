@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"seesaw/internal/async"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strconv"
@@ -109,16 +108,6 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 	}
 
 	return byTicker, nil
-}
-
-func (client *Client) fetchLots(
-	ctx context.Context,
-	account Account,
-	byTicker map[string]positionResponse,
-) (map[string]models.Position, error) {
-	return async.ForValues(ctx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
-		return client.fetchPosition(ctx, account.key, pos)
-	})
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {

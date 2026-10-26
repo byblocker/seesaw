@@ -79,7 +79,9 @@ func (client *Client) Portfolio(
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	group.Go(func() (err error) {
-		portfolio.PositionByTicker, err = client.fetchLots(groupCtx, selected, byTicker)
+		portfolio.PositionByTicker, err = async.ForValues(groupCtx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
+			return client.fetchPosition(ctx, selected.key, pos)
+		})
 		return err
 	})
 
