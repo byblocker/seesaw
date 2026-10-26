@@ -88,6 +88,16 @@ func planNames() []string {
 	return names
 }
 
+func loadUser() (*config.User, error) {
+	user, err := config.LoadUser(userConfigPath)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("no user config at %s. To create one:\n"+
+			"  1. Run: cp %s %s\n"+
+			"  2. Edit %s", userConfigPath, filepath.Join(examplesDir, "user.yaml"), userConfigPath, userConfigPath)
+	}
+	return user, err
+}
+
 func taxRates(plan *config.Plan, user *config.User) *config.TaxSettings {
 	if !plan.IsTaxable {
 		return nil

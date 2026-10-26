@@ -6,7 +6,6 @@ import (
 	"log"
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
-	"seesaw/pkg/config"
 	"seesaw/pkg/trading"
 
 	"github.com/shopspring/decimal"
@@ -31,7 +30,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Printf("Requested rebalance of %s with %s portfolio", plan.AccountLabel(), planName)
-	user, err := config.LoadUser(userConfigPath)
+	user, err := loadUser()
 	if err != nil {
 		return err
 	}

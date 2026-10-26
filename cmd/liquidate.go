@@ -7,7 +7,6 @@ import (
 	"seesaw/internal/report"
 	"seesaw/internal/utils"
 	"seesaw/pkg/broker"
-	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/trading"
 	"strings"
@@ -44,7 +43,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Printf("Requested liquidation of %s for %s", plan.AccountLabel(), utils.FormatMoney(amount))
-	user, err := config.LoadUser(userConfigPath)
+	user, err := loadUser()
 	if err != nil {
 		return err
 	}
