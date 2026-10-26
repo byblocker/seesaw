@@ -16,7 +16,10 @@ func newValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
 
 	v.RegisterTagNameFunc(func(field reflect.StructField) string {
-		return strings.Split(field.Tag.Get("yaml"), ",")[0]
+		if name := strings.Split(field.Tag.Get("yaml"), ",")[0]; name != "" {
+			return name
+		}
+		return strings.Split(field.Tag.Get("json"), ",")[0]
 	})
 
 	// Compare decimals as floats
@@ -45,6 +48,8 @@ func ValidateFields(value any, prefix string) error {
 		return fmt.Errorf("%s must be at least %s", name, fieldError.Param())
 	case "gt":
 		return fmt.Errorf("%s must be greater than %s", name, fieldError.Param())
+	case "min":
+		return fmt.Errorf("%s must have at least %s characters", name, fieldError.Param())
 	case "lte":
 		return fmt.Errorf("%s must be at most %s", name, fieldError.Param())
 	case "uppercase":

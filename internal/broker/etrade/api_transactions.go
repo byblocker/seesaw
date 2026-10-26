@@ -19,7 +19,7 @@ type transactionResponse struct {
 		Transactions []struct {
 			AccountID string `json:"accountId"`
 			Type      string `json:"transactionType"`
-			Date      int64  `json:"transactionDate"`
+			Date      int64  `json:"transactionDate" validate:"gt=0"`
 			Brokerage struct {
 				Ticker   string          `json:"displaySymbol"`
 				Quantity decimal.Decimal `json:"quantity"`
@@ -88,8 +88,8 @@ func (client *Client) Transactions(
 			if !tickerSet.Contains(tx.Brokerage.Ticker) || !models.TransactionType(tx.Type).IsSupported() {
 				continue
 			}
-			if tx.Date <= 0 {
-				return nil, fmt.Errorf("%s transaction for %s has no date", tx.Type, tx.Brokerage.Ticker)
+			if err := utils.ValidateFields(tx, "transaction."); err != nil {
+				return nil, fmt.Errorf("%s transaction for %s: %w", tx.Type, tx.Brokerage.Ticker, err)
 			}
 
 			result.Add(models.Transaction{

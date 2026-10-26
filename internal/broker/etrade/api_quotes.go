@@ -13,8 +13,8 @@ import (
 )
 
 type quoteResponsePrices struct {
-	Ask decimal.Decimal `json:"ask"`
-	Bid decimal.Decimal `json:"bid"`
+	Ask decimal.Decimal `json:"ask" validate:"gt=0"`
+	Bid decimal.Decimal `json:"bid" validate:"gt=0"`
 }
 
 type quoteResponse struct {
@@ -57,12 +57,8 @@ func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quo
 
 	for _, quote := range response.QuoteResponse.QuoteData {
 		if strings.EqualFold(quote.Product.Symbol, ticker) {
-			if !quote.All.Bid.IsPositive() {
-				return models.Quote{}, fmt.Errorf("invalid bid price for %s: %s (must be positive)", ticker, quote.All.Bid)
-			}
-
-			if !quote.All.Ask.IsPositive() {
-				return models.Quote{}, fmt.Errorf("invalid ask price for %s: %s (must be positive)", ticker, quote.All.Ask)
+			if err := utils.ValidateFields(quote.All, ""); err != nil {
+				return models.Quote{}, fmt.Errorf("quote %s: %w", ticker, err)
 			}
 
 			return models.Quote{Ask: quote.All.Ask, Bid: quote.All.Bid}, nil

@@ -13,8 +13,8 @@ import (
 type balanceResponse struct {
 	BalanceResponse struct {
 		Computed struct {
-			NetCash     *decimal.Decimal `json:"netCash"`
-			BuyingPower *decimal.Decimal `json:"cashBuyingPower"`
+			NetCash     *decimal.Decimal `json:"netCash" validate:"required"`
+			BuyingPower *decimal.Decimal `json:"cashBuyingPower" validate:"required"`
 		} `json:"Computed"`
 	} `json:"BalanceResponse"`
 }
@@ -38,16 +38,8 @@ func (client *Client) Balances(ctx context.Context, account Account) (models.Bal
 	}
 
 	computed := response.BalanceResponse.Computed
-	for _, field := range []struct {
-		name  string
-		value *decimal.Decimal
-	}{
-		{"netCash", computed.NetCash},
-		{"cashBuyingPower", computed.BuyingPower},
-	} {
-		if field.value == nil {
-			return models.Balances{}, fmt.Errorf("account balance response is missing %s", field.name)
-		}
+	if err := utils.ValidateFields(computed, "balance."); err != nil {
+		return models.Balances{}, err
 	}
 
 	return models.Balances{

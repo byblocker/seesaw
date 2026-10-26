@@ -15,14 +15,14 @@ import (
 )
 
 type positionResponse struct {
-	Id     int64  `json:"positionId"`
-	Ticker string `json:"symbolDescription"`
+	Id     int64  `json:"positionId" validate:"gt=0"`
+	Ticker string `json:"symbolDescription" validate:"required"`
 }
 
 type positionLotResponse struct {
-	Id        int64           `json:"positionLotId"`
-	Quantity  decimal.Decimal `json:"remainingQty"`
-	PricePaid decimal.Decimal `json:"price"`
+	Id        int64            `json:"positionLotId" validate:"gt=0"`
+	Quantity  *decimal.Decimal `json:"remainingQty" validate:"required,gte=0"`
+	PricePaid *decimal.Decimal `json:"price" validate:"required,gte=0"`
 }
 
 type accountPortfolioResponse struct {
@@ -44,7 +44,7 @@ type getPositionLotResponse struct {
 	PositionLotsResponse struct {
 		PositionLots []struct {
 			positionLotResponse
-			DateAcquired int64 `json:"acquiredDate"`
+			DateAcquired int64 `json:"acquiredDate" validate:"gt=0"`
 		} `json:"PositionLot"`
 	} `json:"PositionLotsResponse"`
 }
@@ -151,6 +151,9 @@ func addPositions(byTicker map[string]positionResponse, pages []accountPortfolio
 	for _, page := range pages {
 		for _, pos := range page.Positions {
 			pos.Ticker = strings.TrimSpace(pos.Ticker)
+			if err := utils.ValidateFields(pos, "position."); err != nil {
+				return err
+			}
 			if _, exists := byTicker[pos.Ticker]; exists {
 				return fmt.Errorf("duplicate portfolio ticker %q", pos.Ticker)
 			}
@@ -182,10 +185,13 @@ func (client *Client) fetchPosition(
 
 	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
+		if err := utils.ValidateFields(lot, "lot."); err != nil {
+			return models.Position{}, fmt.Errorf("lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
+		}
 		lots = append(lots, models.PositionLot{
 			Id:           lot.Id,
-			Quantity:     lot.Quantity,
-			PricePaid:    lot.PricePaid,
+			Quantity:     *lot.Quantity,
+			PricePaid:    *lot.PricePaid,
 			TimeAcquired: time.UnixMilli(lot.DateAcquired),
 		})
 	}

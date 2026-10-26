@@ -23,8 +23,8 @@ func (account Account) maskedID() string {
 }
 
 type accountResponse struct {
-	Id     string `json:"accountId"`
-	Key    string `json:"accountIdKey"`
+	Id     string `json:"accountId" validate:"min=4"`
+	Key    string `json:"accountIdKey" validate:"required"`
 	Type   string `json:"institutionType"`
 	Status string `json:"accountStatus"`
 }
@@ -56,6 +56,9 @@ func (client *Client) Accounts(ctx context.Context) ([]Account, error) {
 	for _, account := range response.AccountListResponse.Accounts.AccountList {
 		if account.Type != brokerageAccountType || account.Status != activeAccountStatus {
 			continue
+		}
+		if err := utils.ValidateFields(account, "account."); err != nil {
+			return nil, err
 		}
 		accounts = append(accounts, Account{id: account.Id, key: account.Key})
 	}
