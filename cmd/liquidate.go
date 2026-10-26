@@ -21,7 +21,7 @@ var liquidationAmount string
 var liquidatePortfolio = &cobra.Command{
 	Use:   "liquidate <portfolio>",
 	Short: "Plan whole-share sales to fund a withdrawal",
-	Args:  cobra.ExactArgs(1),
+	Args:  requirePlanName,
 	RunE:  liquidate,
 }
 

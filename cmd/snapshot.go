@@ -15,7 +15,7 @@ import (
 var snapshotPortfolio = &cobra.Command{
 	Use:   "snapshot <portfolio>",
 	Short: "Show the account's holdings against its portfolio plan",
-	Args:  cobra.ExactArgs(1),
+	Args:  requirePlanName,
 	RunE:  showSnapshot,
 }
 

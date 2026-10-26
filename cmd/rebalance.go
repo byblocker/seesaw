@@ -16,7 +16,7 @@ import (
 var rebalancePortfolio = &cobra.Command{
 	Use:   "rebalance <portfolio>",
 	Short: "Rebalance portfolio according to portfolio plan",
-	Args:  cobra.ExactArgs(1),
+	Args:  requirePlanName,
 	RunE:  rebalance,
 }
 
