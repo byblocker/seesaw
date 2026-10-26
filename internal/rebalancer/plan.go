@@ -46,6 +46,10 @@ func rebalanceAsset(
 	maxValueDeviation decimal.Decimal,
 ) ([]models.SellProposal, []BuyRequest) {
 	if asset.Plan == nil {
+		if request.Force {
+			log.Printf("Rebalancing %s: sell all", asset.Label())
+			return sellExcess(asset, asset.Value, request.TaxRates, tradeDate), nil
+		}
 		log.Printf("Rebalancing %s: harvest only", asset.Label())
 		return harvestUnplanned(asset, request.Settings, tradeDate), nil
 	}
@@ -63,10 +67,14 @@ func rebalanceAsset(
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
 		log.Printf("CANNOT buy %s: position is overweight", asset.Label())
-		if request.Force {
-			return sellExcess(asset, request.TaxRates, tradeDate, maxValueDeviation), nil
+		if !request.Force {
+			return nil, nil
 		}
-		return nil, nil
+		if asset.ValueDrift.LessThanOrEqual(maxValueDeviation) {
+			log.Printf("SKIP selling %s: within %s of target", asset.Label(), utils.FormatMoney(maxValueDeviation))
+			return nil, nil
+		}
+		return sellExcess(asset, asset.ValueDrift, request.TaxRates, tradeDate), nil
 	}
 
 	buy, ok := selectBuy(asset, sell, shortfall)
@@ -87,7 +95,7 @@ func rebalanceAsset(
 	return []models.SellProposal{sell}, []BuyRequest{buy}
 }
 
-// We should not force liquidation of unplanned positions while rebalancing,
+// Unless forced, we should not liquidate unplanned positions while rebalancing,
 // but we should eagerly harvest any tax-loss these positions have accrued.
 func harvestUnplanned(
 	asset portfolio.Asset,

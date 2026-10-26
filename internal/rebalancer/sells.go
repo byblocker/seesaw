@@ -103,18 +103,13 @@ func logLot(sale models.LotSale, harvest bool) {
 		action, sale.Quantity, sale.Lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct().Neg()))
 }
 
-// Sell whole shares of an asset more than maxValueDeviation above target, down to at or just above target.
+// Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
 func sellExcess(
 	asset portfolio.Asset,
+	excess decimal.Decimal,
 	rates *config.TaxSettings,
 	tradeDate time.Time,
-	maxValueDeviation decimal.Decimal,
 ) []models.SellProposal {
-	if asset.ValueDrift.LessThanOrEqual(maxValueDeviation) {
-		log.Printf("SKIP selling %s: within %s of target", asset.Label(), utils.FormatMoney(maxValueDeviation))
-		return nil
-	}
-
 	var sales []models.LotSale
 	for _, position := range asset.Positions {
 		sales = append(sales, position.LotSales(tradeDate)...)
@@ -129,7 +124,7 @@ func sellExcess(
 	})
 
 	var sold []models.LotSale
-	remaining := asset.ValueDrift
+	remaining := excess
 	for _, sale := range sales {
 		maxShares, _ := remaining.QuoRem(sale.Price, 0)
 		sale.Quantity = decimal.Min(sale.Quantity.Floor(), maxShares)
