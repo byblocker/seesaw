@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/async"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
@@ -31,13 +32,37 @@ type transactionResponse struct {
 	} `json:"TransactionListResponse"`
 }
 
+func (client *Client) AllRecentTx(
+	ctx context.Context,
+	accounts []Account,
+	start, end time.Time,
+	tickers []string,
+) (models.RecentTxByTicker, error) {
+	byAccount, err := async.ForKeys(ctx, accounts, func(ctx context.Context, account Account) (models.RecentTxByTicker, error) {
+		history, err := client.Transactions(ctx, account, start, end, tickers)
+		if err != nil {
+			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
+		}
+		return history, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	merged := make(models.RecentTxByTicker)
+	for _, account := range accounts {
+		merged.Append(byAccount[account])
+	}
+	return merged, nil
+}
+
 func (client *Client) Transactions(
 	ctx context.Context,
 	account Account,
 	start, end time.Time,
 	tickers []string,
-) (result models.RecentTxByTicker, err error) {
-	result = make(models.RecentTxByTicker)
+) (models.RecentTxByTicker, error) {
+	result := make(models.RecentTxByTicker)
 	if len(tickers) == 0 {
 		return result, nil
 	}
@@ -48,12 +73,6 @@ func (client *Client) Transactions(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-
-	pages := 0
-	stop := utils.StartTimer("Fetching transactions for %s", account.maskedID())
-	defer func() {
-		stop(err, fmt.Sprintf("%d page(s)", pages))
-	}()
 
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
@@ -87,7 +106,6 @@ func (client *Client) Transactions(
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)
 		}
-		pages++
 
 		for _, tx := range response.Page.Transactions {
 			tx.Brokerage.Ticker = strings.TrimSpace(tx.Brokerage.Ticker)

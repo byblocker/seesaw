@@ -30,9 +30,7 @@ func (client *Client) Balances(ctx context.Context, account Account) (models.Bal
 		"realTimeNAV": {"true"},
 	}
 
-	stop := utils.StartTimer("Fetching account balances")
 	response, err := utils.FetchJSON[balanceResponse](ctx, client.httpClient, endpoint+"?"+query.Encode())
-	stop(err)
 	if err != nil {
 		return models.Balances{}, fmt.Errorf("fetch account balances: %w", err)
 	}

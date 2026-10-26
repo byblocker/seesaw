@@ -18,12 +18,11 @@ type Position struct {
 func newPosition(
 	ticker string,
 	portfolio *models.Portfolio,
-	quote models.Quote,
 	createdAt time.Time,
 ) Position {
 	position := Position{
 		Ticker:         ticker,
-		Quote:          quote,
+		Quote:          portfolio.Quotes[ticker],
 		RecentlyBought: portfolio.RecentTx.HasBuyWithinWashWindow(ticker, createdAt),
 		RecentlySold:   portfolio.RecentTx.HasSellWithinWashWindow(ticker, createdAt),
 	}

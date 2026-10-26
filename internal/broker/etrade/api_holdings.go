@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"seesaw/internal/async"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strconv"
@@ -49,11 +48,8 @@ type getPositionLotResponse struct {
 	} `json:"PositionLotsResponse"`
 }
 
-type Holdings struct {
-	PositionByTicker map[string]models.Position
-}
-
-func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings, error) {
+// List the account's positions by ticker, without their lots.
+func (client *Client) listPositions(ctx context.Context, account Account) (map[string]positionResponse, error) {
 	if account.key == "" {
 		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}
@@ -111,19 +107,7 @@ func (client *Client) Holdings(ctx context.Context, account Account) (*Holdings,
 		query.Set("pageNumber", strconv.Itoa(nextPage))
 	}
 
-	if len(byTicker) == 0 {
-		return &Holdings{PositionByTicker: map[string]models.Position{}}, nil
-	}
-
-	stop := utils.StartTimer("Fetching tax lots for %d position(s)", len(byTicker))
-	positions, err := async.ForValues(ctx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
-		return client.fetchPosition(ctx, account.key, pos)
-	})
-	stop(err)
-	if err != nil {
-		return nil, err
-	}
-	return &Holdings{PositionByTicker: positions}, nil
+	return byTicker, nil
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {

@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"seesaw/internal/async"
 	"seesaw/internal/collections"
+	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"golang.org/x/sync/errgroup"
 )
 
 type Client struct {
@@ -51,25 +54,15 @@ func (client *Client) Portfolio(
 		return nil, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
 
-	holdings, err := client.Holdings(ctx, selected)
+	byTicker, err := client.listPositions(ctx, selected)
 	if err != nil {
 		return nil, err
-	}
-
-	balances, err := client.Balances(ctx, selected)
-	if err != nil {
-		return nil, err
-	}
-
-	portfolio := &models.Portfolio{
-		Balances:         balances,
-		PositionByTicker: holdings.PositionByTicker,
 	}
 
 	// Include any held tickers along with the planned tickers
 	allTickers := collections.SetFrom(
 		slices.Values(tickers),
-		maps.Keys(portfolio.PositionByTicker),
+		maps.Keys(byTicker),
 	).Slice()
 
 	end := time.Now()
@@ -80,13 +73,38 @@ func (client *Client) Portfolio(
 		end.Format(time.DateOnly),
 	)
 
-	portfolio.RecentTx = make(models.RecentTxByTicker)
-	for _, account := range accounts {
-		history, err := client.Transactions(ctx, account, start, end, allTickers)
-		if err != nil {
-			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
-		}
-		portfolio.RecentTx.Append(history)
+	// One timer covers every request below, since concurrent timers would interleave their lines.
+	portfolio := &models.Portfolio{}
+	stop := utils.StartTimer("Fetching tax lots, balances, transactions, and quotes")
+	group, groupCtx := errgroup.WithContext(ctx)
+
+	group.Go(func() (err error) {
+		portfolio.PositionByTicker, err = async.ForValues(groupCtx, byTicker, func(ctx context.Context, pos positionResponse) (models.Position, error) {
+			return client.fetchPosition(ctx, selected.key, pos)
+		})
+		return err
+	})
+
+	group.Go(func() (err error) {
+		portfolio.Balances, err = client.Balances(groupCtx, selected)
+		return err
+	})
+
+	group.Go(func() (err error) {
+		portfolio.RecentTx, err = client.AllRecentTx(groupCtx, accounts, start, end, allTickers)
+		return err
+	})
+
+	// One request per ticker returns faster than one request listing every ticker.
+	group.Go(func() (err error) {
+		portfolio.Quotes, err = async.ForKeys(groupCtx, allTickers, client.fetchQuote)
+		return err
+	})
+
+	err = group.Wait()
+	stop(err)
+	if err != nil {
+		return nil, err
 	}
 
 	return portfolio, nil
