@@ -97,5 +97,10 @@ func (client *Client) Portfolio(
 		return nil, err
 	}
 
+	portfolio.Quotes, err = client.QuoteAll(ctx, allTickers)
+	if err != nil {
+		return nil, err
+	}
+
 	return portfolio, nil
 }

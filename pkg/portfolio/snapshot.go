@@ -39,21 +39,11 @@ func TakeSnapshot(
 	createdAt := time.Now()
 	assets := groupByAsset(plan.Assets, portfolio)
 
-	var tickers []string
-	for _, asset := range assets {
-		tickers = append(tickers, asset.Tickers...)
-	}
-
-	quotes, err := client.QuoteAll(ctx, tickers)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve quotes: %w", err)
-	}
-
 	totalValue := portfolio.Balances.CashBalance
 	for i := range assets {
 		asset := &assets[i]
 		for _, ticker := range asset.Tickers {
-			position := newPosition(ticker, portfolio, quotes[ticker], createdAt)
+			position := newPosition(ticker, portfolio, createdAt)
 			if position.IsHeld() && !position.Quote.Bid.IsPositive() {
 				return nil, fmt.Errorf("missing bid price for %s", ticker)
 			}
