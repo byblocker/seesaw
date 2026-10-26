@@ -76,16 +76,16 @@ func TakeSnapshot(
 	}, nil
 }
 
-// Estimate the portfolio after the orders, with cash as the balance left in the account. Buys
-// count at their estimated cost. Positions keep their lots; only asset values, allocations, the
-// balance, and the total change. The snapshot itself is left unchanged.
-func (snapshot Snapshot) Simulate(sells []models.SellProposal, buys []models.Buy, cash decimal.Decimal) Snapshot {
+func (snapshot Snapshot) Simulate(sells []models.SellProposal, buys []models.Buy, withdrawal decimal.Decimal) Snapshot {
+	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
 	changeByTicker := map[string]decimal.Decimal{}
 	for _, sell := range sells {
 		changeByTicker[sell.Ticker] = changeByTicker[sell.Ticker].Sub(sell.Proceeds)
+		cash = cash.Add(sell.Proceeds)
 	}
 	for _, buy := range buys {
 		changeByTicker[buy.Ticker] = changeByTicker[buy.Ticker].Add(buy.EstimatedCost)
+		cash = cash.Sub(buy.EstimatedCost)
 	}
 
 	simulated := snapshot

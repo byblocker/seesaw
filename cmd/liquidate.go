@@ -80,7 +80,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	estimated := snapshot.Simulate(selection.Sells, nil, selection.ExpectedBalance())
+	estimated := snapshot.Simulate(selection.Sells, nil, selection.Request.Amount)
 	if _, err := io.WriteString(cmd.OutOrStdout(), report.Liquidation(*selection, estimated)); err != nil {
 		return fmt.Errorf("write liquidation summary: %w", err)
 	}
