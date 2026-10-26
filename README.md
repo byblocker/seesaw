@@ -156,24 +156,22 @@ Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`,
 2. Identifies lots with tax loss and simulates sales, if any;
 3. Sizes purchases using available cash balance and proceeds from suggested sells
 
-For any holdings outside of the planned positions, _seesaw_ will attempt to harvest any tax-loss; it does not force liquidation to reduce tax liability. Similarly, _seesaw_ will not force liquidation of overweight assets to reduce allocation.
+By default, _seesaw_ only harvests tax losses from holdings outside the plan, and it does not sell overweight assets to reduce their allocation. Use `--force` to sell both.
+
+_seesaw_ uses recent purchases from the snapshot to help avoid wash sales; however, the available transaction history is limited to a single broker. Review its setup guide for coverage and limitations. Avoid wash-sales by ensuring different portfolios use different securities.
 
 ### Forced Rebalance
-
-Without new cash, an overweight asset stays overweight. Add `--force` (`-f`) to sell it back to target:
 
 ```sh
 go run . rebalance < name of your portfolio > --force
 ```
 
-With `--force`, _seesaw_ also . . .
+With `--force` (`-f`), _seesaw_ also . . .
 1. Sells each planned asset more than `settings.allocation_upper_limit` above its target down to its target, in whole shares, so it may stay up to one share above;
 2. Sells every whole share of holdings outside the plan;
 3. Adds the proceeds to the cash used to size purchases for underweight assets. Proceeds beyond what those purchases need stay as cash.
 
-Like liquidation, it sells the lots with the lowest estimated tax per dollar raised first, so taxable portfolios sell the deepest losses first and the smallest gains last. Without tax rates, lots sell in lot order. Fractional shares are not sold. Taxable portfolios show the estimated tax of each sale, so review it before trading; `--force` suits tax-advantaged accounts best, where selling has no tax cost.
-
-_seesaw_ uses recent purchases from the snapshot to help avoid wash sales; however, the available transaction history is limited to a single broker. Review its setup guide for coverage and limitations. Avoid wash-sales by ensuring different portfolios use different securities.
+It sells the lots with the lowest estimated tax per dollar raised first, so taxable portfolios sell the deepest losses first and the smallest gains last; without tax rates, lots sell in lot order. Fractional shares are not sold. Review each sale's estimated tax in taxable portfolios: `--force` suits tax-advantaged accounts best.
 
 ## Liquidate!
 
