@@ -28,7 +28,7 @@ func collectLots(
 	request models.LiquidationRequest,
 	amountNeeded decimal.Decimal,
 ) []sellableLot {
-	maxDeviation := request.Settings.MaxAllocationDeviation
+	maxDeviation := request.Settings.AllocationLowerLimit
 	rates := request.TaxRates
 
 	totalValue := decimal.Zero

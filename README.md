@@ -84,11 +84,11 @@ tax:
 
 rebalance:
   min_fractional_share_to_round: 0.7
-  max_pct_allocation_deviation: 0.02
+  allocation_upper_limit: 0.02
   min_pct_loss_to_harvest: -0.005
 
 liquidation:
-  max_pct_allocation_deviation: 0.02
+  allocation_lower_limit: 0.02
 ```
 
 | Field | Purpose | Values / constraints |
@@ -96,9 +96,9 @@ liquidation:
 | `tax.short_term_gain_rate` | Combined marginal tax rate used to estimate tax on short-term gains, including federal, state, and any additional taxes. | `[0, 1]` |
 | `tax.long_term_gain_rate` | Combined marginal tax rate used to estimate tax on long-term gains, including federal, state, and any additional taxes. | `[0, 1]` |
 | `rebalance.min_fractional_share_to_round` | Remainder needed to round a fractional share to the next whole number. Fractional-share support varies by broker. |  `[0, 1]` |
-| `rebalance.max_pct_allocation_deviation` | If rounding up, how high may an asset deviate from its target allocation (limited by buying power) | `[0, 1]` |
+| `rebalance.allocation_upper_limit` | How far an asset may rise above its target when rounding a buy up to a whole share, measured against the portfolio before trading and limited by buying power. | `[0, 1]` |
 | `rebalance.min_pct_loss_to_harvest` | Threshold a lot's loss must meet to qualify for tax-loss harvesting | `[-1, 0]` |
-| `liquidation.max_pct_allocation_deviation` | How far an asset may fall below its target after a withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
+| `liquidation.allocation_lower_limit` | How far an asset may fall below its target after a withdrawal, measured against the portfolio after the withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 
 These settings apply to every portfolio. Tax rates are used only for taxable portfolios, so you can leave out the `tax` section if none of yours are taxable; _seesaw_ stops before connecting to the broker if a taxable portfolio has no rates. Every other field is required and has no default; explicit zeros are accepted where allowed.
 
@@ -182,7 +182,7 @@ Each withdrawal is planned on its own at your configured rates. The planner does
 
 Review the proposed lots, then the Estimated Portfolio: each asset's value, allocation, and deviation from target after the sale and the withdrawal. Its balance is the cash left in the account once the withdrawal leaves, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
-The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `liquidation.max_pct_allocation_deviation` to allow more. It does not return an unfinished proposal.
+The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `liquidation.allocation_lower_limit` to allow more. It does not return an unfinished proposal.
 
 Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
 

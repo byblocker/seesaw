@@ -40,7 +40,7 @@ func (r *Rebalancer) SizeBuys(
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
 	}
-	maxValueDeviationAllowed := snapshot.TotalValue.Mul(r.settings.MaxPctAllocDeviation)
+	maxValueDeviationAllowed := snapshot.TotalValue.Mul(r.settings.AllocationUpperLimit)
 	allowFractionalShares := client.Settings().AllowFractionalShares
 
 	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))

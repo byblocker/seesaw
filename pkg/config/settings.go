@@ -44,24 +44,24 @@ func (raw taxYAML) build() (TaxSettings, error) {
 type RebalanceSettings struct {
 	// Minimum remainder to round a whole-share purchase up.
 	MinFractionalShareToRound decimal.Decimal
-	// Extra purchase allowance as a fraction of total portfolio value.
-	MaxPctAllocDeviation decimal.Decimal
+	// How far rounding a buy up may lift an asset above its target, as a fraction of total portfolio value.
+	AllocationUpperLimit decimal.Decimal
 	// Loss threshold expressed as a nonpositive fraction of the lot's cost.
 	MinPctLossToHarvest decimal.Decimal
 }
 
 func NewRebalanceSettings(
-	minFractionalShareToRound, maxPctAllocDeviation, minPctLossToHarvest decimal.Decimal,
+	minFractionalShareToRound, allocationUpperLimit, minPctLossToHarvest decimal.Decimal,
 ) (RebalanceSettings, error) {
 	return rebalanceYAML{
 		MinFractionalShareToRound: &minFractionalShareToRound,
-		MaxPctAllocDeviation:      &maxPctAllocDeviation,
+		AllocationUpperLimit:      &allocationUpperLimit,
 		MinPctLossToHarvest:       &minPctLossToHarvest,
 	}.build()
 }
 
 func (settings RebalanceSettings) Validate() error {
-	_, err := NewRebalanceSettings(settings.MinFractionalShareToRound, settings.MaxPctAllocDeviation, settings.MinPctLossToHarvest)
+	_, err := NewRebalanceSettings(settings.MinFractionalShareToRound, settings.AllocationUpperLimit, settings.MinPctLossToHarvest)
 	return err
 }
 
@@ -72,14 +72,14 @@ func (settings RebalanceSettings) Log(totalValue decimal.Decimal, allowFractiona
 		log.Print("  - Buy fractional shares")
 		return
 	}
-	maxOvershoot := totalValue.Mul(settings.MaxPctAllocDeviation)
+	maxOvershoot := totalValue.Mul(settings.AllocationUpperLimit)
 	log.Printf("  - Round up from %s share", settings.MinFractionalShareToRound)
-	log.Printf("  - Allow at most %s deviation (~%s)", utils.FormatPercent(settings.MaxPctAllocDeviation), utils.FormatMoney(maxOvershoot))
+	log.Printf("  - Allow at most %s above target (~%s)", utils.FormatPercent(settings.AllocationUpperLimit), utils.FormatMoney(maxOvershoot))
 }
 
 type rebalanceYAML struct {
 	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round" validate:"required,gte=0,lte=1"`
-	MaxPctAllocDeviation      *decimal.Decimal `yaml:"max_pct_allocation_deviation" validate:"required,gte=0,lte=1"`
+	AllocationUpperLimit      *decimal.Decimal `yaml:"allocation_upper_limit" validate:"required,gte=0,lte=1"`
 	MinPctLossToHarvest       *decimal.Decimal `yaml:"min_pct_loss_to_harvest" validate:"required,gte=-1,lte=0"`
 }
 
@@ -89,28 +89,29 @@ func (raw rebalanceYAML) build() (RebalanceSettings, error) {
 	}
 	return RebalanceSettings{
 		MinFractionalShareToRound: *raw.MinFractionalShareToRound,
-		MaxPctAllocDeviation:      *raw.MaxPctAllocDeviation,
+		AllocationUpperLimit:      *raw.AllocationUpperLimit,
 		MinPctLossToHarvest:       *raw.MinPctLossToHarvest,
 	}, nil
 }
 
 type LiquidationSettings struct {
-	MaxAllocationDeviation decimal.Decimal
+	// How far a sale may drop an asset below its target, as a fraction of the portfolio after the withdrawal.
+	AllocationLowerLimit decimal.Decimal
 }
 
-func NewLiquidationSettings(maxAllocationDeviation decimal.Decimal) (LiquidationSettings, error) {
+func NewLiquidationSettings(allocationLowerLimit decimal.Decimal) (LiquidationSettings, error) {
 	return liquidationYAML{
-		MaxAllocationDeviation: &maxAllocationDeviation,
+		AllocationLowerLimit: &allocationLowerLimit,
 	}.build()
 }
 
 func (settings LiquidationSettings) Validate() error {
-	_, err := NewLiquidationSettings(settings.MaxAllocationDeviation)
+	_, err := NewLiquidationSettings(settings.AllocationLowerLimit)
 	return err
 }
 
 type liquidationYAML struct {
-	MaxAllocationDeviation *decimal.Decimal `yaml:"max_pct_allocation_deviation" validate:"required,gte=0,lte=1"`
+	AllocationLowerLimit *decimal.Decimal `yaml:"allocation_lower_limit" validate:"required,gte=0,lte=1"`
 }
 
 func (raw liquidationYAML) build() (LiquidationSettings, error) {
@@ -118,6 +119,6 @@ func (raw liquidationYAML) build() (LiquidationSettings, error) {
 		return LiquidationSettings{}, err
 	}
 	return LiquidationSettings{
-		MaxAllocationDeviation: *raw.MaxAllocationDeviation,
+		AllocationLowerLimit: *raw.AllocationLowerLimit,
 	}, nil
 }
