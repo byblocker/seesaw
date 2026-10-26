@@ -153,10 +153,12 @@ Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`,
 
 `rebalance` fetches a snapshot of your account and then . . .
 1. Assigns positions to `Assets` according to the provided portfolio plan;
-2. Identifies lots with tax loss and simulates sales, if any;
+2. Identifies lots with tax loss and simulates sales, if any, in taxable portfolios only;
 3. Sizes purchases using available cash balance and proceeds from suggested sells
 
 By default, _seesaw_ only harvests tax losses from holdings outside the plan, and it does not sell overweight assets to reduce their allocation. Use `--force` to sell both.
+
+Portfolios with `is_taxable: false` skip tax-loss harvesting: a loss there brings no tax relief, and buying the replacement ticker could disallow a loss in one of your taxable accounts as a wash sale.
 
 _seesaw_ uses recent purchases from the snapshot to help avoid wash sales; however, the available transaction history is limited to a single broker. Review its setup guide for coverage and limitations. Avoid wash-sales by ensuring different portfolios use different securities.
 

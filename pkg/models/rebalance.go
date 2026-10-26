@@ -4,7 +4,7 @@ import "seesaw/pkg/config"
 
 type RebalanceRequest struct {
 	Settings config.Settings
-	TaxRates *config.TaxSettings
+	TaxRates *config.TaxSettings // Nil for non-taxable accounts
 	Force    bool
 }
 

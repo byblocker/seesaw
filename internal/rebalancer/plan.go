@@ -22,6 +22,9 @@ func Plan(
 	if request.Force {
 		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
 	}
+	if request.TaxRates == nil {
+		log.Print("  - Skip tax-loss harvesting: account is not taxable")
+	}
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	var sells []models.SellProposal
@@ -50,6 +53,10 @@ func rebalanceAsset(
 			log.Printf("Rebalancing %s: sell all", asset.Label())
 			return sellExcess(asset, asset.Value, request.TaxRates, tradeDate), nil
 		}
+		if request.TaxRates == nil {
+			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label())
+			return nil, nil
+		}
 		log.Printf("Rebalancing %s: harvest only", asset.Label())
 		return harvestUnplanned(asset, request.Settings, tradeDate), nil
 	}
@@ -62,7 +69,11 @@ func rebalanceAsset(
 		}
 	}
 
-	sell := harvestAsset(asset, request.Settings, tradeDate)
+	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
+	var sell models.SellProposal
+	if request.TaxRates != nil {
+		sell = harvestAsset(asset, request.Settings, tradeDate)
+	}
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
