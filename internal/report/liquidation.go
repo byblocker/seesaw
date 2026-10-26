@@ -1,7 +1,6 @@
 package report
 
 import (
-	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"strings"
@@ -19,25 +18,7 @@ func Liquidation(selection models.LiquidationSelection, estimated portfolio.Snap
 		writeOrderTable(&output, "Proceeds", formatted.rows, rates)
 	}
 
-	cashFlow := [][2]string{
-		{"Cash on hand:", utils.FormatMoney(selection.StartingCash)},
-		{"Sale proceeds:", utils.FormatMoney(selection.Proceeds)},
-		{"Withdrawal:", utils.FormatMoney(selection.Request.Amount.Neg())},
-		summaryRule,
-		{"Left over:", utils.FormatMoney(selection.ExpectedBalance())},
-	}
-	if formatted.showTax {
-		netTax := formatted.tax.Sub(formatted.relief)
-		writeSummaries(&output, cashFlow, [][2]string{
-			{"Short-term P/L:", utils.FormatMoney(formatted.shortTermPL)},
-			{"Long-term P/L:", utils.FormatMoney(formatted.longTermPL)},
-			{"Estimated tax:", utils.FormatMoney(netTax)},
-		})
-	} else {
-		writeSummaries(&output, cashFlow)
-	}
-
-	writeEstimatedPortfolio(&output, estimated)
+	writeEstimatedPortfolio(&output, estimated, formatted)
 
 	if formatted.washSale {
 		output.WriteString("\n[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")

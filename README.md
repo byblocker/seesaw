@@ -148,14 +148,11 @@ TICKER_B  BUY     —               15  $100.00  -$1,500.00         —
 
 TICKER_C  BUY     —                5  $100.00    -$500.00         —
 ___________________________________________________________________
-
-Total P/L:         -$100.00
-Remaining balance:    $0.00
 ```
 
 When no trades qualify, you will see `No trades suggested.`
 
-4. Review the Estimated Portfolio table: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost and the remaining balance counted in the total.
+4. Review the Estimated Portfolio: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost. Below the table, the balance is the cash left in the account, ready to withdraw or transfer, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief.
 
 Rebalance logs show quote fetching for the snapshot, each asset's tax-loss and purchase decisions with the reasons for skipped trades, purchase sizing, and final trade counts.
 
@@ -186,7 +183,7 @@ Each planned asset sells only down to its minimum allocation, though it may end 
 
 Each withdrawal is planned on its own at your configured rates. The planner does not net gains and losses across the tax year, apply loss carryforwards, or account for tax brackets.
 
-Review the proposed lots and the totals: cash on hand plus sale proceeds, minus the withdrawal, gives the cash left over. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief. The Estimated Portfolio table then shows each asset's value, allocation, and deviation from target after the sale, counting the cash left over in the total. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+Review the proposed lots, then the Estimated Portfolio: each asset's value, allocation, and deviation from target after the sale and the withdrawal. Its balance is the cash left in the account once the withdrawal leaves, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
 The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `liquidation.max_pct_allocation_deviation` to allow more. It does not return an unfinished proposal.
 

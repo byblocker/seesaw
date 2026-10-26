@@ -14,7 +14,6 @@ import (
 
 type formattedSells struct {
 	rows                    [][]string
-	realizedPL              decimal.Decimal
 	shortTermPL, longTermPL decimal.Decimal
 	tax, relief             decimal.Decimal
 	washSale, showTax       bool
@@ -68,8 +67,6 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 			}
 			result.rows = append(result.rows, row)
 		}
-
-		result.realizedPL = result.realizedPL.Add(sell.RealizedPL)
 	}
 	return result
 }
@@ -111,9 +108,26 @@ func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 	return writeTable(output, headers, rows, 1)
 }
 
-func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot) {
-	output.WriteString("\nEstimated Portfolio\n\n")
-	writeAssets(output, estimated.Assets)
+// Show the account after the orders, and for taxable portfolios, what the sales realize.
+func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot, sells formattedSells) {
+	output.WriteString("Estimated Portfolio\n\n")
+	divider := writeAssets(output, estimated.Assets)
+
+	balances := [][2]string{
+		{"Balance:", utils.FormatMoney(estimated.Balances.CashBalance)},
+		{"Total:", utils.FormatMoney(estimated.TotalValue)},
+	}
+	if sells.showTax {
+		writeSummaries(output, balances, [][2]string{
+			{"Short-term P/L:", utils.FormatMoney(sells.shortTermPL)},
+			{"Long-term P/L:", utils.FormatMoney(sells.longTermPL)},
+			{"Estimated tax:", utils.FormatMoney(sells.tax.Sub(sells.relief))},
+		})
+	} else {
+		writeSummaries(output, balances)
+	}
+	output.WriteString(divider)
+	output.WriteString("\n\n")
 }
 
 func formatAsset(asset portfolio.Asset) []string {

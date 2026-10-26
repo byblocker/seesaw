@@ -24,8 +24,8 @@ func TestUnderweightAssetIsNotSold(t *testing.T) {
 			t.Errorf("sold %s from the underweight asset", sell.Ticker)
 		}
 	}
-	if !selection.Proceeds.Equal(decimal.NewFromInt(7000)) {
-		t.Errorf("proceeds %s, want 7000", selection.Proceeds)
+	if proceeds := soldProceeds(selection); !proceeds.Equal(decimal.NewFromInt(7000)) {
+		t.Errorf("proceeds %s, want 7000", proceeds)
 	}
 }
 
@@ -50,8 +50,8 @@ func TestDoesNotSellExtraLosses(t *testing.T) {
 
 	selection := p.planSales(t, testRequest("1000", "0", testTaxRates))
 
-	if !selection.Proceeds.Equal(decimal.NewFromInt(1000)) {
-		t.Errorf("proceeds %s, want exactly the 1000 requested", selection.Proceeds)
+	if proceeds := soldProceeds(selection); !proceeds.Equal(decimal.NewFromInt(1000)) {
+		t.Errorf("proceeds %s, want exactly the 1000 requested", proceeds)
 	}
 }
 
@@ -155,8 +155,8 @@ func TestPlanSalesOnRandomPortfolios(t *testing.T) {
 	t.Logf("plans %d, holdings too small %d, minimums blocked %d", plans, holdingsTooSmall, minimumsBlocked)
 }
 
-// Check what users see: real orders that sell whole shares from lots they hold, with
-// proceeds and balance that add up, raise the amount needed, and stay within maxSale.
+// Check what users see: real orders that sell whole shares from lots they hold, raise the
+// amount needed, and stay within maxSale.
 func checkSelection(
 	t *testing.T,
 	seed int64,
@@ -181,13 +181,15 @@ func checkSelection(
 	}
 
 	amountNeeded := p.amountNeeded(request)
-	expectedBalance := p.snapshot.Balances.CashBalance.Sub(request.Amount).Add(selection.Proceeds)
-	switch {
-	case !proceeds.Equal(selection.Proceeds):
-		t.Fatalf("seed %d: lot sales raise %s, selection reports %s", seed, proceeds, selection.Proceeds)
-	case proceeds.LessThan(amountNeeded) || proceeds.GreaterThan(maxSale):
+	if proceeds.LessThan(amountNeeded) || proceeds.GreaterThan(maxSale) {
 		t.Fatalf("seed %d: proceeds %s outside %s to %s", seed, proceeds, amountNeeded, maxSale)
-	case !selection.ExpectedBalance().Equal(expectedBalance):
-		t.Fatalf("seed %d: expected balance %s, want %s", seed, selection.ExpectedBalance(), expectedBalance)
 	}
+}
+
+func soldProceeds(selection *models.LiquidationSelection) decimal.Decimal {
+	proceeds := decimal.Zero
+	for _, sell := range selection.Sells {
+		proceeds = proceeds.Add(sell.Proceeds)
+	}
+	return proceeds
 }

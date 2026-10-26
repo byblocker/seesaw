@@ -27,12 +27,6 @@ func (request LiquidationRequest) Validate() error {
 }
 
 type LiquidationSelection struct {
-	Request      LiquidationRequest
-	StartingCash decimal.Decimal
-	Sells        []SellProposal
-	Proceeds     decimal.Decimal
-}
-
-func (selection LiquidationSelection) ExpectedBalance() decimal.Decimal {
-	return selection.StartingCash.Sub(selection.Request.Amount).Add(selection.Proceeds)
+	Request LiquidationRequest
+	Sells   []SellProposal
 }

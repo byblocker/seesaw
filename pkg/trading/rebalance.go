@@ -35,11 +35,11 @@ func Rebalance(
 		requests = append(requests, assetRequests...)
 	}
 
-	buys, remainingBalance, err := r.SizeBuys(client, snapshot, sells, requests)
+	buys, err := r.SizeBuys(client, snapshot, sells, requests)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
-	return &models.RebalancePlan{Buys: buys, Sells: sells, RemainingBalance: remainingBalance}, nil
+	return &models.RebalancePlan{Buys: buys, Sells: sells}, nil
 }
