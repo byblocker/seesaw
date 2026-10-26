@@ -10,7 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func selectLots(lots []sellableLot, minSale decimal.Decimal) ([]models.LotSale, error) {
+func selectLots(lots []sellableLot, amountNeeded decimal.Decimal) ([]models.LotSale, error) {
 	// Remaining ties keep plan order, then lot ID order, from collectLots, so plans repeat exactly.
 	slices.SortStableFunc(lots, compareLots)
 	var sales []models.LotSale
@@ -21,8 +21,8 @@ func selectLots(lots []sellableLot, minSale decimal.Decimal) ([]models.LotSale, 
 		lot := &lots[i]
 		asset, bid := lot.asset, lot.sale.Price
 
-		amountNeeded := minSale.Sub(proceeds)
-		sharesToSell := min(lot.wholeShares, sharesNeeded(amountNeeded, bid))
+		stillNeeded := amountNeeded.Sub(proceeds)
+		sharesToSell := min(lot.wholeShares, sharesNeeded(stillNeeded, bid))
 
 		if asset.isPlanned {
 			valueLeftAboveMin := asset.valueAboveMinAllowed.Sub(asset.sold)
@@ -42,10 +42,10 @@ func selectLots(lots []sellableLot, minSale decimal.Decimal) ([]models.LotSale, 
 		asset.sold = asset.sold.Add(saleProceeds)
 	}
 
-	if proceeds.LessThan(minSale) {
+	if proceeds.LessThan(amountNeeded) {
 		return nil, fmt.Errorf(
 			"sales within allocation minimums raise at most $%s of the $%s needed; increase liquidation.max_pct_allocation_deviation",
-			proceeds.StringFixed(2), minSale.StringFixed(2),
+			proceeds.StringFixed(2), amountNeeded.StringFixed(2),
 		)
 	}
 
