@@ -32,7 +32,7 @@ type planYAML struct {
 }
 
 func (plan *Plan) AccountLabel() string {
-	return fmt.Sprintf("%s #%s", strings.ToUpper(strings.TrimSpace(plan.Broker)), utils.AccountSuffix(plan.AccountId))
+	return fmt.Sprintf("%s #%s", strings.ToUpper(plan.Broker), utils.AccountSuffix(plan.AccountId))
 }
 
 func (plan *Plan) Tickers() iter.Seq[string] {
@@ -73,6 +73,13 @@ func newAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Deci
 }
 
 func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets []AssetPlan) (*Plan, error) {
+	broker, accountId = strings.TrimSpace(broker), strings.TrimSpace(accountId)
+	if broker == "" {
+		return nil, fmt.Errorf("missing required broker")
+	}
+	if accountId == "" {
+		return nil, fmt.Errorf("missing required accountId")
+	}
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
