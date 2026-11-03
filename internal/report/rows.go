@@ -32,6 +32,7 @@ func formatSells(sells []models.SellProposal, lots []portfolio.LotSnapshot, rate
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
 	}
+	taxPerShare := portfolio.TaxPerShare(lots, rates)
 	sells = slices.SortedFunc(slices.Values(sells), func(left, right models.SellProposal) int {
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
@@ -53,7 +54,7 @@ func formatSells(sells []models.SellProposal, lots []portfolio.LotSnapshot, rate
 				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {
-				impact := sale.EstimatedTaxImpact(*rates)
+				impact := sale.Quantity.Mul(taxPerShare[sale.LotIdx])
 				row = append(row, utils.FormatMoney(impact))
 				if impact.IsNegative() {
 					result.relief = result.relief.Sub(impact)

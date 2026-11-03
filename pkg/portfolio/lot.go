@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"time"
 
@@ -32,6 +33,25 @@ func newLotSnapshot(lot models.PositionLot, bid decimal.Decimal, createdAt time.
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),
 		IsWashSale:   recentlyBought && gainPerShare.IsNegative(),
 	}
+}
+
+// Tax on selling one share of each lot, by lot row. All zero without rates, as for an account that is not taxable.
+func TaxPerShare(lots []LotSnapshot, rates *config.TaxSettings) []decimal.Decimal {
+	taxPerShare := make([]decimal.Decimal, len(lots))
+	if rates == nil {
+		return taxPerShare
+	}
+	for i, lot := range lots {
+		if lot.IsWashSale {
+			continue
+		}
+		rate := rates.ShortTermGainRate
+		if lot.LongTerm {
+			rate = rates.LongTermGainRate
+		}
+		taxPerShare[i] = lot.GainPerShare.Mul(rate)
+	}
+	return taxPerShare
 }
 
 func isLongTerm(timeAcquired, saleDate time.Time) bool {

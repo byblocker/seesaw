@@ -3,7 +3,6 @@ package models
 import (
 	"log"
 	"seesaw/internal/utils"
-	"seesaw/pkg/config"
 
 	"github.com/shopspring/decimal"
 )
@@ -70,19 +69,6 @@ type LotSale struct {
 	IsWashSale   bool
 }
 
-// Zero without rates, as for an account that is not taxable.
-func (sale LotSale) TaxImpactPerShare(rates *config.TaxSettings) decimal.Decimal {
-	if rates == nil || sale.IsWashSale {
-		return decimal.Zero
-	}
-
-	rate := rates.ShortTermGainRate
-	if sale.LongTerm {
-		rate = rates.LongTermGainRate
-	}
-	return sale.GainPerShare.Mul(rate)
-}
-
 // Compare tax per dollar raised exactly across share prices by scaling each tax per share with the other price.
 func CompareTaxPerDollar(leftTaxPerShare, leftPrice, rightTaxPerShare, rightPrice decimal.Decimal) int {
 	return leftTaxPerShare.Mul(rightPrice).Cmp(rightTaxPerShare.Mul(leftPrice))
@@ -94,8 +80,4 @@ func (sale LotSale) Proceeds() decimal.Decimal {
 
 func (sale LotSale) RealizedPL() decimal.Decimal {
 	return sale.Quantity.Mul(sale.GainPerShare)
-}
-
-func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
-	return sale.Quantity.Mul(sale.TaxImpactPerShare(&rates))
 }

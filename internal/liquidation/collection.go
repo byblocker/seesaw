@@ -26,7 +26,7 @@ func collectLots(
 	amountNeeded decimal.Decimal,
 ) []sellableLot {
 	maxDeviation := request.Settings.AllocationLowerLimit
-	rates := request.TaxRates
+	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, request.TaxRates)
 
 	totalValue := decimal.Zero
 	for _, source := range snapshot.Assets {
@@ -47,7 +47,7 @@ func collectLots(
 					sale:        sale,
 					asset:       asset,
 					wholeShares: sale.Quantity.Floor().IntPart(),
-					taxPerShare: sale.TaxImpactPerShare(rates),
+					taxPerShare: taxPerShare[sale.LotIdx],
 				}
 				if lot.wholeShares == 0 {
 					continue

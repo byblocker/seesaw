@@ -25,10 +25,11 @@ func Plan(
 	}
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
+	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, request.TaxRates)
 	var sells []models.SellProposal
 	var requests []buyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetRequests := rebalanceAsset(snapshot, asset, request, maxValueDeviation)
+		assetSells, assetRequests := rebalanceAsset(snapshot, asset, request, taxPerShare, maxValueDeviation)
 		sells = append(sells, assetSells...)
 		requests = append(requests, assetRequests...)
 	}
@@ -41,12 +42,13 @@ func rebalanceAsset(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
 	request models.RebalanceRequest,
+	taxPerShare []decimal.Decimal,
 	maxValueDeviation decimal.Decimal,
 ) ([]models.SellProposal, []buyRequest) {
 	if asset.Plan == nil {
 		if request.Force {
 			log.Printf("Rebalancing %s: sell all", asset.Label)
-			return sellExcess(snapshot, asset, asset.Value, request.TaxRates), nil
+			return sellExcess(snapshot, asset, asset.Value, taxPerShare), nil
 		}
 		if request.TaxRates == nil {
 			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label)
@@ -80,7 +82,7 @@ func rebalanceAsset(
 			log.Printf("SKIP selling %s: within %s of target", asset.Label, utils.FormatMoney(maxValueDeviation))
 			return nil, nil
 		}
-		return sellExcess(snapshot, asset, asset.ValueDrift, request.TaxRates), nil
+		return sellExcess(snapshot, asset, asset.ValueDrift, taxPerShare), nil
 	}
 
 	buy, ok := selectBuy(snapshot, asset, sell, shortfall)
