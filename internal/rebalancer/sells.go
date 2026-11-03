@@ -52,7 +52,7 @@ func assetHasLoss(snapshot portfolio.Snapshot, asset portfolio.Asset) bool {
 
 func hasLoss(snapshot portfolio.Snapshot, position portfolio.Position) bool {
 	return slices.ContainsFunc(position.LotIdxs, func(idx int) bool {
-		return snapshot.Lots[idx].PricePaid.GreaterThan(position.Quote.Bid)
+		return snapshot.Lots[idx].GainPerShare.IsNegative()
 	})
 }
 
@@ -75,11 +75,10 @@ func harvestPosition(
 	}
 
 	minPctLoss := settings.MinPctLossToHarvest
-	sales := position.LotSales(snapshot)
 	candidate := models.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
-	for _, sale := range sales {
-		if isHarvestable(sale, minPctLoss) {
-			candidate.Add(sale)
+	for _, idx := range position.LotIdxs {
+		if lot := snapshot.Lots[idx]; isHarvestable(lot, minPctLoss) {
+			candidate.Add(snapshot.LotSale(idx, lot.Quantity))
 		}
 	}
 	if candidate.IsEmpty() {
@@ -88,26 +87,25 @@ func harvestPosition(
 	}
 
 	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, utils.FormatMoney(candidate.RealizedPL.Neg()))
-	for _, sale := range sales {
-		if sale.GainPct.IsNegative() {
-			logLot(snapshot, sale, isHarvestable(sale, minPctLoss))
+	for _, idx := range position.LotIdxs {
+		if lot := snapshot.Lots[idx]; lot.GainPct.IsNegative() {
+			logLot(lot, isHarvestable(lot, minPctLoss))
 		}
 	}
 	return candidate
 }
 
-func isHarvestable(sale models.LotSale, minPctLossToHarvest decimal.Decimal) bool {
-	gainPct := sale.GainPct
-	return gainPct.IsNegative() && gainPct.LessThanOrEqual(minPctLossToHarvest)
+func isHarvestable(lot portfolio.LotSnapshot, minPctLossToHarvest decimal.Decimal) bool {
+	return lot.GainPct.IsNegative() && lot.GainPct.LessThanOrEqual(minPctLossToHarvest)
 }
 
-func logLot(snapshot portfolio.Snapshot, sale models.LotSale, harvest bool) {
+func logLot(lot portfolio.LotSnapshot, harvest bool) {
 	action := "IGNORE"
 	if harvest {
 		action = "HARVEST"
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
-		action, sale.Quantity, snapshot.Lots[sale.LotIdx].TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct.Neg()))
+		action, lot.Quantity, lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(lot.GainPct.Neg()))
 }
 
 // Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
@@ -117,23 +115,27 @@ func sellExcess(
 	excess decimal.Decimal,
 	taxPerShare []decimal.Decimal,
 ) []models.SellProposal {
-	var sales []models.LotSale
+	var lotIdxs []int
 	for _, idx := range asset.PositionIdxs {
-		sales = append(sales, snapshot.Positions[idx].LotSales(snapshot)...)
+		lotIdxs = append(lotIdxs, snapshot.Positions[idx].LotIdxs...)
+	}
+	bid := func(lotIdx int) decimal.Decimal {
+		return snapshot.Positions[snapshot.Lots[lotIdx].PositionIdx].Quote.Bid
 	}
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
-	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
-		return portfolio.CompareTaxPerDollar(taxPerShare[left.LotIdx], left.Price, taxPerShare[right.LotIdx], right.Price)
+	slices.SortStableFunc(lotIdxs, func(left, right int) int {
+		return portfolio.CompareTaxPerDollar(taxPerShare[left], bid(left), taxPerShare[right], bid(right))
 	})
 
 	var sold []models.LotSale
 	remaining := excess
-	for _, sale := range sales {
-		maxShares, _ := remaining.QuoRem(sale.Price, 0)
-		sale.Quantity = decimal.Min(sale.Quantity.Floor(), maxShares)
-		if !sale.Quantity.IsPositive() {
+	for _, lotIdx := range lotIdxs {
+		maxShares, _ := remaining.QuoRem(bid(lotIdx), 0)
+		quantity := decimal.Min(snapshot.Lots[lotIdx].Quantity.Floor(), maxShares)
+		if !quantity.IsPositive() {
 			continue
 		}
+		sale := snapshot.LotSale(lotIdx, quantity)
 		sold = append(sold, sale)
 		remaining = remaining.Sub(sale.Proceeds())
 	}

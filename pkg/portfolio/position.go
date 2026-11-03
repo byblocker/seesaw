@@ -59,12 +59,3 @@ func (position Position) Value(lots []LotSnapshot) decimal.Decimal {
 	}
 	return quantity.Mul(position.Quote.Bid)
 }
-
-// Every lot of the position, sold at the bid on the snapshot's date.
-func (position Position) LotSales(snapshot Snapshot) []models.LotSale {
-	sales := make([]models.LotSale, 0, len(position.LotIdxs))
-	for _, idx := range position.LotIdxs {
-		sales = append(sales, snapshot.LotSale(idx, snapshot.Lots[idx].Quantity))
-	}
-	return sales
-}
