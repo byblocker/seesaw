@@ -117,7 +117,10 @@ func sellExcess(
 	excess decimal.Decimal,
 	rates *config.TaxSettings,
 ) []models.SellProposal {
-	sales := portfolio.LotSales(snapshot, asset.PositionIdxs)
+	var sales []models.LotSale
+	for _, idx := range asset.PositionIdxs {
+		sales = append(sales, snapshot.Positions[idx].LotSales(snapshot)...)
+	}
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
 		return models.CompareTaxPerDollar(left.TaxImpactPerShare(rates), left.Price, right.TaxImpactPerShare(rates), right.Price)

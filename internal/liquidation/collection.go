@@ -41,17 +41,19 @@ func collectLots(
 		asset := &assets[i]
 		*asset = newSellableAsset(source, maxDeviation, totalValueAfterSale)
 
-		for _, sale := range portfolio.LotSales(snapshot, source.PositionIdxs) {
-			lot := sellableLot{
-				sale:        sale,
-				asset:       asset,
-				wholeShares: sale.Quantity.Floor().IntPart(),
-				taxPerShare: sale.TaxImpactPerShare(rates),
+		for _, positionIdx := range source.PositionIdxs {
+			for _, sale := range snapshot.Positions[positionIdx].LotSales(snapshot) {
+				lot := sellableLot{
+					sale:        sale,
+					asset:       asset,
+					wholeShares: sale.Quantity.Floor().IntPart(),
+					taxPerShare: sale.TaxImpactPerShare(rates),
+				}
+				if lot.wholeShares == 0 {
+					continue
+				}
+				lots = append(lots, lot)
 			}
-			if lot.wholeShares == 0 {
-				continue
-			}
-			lots = append(lots, lot)
 		}
 	}
 

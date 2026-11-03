@@ -74,11 +74,3 @@ func (position Position) LotSales(snapshot Snapshot) []models.LotSale {
 	}
 	return sales
 }
-
-func LotSales(snapshot Snapshot, positionIdxs []int) []models.LotSale {
-	var sales []models.LotSale
-	for _, idx := range positionIdxs {
-		sales = append(sales, snapshot.Positions[idx].LotSales(snapshot)...)
-	}
-	return sales
-}
