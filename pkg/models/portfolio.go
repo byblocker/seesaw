@@ -18,18 +18,14 @@ type Balances struct {
 }
 
 type Portfolio struct {
-	Balances         Balances
-	PositionByTicker map[string]Position
-	Transactions     []Transaction
-	Quotes           []Quote
-}
-
-type Position struct {
-	Ticker string
-	Lots   []PositionLot
+	Balances     Balances
+	Lots         []PositionLot
+	Transactions []Transaction
+	Quotes       []Quote
 }
 
 type PositionLot struct {
+	Ticker       string
 	Id           int64
 	Quantity     decimal.Decimal
 	PricePaid    decimal.Decimal

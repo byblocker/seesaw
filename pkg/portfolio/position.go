@@ -24,6 +24,7 @@ func newPosition(
 	ticker string,
 	assetIdx int,
 	quote models.Quote,
+	heldLots []models.PositionLot,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
 ) (Position, []LotSnapshot, error) {
@@ -40,11 +41,12 @@ func newPosition(
 	}
 
 	var lots []LotSnapshot
-	for _, lot := range portfolio.PositionByTicker[ticker].Lots {
+	for _, lot := range heldLots {
 		if lot.Quantity.IsPositive() {
 			lots = append(lots, newLotSnapshot(lot, quote.Bid, createdAt, position.RecentlyBought))
 		}
 	}
+
 	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
 	slices.SortFunc(lots, func(left, right LotSnapshot) int {
 		return cmp.Compare(left.Id, right.Id)

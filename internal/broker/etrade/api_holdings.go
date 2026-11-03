@@ -151,7 +151,7 @@ func (client *Client) fetchPosition(
 	ctx context.Context,
 	accountKey string,
 	pos positionResponse,
-) (models.Position, error) {
+) ([]models.PositionLot, error) {
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio/%d",
 		client.apiBaseURL,
@@ -164,20 +164,21 @@ func (client *Client) fetchPosition(
 		endpoint,
 	)
 	if err != nil {
-		return models.Position{}, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
+		return nil, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 	}
 
 	// A position without lots would look like zero shares to the rebalancer.
 	if len(response.PositionLotsResponse.PositionLots) == 0 {
-		return models.Position{}, fmt.Errorf("no lots returned for position %d (%s)", pos.Id, pos.Ticker)
+		return nil, fmt.Errorf("no lots returned for position %d (%s)", pos.Id, pos.Ticker)
 	}
 
 	lots := make([]models.PositionLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
 		if err := utils.ValidateFields(lot, "lot."); err != nil {
-			return models.Position{}, fmt.Errorf("lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
+			return nil, fmt.Errorf("lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 		}
 		lots = append(lots, models.PositionLot{
+			Ticker:       pos.Ticker,
 			Id:           lot.Id,
 			Quantity:     *lot.Quantity,
 			PricePaid:    *lot.PricePaid,
@@ -185,5 +186,5 @@ func (client *Client) fetchPosition(
 		})
 	}
 
-	return models.Position{Ticker: pos.Ticker, Lots: lots}, nil
+	return lots, nil
 }
