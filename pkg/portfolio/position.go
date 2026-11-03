@@ -24,7 +24,7 @@ func newPosition(
 	ticker string,
 	assetIdx int,
 	quote models.Quote,
-	heldLots []models.PositionLot,
+	heldLots []models.Lot,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
 ) (Position, []LotSnapshot, error) {

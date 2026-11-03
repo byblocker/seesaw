@@ -10,7 +10,7 @@ import (
 )
 
 type LotSnapshot struct {
-	models.PositionLot
+	models.Lot
 	PositionIdx int
 
 	// Selling at the snapshot's bid on its date
@@ -20,7 +20,7 @@ type LotSnapshot struct {
 	IsWashSale   bool
 }
 
-func newLotSnapshot(lot models.PositionLot, bid decimal.Decimal, createdAt time.Time, recentlyBought bool) LotSnapshot {
+func newLotSnapshot(lot models.Lot, bid decimal.Decimal, createdAt time.Time, recentlyBought bool) LotSnapshot {
 	gainPerShare := bid.Sub(lot.PricePaid)
 	gainPct := decimal.Zero
 	if lot.PricePaid.IsPositive() {
@@ -28,7 +28,7 @@ func newLotSnapshot(lot models.PositionLot, bid decimal.Decimal, createdAt time.
 	}
 
 	return LotSnapshot{
-		PositionLot:  lot,
+		Lot:          lot,
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),

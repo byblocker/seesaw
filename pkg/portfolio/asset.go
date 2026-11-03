@@ -37,7 +37,7 @@ func groupByAsset(
 		quoteByTicker[quote.Ticker] = quote
 	}
 
-	lotsByTicker := map[string][]models.PositionLot{}
+	lotsByTicker := map[string][]models.Lot{}
 	for _, lot := range portfolio.Lots {
 		lotsByTicker[lot.Ticker] = append(lotsByTicker[lot.Ticker], lot)
 	}
