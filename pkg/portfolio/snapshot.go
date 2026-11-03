@@ -1,19 +1,18 @@
 package portfolio
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"seesaw/internal/calendar"
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
-)
-
-const (
-	washSaleWindowDays     = 30
-	transactionHistoryDays = washSaleWindowDays + 1
 )
 
 type Snapshot struct {
@@ -24,6 +23,38 @@ type Snapshot struct {
 	Positions  []Position
 	Lots       []LotSnapshot
 	TotalValue decimal.Decimal
+}
+
+type Asset struct {
+	Plan         *config.AssetPlan
+	Label        string
+	PositionIdxs []int
+
+	Allocation decimal.Decimal
+	AllocDrift decimal.Decimal
+
+	Value      decimal.Decimal
+	ValueDrift decimal.Decimal
+}
+
+type Position struct {
+	Ticker         string
+	AssetIdx       int
+	LotIdxs        []int
+	Quote          models.Quote
+	RecentlyBought bool
+	RecentlySold   bool
+}
+
+type LotSnapshot struct {
+	models.Lot
+	PositionIdx int
+
+	// Selling at the snapshot's bid on its date
+	GainPerShare decimal.Decimal
+	GainPct      decimal.Decimal // Fraction of the price paid
+	LongTerm     bool
+	IsWashSale   bool
 }
 
 func TakeSnapshot(
@@ -70,6 +101,133 @@ func TakeSnapshot(
 		Lots:       lots,
 		TotalValue: totalValue,
 	}, nil
+}
+
+// One asset row per plan, then one for holdings outside the plan, each with a position row per ticker.
+func newAssets(plans []config.AssetPlan, heldLots []models.Lot) ([]Asset, []Position, map[string]int) {
+	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
+	var positions []Position
+	positionIdxByTicker := map[string]int{}
+	addAsset := func(plan *config.AssetPlan, label string, tickers []string) {
+		asset := Asset{Plan: plan, Label: label}
+		for _, ticker := range tickers {
+			positionIdxByTicker[ticker] = len(positions)
+			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
+			positions = append(positions, Position{Ticker: ticker, AssetIdx: len(assets)})
+		}
+		assets = append(assets, asset)
+	}
+
+	for i := range plans {
+		tickers := slices.Collect(plans[i].Tickers())
+		addAsset(&plans[i], strings.Join(tickers, " / "), tickers)
+	}
+
+	var unplanned []string
+	for _, lot := range heldLots {
+		if _, planned := positionIdxByTicker[lot.Ticker]; !planned {
+			unplanned = append(unplanned, lot.Ticker)
+		}
+	}
+	if len(unplanned) > 0 {
+		// Brokers list lots in no set order; sort so ties between unplanned positions break the same way every run.
+		slices.Sort(unplanned)
+		addAsset(nil, "OTHER", slices.Compact(unplanned))
+	}
+
+	return assets, positions, positionIdxByTicker
+}
+
+// Write each quote into its position, and reject any position left without a positive bid and ask.
+func setQuotes(positions []Position, positionIdxByTicker map[string]int, quotes []models.Quote) error {
+	for _, quote := range quotes {
+		if idx, ok := positionIdxByTicker[quote.Ticker]; ok {
+			positions[idx].Quote = quote
+		}
+	}
+	for _, position := range positions {
+		if !position.Quote.Bid.IsPositive() || !position.Quote.Ask.IsPositive() {
+			return fmt.Errorf("missing quote for %s", position.Ticker)
+		}
+	}
+	return nil
+}
+
+// Trades within the wash-sale window bar harvesting a recent buy and buying back a recent sale.
+func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, transactions []models.Transaction, createdAt time.Time) {
+	for _, tx := range transactions {
+		idx, ok := positionIdxByTicker[tx.Ticker]
+		if !ok || calendar.DaysBetween(tx.Date, createdAt) > washSaleWindowDays {
+			continue
+		}
+		switch tx.Type {
+		case models.TxBuy:
+			positions[idx].RecentlyBought = true
+		case models.TxSell:
+			positions[idx].RecentlySold = true
+		}
+	}
+}
+
+// A lot row for every held lot, recorded in its position's LotIdxs in lot ID order.
+func newLotSnapshots(positions []Position, positionIdxByTicker map[string]int, heldLots []models.Lot, createdAt time.Time) []LotSnapshot {
+	var lots []LotSnapshot
+	for _, lot := range heldLots {
+		if !lot.Quantity.IsPositive() {
+			continue
+		}
+		positionIdx := positionIdxByTicker[lot.Ticker] // newAssets gave every held ticker a position
+		position := &positions[positionIdx]
+		row := newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought)
+		row.PositionIdx = positionIdx
+		position.LotIdxs = append(position.LotIdxs, len(lots))
+		lots = append(lots, row)
+	}
+
+	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
+	for i := range positions {
+		slices.SortFunc(positions[i].LotIdxs, func(left, right int) int {
+			return cmp.Compare(lots[left].Id, lots[right].Id)
+		})
+	}
+	return lots
+}
+
+func newLotSnapshot(lot models.Lot, bid decimal.Decimal, createdAt time.Time, recentlyBought bool) LotSnapshot {
+	gainPerShare := bid.Sub(lot.PricePaid)
+	gainPct := decimal.Zero
+	if lot.PricePaid.IsPositive() {
+		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, utils.DivisionDecimalPlaces)
+	}
+
+	return LotSnapshot{
+		Lot:          lot,
+		GainPerShare: gainPerShare,
+		GainPct:      gainPct,
+		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),
+		IsWashSale:   recentlyBought && gainPerShare.IsNegative(),
+	}
+}
+
+func (position Position) Value(lots []LotSnapshot) decimal.Decimal {
+	quantity := decimal.Zero
+	for _, idx := range position.LotIdxs {
+		quantity = quantity.Add(lots[idx].Quantity)
+	}
+	return quantity.Mul(position.Quote.Bid)
+}
+
+func (asset *Asset) allocate(totalValue decimal.Decimal) {
+	asset.Allocation = decimal.Zero
+	if !totalValue.IsZero() {
+		asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
+	}
+
+	if asset.Plan != nil {
+		asset.AllocDrift = asset.Allocation.Sub(asset.Plan.TargetAllocation)
+		expectedValue := totalValue.Mul(asset.Plan.TargetAllocation)
+		asset.ValueDrift = asset.Value.Sub(expectedValue)
+	}
 }
 
 // The snapshot after the orders and the withdrawal. Its positions and lots are the snapshot's own, unchanged.
