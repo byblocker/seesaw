@@ -58,15 +58,16 @@ func (position Position) Value(lots []models.PositionLot) decimal.Decimal {
 	return quantity.Mul(position.Quote.Bid)
 }
 
-func (position Position) LotSales(lots []models.PositionLot, saleDate time.Time) []models.LotSale {
+// Every lot of the position, sold at the bid on the snapshot's date.
+func (position Position) LotSales(snapshot Snapshot) []models.LotSale {
 	sales := make([]models.LotSale, 0, len(position.LotIdxs))
 	for _, idx := range position.LotIdxs {
 		sale := models.NewLotSale(
 			position.Ticker,
 			idx,
-			lots[idx],
+			snapshot.Lots[idx],
 			position.Quote.Bid,
-			saleDate,
+			snapshot.CreatedAt,
 			position.RecentlyBought,
 		)
 		sales = append(sales, sale)
@@ -74,10 +75,10 @@ func (position Position) LotSales(lots []models.PositionLot, saleDate time.Time)
 	return sales
 }
 
-func LotSales(positions []Position, lots []models.PositionLot, idxs []int, saleDate time.Time) []models.LotSale {
+func LotSales(snapshot Snapshot, positionIdxs []int) []models.LotSale {
 	var sales []models.LotSale
-	for _, idx := range idxs {
-		sales = append(sales, positions[idx].LotSales(lots, saleDate)...)
+	for _, idx := range positionIdxs {
+		sales = append(sales, snapshot.Positions[idx].LotSales(snapshot)...)
 	}
 	return sales
 }

@@ -75,7 +75,7 @@ func harvestPosition(
 	}
 
 	minPctLoss := settings.MinPctLossToHarvest
-	sales := position.LotSales(snapshot.Lots, snapshot.CreatedAt)
+	sales := position.LotSales(snapshot)
 	candidate := models.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
 	for _, sale := range sales {
 		if isHarvestable(sale, minPctLoss) {
@@ -117,7 +117,7 @@ func sellExcess(
 	excess decimal.Decimal,
 	rates *config.TaxSettings,
 ) []models.SellProposal {
-	sales := portfolio.LotSales(snapshot.Positions, snapshot.Lots, asset.PositionIdxs, snapshot.CreatedAt)
+	sales := portfolio.LotSales(snapshot, asset.PositionIdxs)
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
 		return models.CompareTaxPerDollar(left.TaxImpactPerShare(rates), left.Price, right.TaxImpactPerShare(rates), right.Price)
