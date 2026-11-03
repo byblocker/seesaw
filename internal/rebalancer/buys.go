@@ -17,7 +17,7 @@ type buyRequest struct {
 	Ask    decimal.Decimal
 }
 
-func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
+func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfolio.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
 	for _, idx := range asset.PositionIdxs {
 		position := snapshot.Positions[idx]
 		if position.Ticker != sell.Ticker && !position.RecentlySold {
@@ -36,17 +36,17 @@ func sizeBuys(
 	snapshot portfolio.Snapshot,
 	settings config.Settings,
 	broker models.BrokerSettings,
-	sells []models.SellProposal,
+	sells []portfolio.SellProposal,
 	requests []buyRequest,
 	maxValueDeviation decimal.Decimal,
-) []models.Buy {
+) []portfolio.Buy {
 	balance := snapshot.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
 	}
 
 	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
-	var buys []models.Buy
+	var buys []portfolio.Buy
 	for _, request := range requests {
 		if !balance.IsPositive() {
 			log.Print("SKIP remaining buy requests: no buying power left")
@@ -80,7 +80,7 @@ func proposeBuy(
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
 	allowFractionalShares bool,
-) models.Buy {
+) portfolio.Buy {
 	valueToCover := decimal.Min(req.Amount, balance)
 	exact, _ := valueToCover.QuoRem(req.Ask, utils.DivisionDecimalPlaces)
 	if allowFractionalShares {
@@ -116,8 +116,8 @@ func proposeBuy(
 	return req.buy(rounded)
 }
 
-func (req buyRequest) buy(quantity decimal.Decimal) models.Buy {
-	return models.Buy{
+func (req buyRequest) buy(quantity decimal.Decimal) portfolio.Buy {
+	return portfolio.Buy{
 		Ticker:        req.Ticker,
 		Price:         req.Ask,
 		Quantity:      quantity,

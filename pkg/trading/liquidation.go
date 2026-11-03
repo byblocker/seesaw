@@ -10,7 +10,7 @@ import (
 func Liquidate(
 	snapshot portfolio.Snapshot,
 	request models.LiquidationRequest,
-) ([]models.SellProposal, error) {
+) ([]portfolio.SellProposal, error) {
 	if err := request.Validate(); err != nil {
 		return nil, err
 	}

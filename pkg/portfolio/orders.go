@@ -1,4 +1,4 @@
-package models
+package portfolio
 
 import (
 	"log"
@@ -6,6 +6,11 @@ import (
 
 	"github.com/shopspring/decimal"
 )
+
+type RebalancePlan struct {
+	Buys  []Buy
+	Sells []SellProposal
+}
 
 type Buy struct {
 	Ticker        string

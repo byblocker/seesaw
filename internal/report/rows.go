@@ -3,7 +3,6 @@ package report
 import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
@@ -27,13 +26,13 @@ func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]stri
 	writeTable(output, headers, rows, 3)
 }
 
-func formatSells(sells []models.SellProposal, lots []portfolio.LotSnapshot, rates *config.TaxSettings) formattedSells {
+func formatSells(sells []portfolio.SellProposal, lots []portfolio.LotSnapshot, rates *config.TaxSettings) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
 	}
 	taxPerShare := portfolio.TaxPerShare(lots, rates)
-	sells = slices.SortedFunc(slices.Values(sells), func(left, right models.SellProposal) int {
+	sells = slices.SortedFunc(slices.Values(sells), func(left, right portfolio.SellProposal) int {
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
 	for _, sell := range sells {
@@ -72,9 +71,9 @@ func formatSells(sells []models.SellProposal, lots []portfolio.LotSnapshot, rate
 	return result
 }
 
-func formatBuys(buys []models.Buy, rates *config.TaxSettings) [][]string {
+func formatBuys(buys []portfolio.Buy, rates *config.TaxSettings) [][]string {
 	rows := make([][]string, 0, len(buys))
-	buys = slices.SortedFunc(slices.Values(buys), func(left, right models.Buy) int {
+	buys = slices.SortedFunc(slices.Values(buys), func(left, right portfolio.Buy) int {
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
 	for _, buy := range buys {
@@ -88,7 +87,7 @@ func formatBuys(buys []models.Buy, rates *config.TaxSettings) [][]string {
 	return rows
 }
 
-func formatBuy(buy models.Buy) []string {
+func formatBuy(buy portfolio.Buy) []string {
 	return []string{
 		buy.Ticker,
 		"BUY",

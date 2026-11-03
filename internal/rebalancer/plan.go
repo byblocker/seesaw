@@ -14,7 +14,7 @@ func Plan(
 	snapshot portfolio.Snapshot,
 	request models.RebalanceRequest,
 	broker models.BrokerSettings,
-) models.RebalancePlan {
+) portfolio.RebalancePlan {
 	request.Settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
 	maxValueDeviation := snapshot.TotalValue.Mul(request.Settings.AllocationUpperLimit)
 	if request.Force {
@@ -26,7 +26,7 @@ func Plan(
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, request.TaxRates)
-	var sells []models.SellProposal
+	var sells []portfolio.SellProposal
 	var requests []buyRequest
 	for _, asset := range snapshot.Assets {
 		assetSells, assetRequests := rebalanceAsset(snapshot, asset, request, taxPerShare, maxValueDeviation)
@@ -35,7 +35,7 @@ func Plan(
 	}
 
 	buys := sizeBuys(snapshot, request.Settings, broker, sells, requests, maxValueDeviation)
-	return models.RebalancePlan{Buys: buys, Sells: sells}
+	return portfolio.RebalancePlan{Buys: buys, Sells: sells}
 }
 
 func rebalanceAsset(
@@ -44,7 +44,7 @@ func rebalanceAsset(
 	request models.RebalanceRequest,
 	taxPerShare []decimal.Decimal,
 	maxValueDeviation decimal.Decimal,
-) ([]models.SellProposal, []buyRequest) {
+) ([]portfolio.SellProposal, []buyRequest) {
 	if asset.Plan == nil {
 		if request.Force {
 			log.Printf("Rebalancing %s: sell all", asset.Label)
@@ -67,7 +67,7 @@ func rebalanceAsset(
 	}
 
 	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
-	var sell models.SellProposal
+	var sell portfolio.SellProposal
 	if request.TaxRates != nil {
 		sell = harvestAsset(snapshot, asset, request.Settings)
 	}
@@ -100,7 +100,7 @@ func rebalanceAsset(
 	if sell.IsEmpty() {
 		return nil, []buyRequest{buy}
 	}
-	return []models.SellProposal{sell}, []buyRequest{buy}
+	return []portfolio.SellProposal{sell}, []buyRequest{buy}
 }
 
 // Unless forced, we should not liquidate unplanned positions while rebalancing,
@@ -109,13 +109,13 @@ func harvestUnplanned(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
 	settings config.Settings,
-) []models.SellProposal {
+) []portfolio.SellProposal {
 	if !assetHasLoss(snapshot, asset) {
 		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
 		return nil
 	}
 
-	var sells []models.SellProposal
+	var sells []portfolio.SellProposal
 	for _, idx := range asset.PositionIdxs {
 		position := snapshot.Positions[idx]
 		if !hasLoss(snapshot, position) {

@@ -17,8 +17,3 @@ func (request RebalanceRequest) Validate() error {
 	}
 	return nil
 }
-
-type RebalancePlan struct {
-	Buys  []Buy
-	Sells []SellProposal
-}

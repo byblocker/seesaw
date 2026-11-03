@@ -14,7 +14,7 @@ import (
 func PlanSales(
 	snapshot portfolio.Snapshot,
 	request models.LiquidationRequest,
-) ([]models.SellProposal, error) {
+) ([]portfolio.SellProposal, error) {
 	// Use existing cash first, and sell only for the rest of the withdrawal.
 	amountNeeded := utils.ClampNonNegative(request.Amount.Sub(snapshot.Balances.CashBalance))
 	if amountNeeded.IsZero() {
@@ -44,5 +44,5 @@ func PlanSales(
 		return nil, err
 	}
 
-	return models.GroupSales(sales), nil
+	return portfolio.GroupSales(sales), nil
 }

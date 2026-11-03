@@ -4,7 +4,6 @@ import (
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"time"
@@ -16,13 +15,13 @@ func harvestAsset(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
 	settings config.Settings,
-) models.SellProposal {
+) portfolio.SellProposal {
 	if !assetHasLoss(snapshot, asset) {
 		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
-		return models.SellProposal{}
+		return portfolio.SellProposal{}
 	}
 
-	var best models.SellProposal
+	var best portfolio.SellProposal
 	for _, idx := range asset.PositionIdxs {
 		position := snapshot.Positions[idx]
 		if !hasLoss(snapshot, position) {
@@ -67,15 +66,15 @@ func harvestPosition(
 	snapshot portfolio.Snapshot,
 	position portfolio.Position,
 	settings config.Settings,
-) models.SellProposal {
+) portfolio.SellProposal {
 	ticker := position.Ticker
 	if position.RecentlyBought {
 		log.Printf("CANNOT harvest %s: bought within wash-sale window", ticker)
-		return models.SellProposal{}
+		return portfolio.SellProposal{}
 	}
 
 	minPctLoss := settings.MinPctLossToHarvest
-	candidate := models.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
+	candidate := portfolio.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
 	for _, idx := range position.LotIdxs {
 		if lot := snapshot.Lots[idx]; isHarvestable(lot, minPctLoss) {
 			candidate.Add(snapshot.LotSale(idx, lot.Quantity))
@@ -114,7 +113,7 @@ func sellExcess(
 	asset portfolio.Asset,
 	excess decimal.Decimal,
 	taxPerShare []decimal.Decimal,
-) []models.SellProposal {
+) []portfolio.SellProposal {
 	var lotIdxs []int
 	for _, idx := range asset.PositionIdxs {
 		lotIdxs = append(lotIdxs, snapshot.Positions[idx].LotIdxs...)
@@ -124,7 +123,7 @@ func sellExcess(
 		return portfolio.CompareTaxPerDollar(snapshot, taxPerShare, left, right)
 	})
 
-	var sold []models.LotSale
+	var sold []portfolio.LotSale
 	remaining := excess
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
@@ -138,7 +137,7 @@ func sellExcess(
 		remaining = remaining.Sub(sale.Proceeds())
 	}
 
-	proposals := models.GroupSales(sold)
+	proposals := portfolio.GroupSales(sold)
 	for _, proposal := range proposals {
 		proposal.LogProceeds()
 	}

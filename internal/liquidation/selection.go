@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -17,12 +16,12 @@ func selectLots(
 	taxPerShare []decimal.Decimal,
 	valueAboveMin []decimal.Decimal,
 	amountNeeded decimal.Decimal,
-) ([]models.LotSale, error) {
+) ([]portfolio.LotSale, error) {
 	// Remaining ties keep plan order, then lot ID order, from sellableLots, so plans repeat exactly.
 	slices.SortStableFunc(lotIdxs, func(left, right int) int {
 		return compareLots(snapshot, taxPerShare, left, right)
 	})
-	var sales []models.LotSale
+	var sales []portfolio.LotSale
 	proceeds := decimal.Zero
 	sold := make([]decimal.Decimal, len(snapshot.Assets))
 

@@ -2,15 +2,14 @@ package report
 
 import (
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
 )
 
 func Proposal(
-	sells []models.SellProposal,
-	buys []models.Buy,
+	sells []portfolio.SellProposal,
+	buys []portfolio.Buy,
 	estimated portfolio.Snapshot,
 	rates *config.TaxSettings,
 ) string {
