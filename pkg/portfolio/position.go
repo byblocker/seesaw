@@ -3,7 +3,6 @@ package portfolio
 import (
 	"cmp"
 	"fmt"
-	"seesaw/internal/calendar"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -25,7 +24,7 @@ func newPosition(
 	assetIdx int,
 	quote models.Quote,
 	heldLots []models.Lot,
-	transactions []models.Transaction,
+	recentlyBought, recentlySold bool,
 	createdAt time.Time,
 ) (Position, []LotSnapshot, error) {
 	if !quote.Bid.IsPositive() || !quote.Ask.IsPositive() {
@@ -36,8 +35,8 @@ func newPosition(
 		Ticker:         ticker,
 		AssetIdx:       assetIdx,
 		Quote:          quote,
-		RecentlyBought: tradedWithinWashWindow(transactions, models.TxBuy, createdAt),
-		RecentlySold:   tradedWithinWashWindow(transactions, models.TxSell, createdAt),
+		RecentlyBought: recentlyBought,
+		RecentlySold:   recentlySold,
 	}
 
 	var lots []LotSnapshot
@@ -53,12 +52,6 @@ func newPosition(
 	})
 
 	return position, lots, nil
-}
-
-func tradedWithinWashWindow(transactions []models.Transaction, txType models.TransactionType, day time.Time) bool {
-	return slices.ContainsFunc(transactions, func(tx models.Transaction) bool {
-		return tx.Type == txType && calendar.DaysBetween(tx.Date, day) <= models.WashSaleWindowDays
-	})
 }
 
 func (position Position) Value(lots []LotSnapshot) decimal.Decimal {

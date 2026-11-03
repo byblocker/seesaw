@@ -11,7 +11,10 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const transactionHistoryDays = models.WashSaleWindowDays + 1
+const (
+	washSaleWindowDays     = 30
+	transactionHistoryDays = washSaleWindowDays + 1
+)
 
 type Snapshot struct {
 	AccountId  string

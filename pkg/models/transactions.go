@@ -6,8 +6,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const WashSaleWindowDays = 30
-
 type Transaction struct {
 	Ticker   string
 	Type     TransactionType

@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"seesaw/internal/calendar"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
@@ -42,9 +43,18 @@ func groupByAsset(
 		lotsByTicker[lot.Ticker] = append(lotsByTicker[lot.Ticker], lot)
 	}
 
-	transactionsByTicker := map[string][]models.Transaction{}
+	// Trades within the wash-sale window bar harvesting a recent buy and buying back a recent sale.
+	recentlyBought, recentlySold := collections.NewSet[string](), collections.NewSet[string]()
 	for _, tx := range portfolio.Transactions {
-		transactionsByTicker[tx.Ticker] = append(transactionsByTicker[tx.Ticker], tx)
+		if calendar.DaysBetween(tx.Date, createdAt) > washSaleWindowDays {
+			continue
+		}
+		switch tx.Type {
+		case models.TxBuy:
+			recentlyBought.Add(tx.Ticker)
+		case models.TxSell:
+			recentlySold.Add(tx.Ticker)
+		}
 	}
 
 	var positions []Position
@@ -53,7 +63,7 @@ func groupByAsset(
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
 			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
-			position, held, err := newPosition(ticker, len(assets), quoteByTicker[ticker], lotsByTicker[ticker], transactionsByTicker[ticker], createdAt)
+			position, held, err := newPosition(ticker, len(assets), quoteByTicker[ticker], lotsByTicker[ticker], recentlyBought.Contains(ticker), recentlySold.Contains(ticker), createdAt)
 			if err != nil {
 				return err
 			}
