@@ -123,7 +123,7 @@ func sellExcess(
 	}
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
-		return models.CompareTaxPerDollar(taxPerShare[left.LotIdx], left.Price, taxPerShare[right.LotIdx], right.Price)
+		return portfolio.CompareTaxPerDollar(taxPerShare[left.LotIdx], left.Price, taxPerShare[right.LotIdx], right.Price)
 	})
 
 	var sold []models.LotSale

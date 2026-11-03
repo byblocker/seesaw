@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"seesaw/pkg/models"
+	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
 )
@@ -62,7 +63,7 @@ func compareLots(left, right sellableLot) int {
 	}
 
 	return cmp.Or(
-		models.CompareTaxPerDollar(left.taxPerShare, left.sale.Price, right.taxPerShare, right.sale.Price),
+		portfolio.CompareTaxPerDollar(left.taxPerShare, left.sale.Price, right.taxPerShare, right.sale.Price),
 		// Ties go to the most overweight asset
 		right.asset.drift.Cmp(left.asset.drift),
 	)

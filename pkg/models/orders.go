@@ -69,11 +69,6 @@ type LotSale struct {
 	IsWashSale   bool
 }
 
-// Compare tax per dollar raised exactly across share prices by scaling each tax per share with the other price.
-func CompareTaxPerDollar(leftTaxPerShare, leftPrice, rightTaxPerShare, rightPrice decimal.Decimal) int {
-	return leftTaxPerShare.Mul(rightPrice).Cmp(rightTaxPerShare.Mul(leftPrice))
-}
-
 func (sale LotSale) Proceeds() decimal.Decimal {
 	return sale.Quantity.Mul(sale.Price)
 }

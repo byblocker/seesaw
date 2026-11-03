@@ -54,6 +54,11 @@ func TaxPerShare(lots []LotSnapshot, rates *config.TaxSettings) []decimal.Decima
 	return taxPerShare
 }
 
+// Compare tax per dollar raised exactly across share prices by scaling each tax per share with the other price.
+func CompareTaxPerDollar(leftTaxPerShare, leftPrice, rightTaxPerShare, rightPrice decimal.Decimal) int {
+	return leftTaxPerShare.Mul(rightPrice).Cmp(rightTaxPerShare.Mul(leftPrice))
+}
+
 func isLongTerm(timeAcquired, saleDate time.Time) bool {
 	acquiredYear, acquiredMonth, acquiredDay := timeAcquired.In(saleDate.Location()).Date()
 	soldYear, soldMonth, soldDay := saleDate.Date()
