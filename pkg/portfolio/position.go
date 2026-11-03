@@ -1,7 +1,9 @@
 package portfolio
 
 import (
+	"cmp"
 	"seesaw/pkg/models"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -9,6 +11,7 @@ import (
 
 type Position struct {
 	Ticker         string
+	AssetIdx       int
 	Lots           []models.PositionLot
 	Quote          models.Quote
 	RecentlyBought bool
@@ -17,11 +20,13 @@ type Position struct {
 
 func newPosition(
 	ticker string,
+	assetIdx int,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
 ) Position {
 	position := Position{
 		Ticker:         ticker,
+		AssetIdx:       assetIdx,
 		Quote:          portfolio.Quotes[ticker],
 		RecentlyBought: portfolio.RecentTx.HasBuyWithinWashWindow(ticker, createdAt),
 		RecentlySold:   portfolio.RecentTx.HasSellWithinWashWindow(ticker, createdAt),
@@ -63,6 +68,18 @@ func (position Position) LotSales(saleDate time.Time) []models.LotSale {
 			position.RecentlyBought,
 		)
 		sales = append(sales, sale)
+	}
+	return sales
+}
+
+func LotSales(positions []Position, idxs []int, saleDate time.Time) []models.LotSale {
+	var sales []models.LotSale
+	for _, idx := range idxs {
+		positionSales := positions[idx].LotSales(saleDate)
+		slices.SortFunc(positionSales, func(left, right models.LotSale) int {
+			return cmp.Compare(left.Lot.Id, right.Lot.Id)
+		})
+		sales = append(sales, positionSales...)
 	}
 	return sales
 }

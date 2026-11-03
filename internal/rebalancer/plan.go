@@ -6,7 +6,6 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -30,7 +29,7 @@ func Plan(
 	var sells []models.SellProposal
 	var requests []buyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetRequests := rebalanceAsset(asset, request, snapshot.CreatedAt, maxValueDeviation)
+		assetSells, assetRequests := rebalanceAsset(asset, snapshot.Positions, request, snapshot.CreatedAt, maxValueDeviation)
 		sells = append(sells, assetSells...)
 		requests = append(requests, assetRequests...)
 	}
@@ -44,27 +43,28 @@ func Plan(
 
 func rebalanceAsset(
 	asset portfolio.Asset,
+	positions []portfolio.Position,
 	request models.RebalanceRequest,
 	tradeDate time.Time,
 	maxValueDeviation decimal.Decimal,
 ) ([]models.SellProposal, []buyRequest) {
 	if asset.Plan == nil {
 		if request.Force {
-			log.Printf("Rebalancing %s: sell all", asset.Label())
-			return sellExcess(asset, asset.Value, request.TaxRates, tradeDate), nil
+			log.Printf("Rebalancing %s: sell all", asset.Label)
+			return sellExcess(asset, positions, asset.Value, request.TaxRates, tradeDate), nil
 		}
 		if request.TaxRates == nil {
-			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label())
+			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label)
 			return nil, nil
 		}
-		log.Printf("Rebalancing %s: harvest only", asset.Label())
-		return harvestUnplanned(asset, request.Settings, tradeDate), nil
+		log.Printf("Rebalancing %s: harvest only", asset.Label)
+		return harvestUnplanned(asset, positions, request.Settings, tradeDate), nil
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
-		asset.Label(), utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
-	for _, position := range asset.Positions {
-		if position.RecentlySold {
+		asset.Label, utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
+	for _, idx := range asset.PositionIdxs {
+		if position := positions[idx]; position.RecentlySold {
 			log.Printf("CANNOT buy %s: sold within wash-sale window", position.Ticker)
 		}
 	}
@@ -72,27 +72,27 @@ func rebalanceAsset(
 	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
 	var sell models.SellProposal
 	if request.TaxRates != nil {
-		sell = harvestAsset(asset, request.Settings, tradeDate)
+		sell = harvestAsset(asset, positions, request.Settings, tradeDate)
 	}
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
-		log.Printf("CANNOT buy %s: position is overweight", asset.Label())
+		log.Printf("CANNOT buy %s: position is overweight", asset.Label)
 		if !request.Force {
 			return nil, nil
 		}
 		if asset.ValueDrift.LessThanOrEqual(maxValueDeviation) {
-			log.Printf("SKIP selling %s: within %s of target", asset.Label(), utils.FormatMoney(maxValueDeviation))
+			log.Printf("SKIP selling %s: within %s of target", asset.Label, utils.FormatMoney(maxValueDeviation))
 			return nil, nil
 		}
-		return sellExcess(asset, asset.ValueDrift, request.TaxRates, tradeDate), nil
+		return sellExcess(asset, positions, asset.ValueDrift, request.TaxRates, tradeDate), nil
 	}
 
-	buy, ok := selectBuy(asset, sell, shortfall)
+	buy, ok := selectBuy(asset, positions, sell, shortfall)
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
-		log.Printf("CANNOT buy %s: all tickers sold within wash-sale window", asset.Label())
+		log.Printf("CANNOT buy %s: all tickers sold within wash-sale window", asset.Label)
 		return nil, nil
 	}
 
@@ -110,16 +110,18 @@ func rebalanceAsset(
 // but we should eagerly harvest any tax-loss these positions have accrued.
 func harvestUnplanned(
 	asset portfolio.Asset,
+	positions []portfolio.Position,
 	settings config.Settings,
 	tradeDate time.Time,
 ) []models.SellProposal {
-	if !slices.ContainsFunc(asset.Positions, hasLoss) {
-		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label())
+	if !assetHasLoss(asset, positions) {
+		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
 		return nil
 	}
 
 	var sells []models.SellProposal
-	for _, position := range asset.Positions {
+	for _, idx := range asset.PositionIdxs {
+		position := positions[idx]
 		if !hasLoss(position) {
 			continue
 		}

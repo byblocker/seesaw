@@ -17,8 +17,9 @@ type buyRequest struct {
 	Ask    decimal.Decimal
 }
 
-func selectBuy(asset portfolio.Asset, sell models.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
-	for _, position := range asset.Positions {
+func selectBuy(asset portfolio.Asset, positions []portfolio.Position, sell models.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
+	for _, idx := range asset.PositionIdxs {
+		position := positions[idx]
 		if position.Ticker != sell.Ticker && !position.RecentlySold {
 			return buyRequest{
 				Ticker: position.Ticker,

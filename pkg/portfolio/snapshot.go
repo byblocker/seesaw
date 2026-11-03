@@ -18,6 +18,7 @@ type Snapshot struct {
 	CreatedAt  time.Time
 	Balances   models.Balances
 	Assets     []Asset
+	Positions  []Position
 	TotalValue decimal.Decimal
 }
 
@@ -37,20 +38,16 @@ func TakeSnapshot(
 	}
 
 	createdAt := time.Now()
-	assets := groupByAsset(plan.Assets, portfolio)
+	assets, positions := groupByAsset(plan.Assets, portfolio, createdAt)
 
 	totalValue := portfolio.Balances.CashBalance
-	for i := range assets {
-		asset := &assets[i]
-		for _, ticker := range asset.Tickers {
-			position := newPosition(ticker, portfolio, createdAt)
-			if position.IsHeld() && !position.Quote.Bid.IsPositive() {
-				return nil, fmt.Errorf("missing bid price for %s", ticker)
-			}
-			asset.Positions = append(asset.Positions, position)
-			asset.Value = asset.Value.Add(position.Value())
+	for _, position := range positions {
+		if position.IsHeld() && !position.Quote.Bid.IsPositive() {
+			return nil, fmt.Errorf("missing bid price for %s", position.Ticker)
 		}
-		totalValue = totalValue.Add(asset.Value)
+		asset := &assets[position.AssetIdx]
+		asset.Value = asset.Value.Add(position.Value())
+		totalValue = totalValue.Add(position.Value())
 	}
 
 	for i := range assets {
@@ -62,6 +59,7 @@ func TakeSnapshot(
 		CreatedAt:  createdAt,
 		Balances:   portfolio.Balances,
 		Assets:     assets,
+		Positions:  positions,
 		TotalValue: totalValue,
 	}, nil
 }
@@ -82,11 +80,11 @@ func (snapshot Snapshot) Simulate(sells []models.SellProposal, buys []models.Buy
 	simulated.Balances.CashBalance = cash
 	simulated.Assets = slices.Clone(snapshot.Assets)
 	simulated.TotalValue = cash
-	for i := range simulated.Assets {
-		asset := &simulated.Assets[i]
-		for _, ticker := range asset.Tickers {
-			asset.Value = asset.Value.Add(changeByTicker[ticker])
-		}
+	for _, position := range simulated.Positions {
+		asset := &simulated.Assets[position.AssetIdx]
+		asset.Value = asset.Value.Add(changeByTicker[position.Ticker])
+	}
+	for _, asset := range simulated.Assets {
 		simulated.TotalValue = simulated.TotalValue.Add(asset.Value)
 	}
 

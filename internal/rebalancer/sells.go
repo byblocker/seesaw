@@ -14,20 +14,22 @@ import (
 
 func harvestAsset(
 	asset portfolio.Asset,
+	positions []portfolio.Position,
 	settings config.Settings,
 	tradeDate time.Time,
 ) models.SellProposal {
-	if !slices.ContainsFunc(asset.Positions, hasLoss) {
-		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label())
+	if !assetHasLoss(asset, positions) {
+		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
 		return models.SellProposal{}
 	}
 
 	var best models.SellProposal
-	for _, position := range asset.Positions {
+	for _, idx := range asset.PositionIdxs {
+		position := positions[idx]
 		if !hasLoss(position) {
 			continue
 		}
-		if !hasReplacement(asset, position.Ticker) {
+		if !hasReplacement(asset, positions, position.Ticker) {
 			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
@@ -43,14 +45,21 @@ func harvestAsset(
 	return best
 }
 
+func assetHasLoss(asset portfolio.Asset, positions []portfolio.Position) bool {
+	return slices.ContainsFunc(asset.PositionIdxs, func(idx int) bool {
+		return hasLoss(positions[idx])
+	})
+}
+
 func hasLoss(position portfolio.Position) bool {
 	return slices.ContainsFunc(position.Lots, func(lot models.PositionLot) bool {
 		return lot.PricePaid.GreaterThan(position.Quote.Bid)
 	})
 }
 
-func hasReplacement(asset portfolio.Asset, ticker string) bool {
-	return slices.ContainsFunc(asset.Positions, func(other portfolio.Position) bool {
+func hasReplacement(asset portfolio.Asset, positions []portfolio.Position, ticker string) bool {
+	return slices.ContainsFunc(asset.PositionIdxs, func(idx int) bool {
+		other := positions[idx]
 		return other.Ticker != ticker && !other.RecentlySold
 	})
 }
@@ -105,11 +114,12 @@ func logLot(sale models.LotSale, harvest bool) {
 // Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
 func sellExcess(
 	asset portfolio.Asset,
+	positions []portfolio.Position,
 	excess decimal.Decimal,
 	rates *config.TaxSettings,
 	tradeDate time.Time,
 ) []models.SellProposal {
-	sales := asset.LotSales(tradeDate)
+	sales := portfolio.LotSales(positions, asset.PositionIdxs, tradeDate)
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
 		return models.CompareTaxPerDollar(left.TaxImpactPerShare(rates), left.Price, right.TaxImpactPerShare(rates), right.Price)

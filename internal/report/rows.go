@@ -136,7 +136,7 @@ func formatAsset(asset portfolio.Asset) []string {
 		target = utils.FormatPercent(asset.Plan.TargetAllocation)
 		deviation = formatDeviation(asset.AllocDrift)
 	}
-	return []string{asset.Label(), utils.FormatMoney(asset.Value), utils.FormatPercent(asset.Allocation), target, deviation}
+	return []string{asset.Label, utils.FormatMoney(asset.Value), utils.FormatPercent(asset.Allocation), target, deviation}
 }
 
 func formatDeviation(drift decimal.Decimal) string {

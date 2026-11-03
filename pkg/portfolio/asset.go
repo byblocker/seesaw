@@ -1,7 +1,6 @@
 package portfolio
 
 import (
-	"cmp"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
@@ -14,9 +13,9 @@ import (
 )
 
 type Asset struct {
-	Plan      *config.AssetPlan
-	Tickers   []string
-	Positions []Position
+	Plan         *config.AssetPlan
+	Label        string
+	PositionIdxs []int
 
 	Allocation decimal.Decimal
 	AllocDrift decimal.Decimal
@@ -25,31 +24,23 @@ type Asset struct {
 	ValueDrift decimal.Decimal
 }
 
-func (asset Asset) Label() string {
-	if asset.Plan == nil {
-		return "OTHER"
-	}
-	return strings.Join(asset.Tickers, " / ")
-}
-
-// Every lot of the asset at the bid, in position order and by lot ID within each position.
-func (asset Asset) LotSales(saleDate time.Time) []models.LotSale {
-	var sales []models.LotSale
-	for _, position := range asset.Positions {
-		positionSales := position.LotSales(saleDate)
-		slices.SortFunc(positionSales, func(left, right models.LotSale) int {
-			return cmp.Compare(left.Lot.Id, right.Lot.Id)
-		})
-		sales = append(sales, positionSales...)
-	}
-	return sales
-}
-
+// One position row per ticker, grouped by asset in plan order, with unplanned positions last.
 func groupByAsset(
 	plans []config.AssetPlan,
 	portfolio *models.Portfolio,
-) []Asset {
+	createdAt time.Time,
+) ([]Asset, []Position) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
+	var positions []Position
+	addAsset := func(plan *config.AssetPlan, label string, tickers []string) {
+		asset := Asset{Plan: plan, Label: label}
+		for _, ticker := range tickers {
+			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
+			positions = append(positions, newPosition(ticker, len(assets), portfolio, createdAt))
+		}
+		assets = append(assets, asset)
+	}
+
 	planned := collections.NewSet[string]()
 	for i := range plans {
 		plan := &plans[i]
@@ -57,7 +48,7 @@ func groupByAsset(
 		tickers := slices.Collect(plan.Tickers())
 		planned.Add(tickers...)
 
-		assets = append(assets, Asset{Plan: plan, Tickers: tickers})
+		addAsset(plan, strings.Join(tickers, " / "), tickers)
 	}
 
 	var unplanned []string
@@ -70,10 +61,10 @@ func groupByAsset(
 	if len(unplanned) > 0 {
 		// Map iteration order is random; sort so ties between unplanned positions break the same way every run.
 		slices.Sort(unplanned)
-		assets = append(assets, Asset{Tickers: unplanned})
+		addAsset(nil, "OTHER", unplanned)
 	}
 
-	return assets
+	return assets, positions
 }
 
 func (asset *Asset) allocate(totalValue decimal.Decimal) {
