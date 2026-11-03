@@ -13,28 +13,26 @@ import (
 )
 
 func harvestAsset(
+	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
-	positions []portfolio.Position,
-	lots []models.PositionLot,
 	settings config.Settings,
-	tradeDate time.Time,
 ) models.SellProposal {
-	if !assetHasLoss(asset, positions, lots) {
+	if !assetHasLoss(snapshot, asset) {
 		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
 		return models.SellProposal{}
 	}
 
 	var best models.SellProposal
 	for _, idx := range asset.PositionIdxs {
-		position := positions[idx]
-		if !hasLoss(position, lots) {
+		position := snapshot.Positions[idx]
+		if !hasLoss(snapshot, position) {
 			continue
 		}
-		if !hasReplacement(asset, positions, position.Ticker) {
+		if !hasReplacement(snapshot, asset, position.Ticker) {
 			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
-		sell := harvestPosition(position, lots, settings, tradeDate)
+		sell := harvestPosition(snapshot, position, settings)
 		if sell.IsEmpty() {
 			continue
 		}
@@ -46,30 +44,29 @@ func harvestAsset(
 	return best
 }
 
-func assetHasLoss(asset portfolio.Asset, positions []portfolio.Position, lots []models.PositionLot) bool {
+func assetHasLoss(snapshot portfolio.Snapshot, asset portfolio.Asset) bool {
 	return slices.ContainsFunc(asset.PositionIdxs, func(idx int) bool {
-		return hasLoss(positions[idx], lots)
+		return hasLoss(snapshot, snapshot.Positions[idx])
 	})
 }
 
-func hasLoss(position portfolio.Position, lots []models.PositionLot) bool {
+func hasLoss(snapshot portfolio.Snapshot, position portfolio.Position) bool {
 	return slices.ContainsFunc(position.LotIdxs, func(idx int) bool {
-		return lots[idx].PricePaid.GreaterThan(position.Quote.Bid)
+		return snapshot.Lots[idx].PricePaid.GreaterThan(position.Quote.Bid)
 	})
 }
 
-func hasReplacement(asset portfolio.Asset, positions []portfolio.Position, ticker string) bool {
+func hasReplacement(snapshot portfolio.Snapshot, asset portfolio.Asset, ticker string) bool {
 	return slices.ContainsFunc(asset.PositionIdxs, func(idx int) bool {
-		other := positions[idx]
+		other := snapshot.Positions[idx]
 		return other.Ticker != ticker && !other.RecentlySold
 	})
 }
 
 func harvestPosition(
+	snapshot portfolio.Snapshot,
 	position portfolio.Position,
-	lots []models.PositionLot,
 	settings config.Settings,
-	tradeDate time.Time,
 ) models.SellProposal {
 	ticker := position.Ticker
 	if position.RecentlyBought {
@@ -78,7 +75,7 @@ func harvestPosition(
 	}
 
 	minPctLoss := settings.MinPctLossToHarvest
-	sales := position.LotSales(lots, tradeDate)
+	sales := position.LotSales(snapshot.Lots, snapshot.CreatedAt)
 	candidate := models.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
 	for _, sale := range sales {
 		if isHarvestable(sale, minPctLoss) {
@@ -115,14 +112,12 @@ func logLot(sale models.LotSale, harvest bool) {
 
 // Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
 func sellExcess(
+	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
-	positions []portfolio.Position,
-	lots []models.PositionLot,
 	excess decimal.Decimal,
 	rates *config.TaxSettings,
-	tradeDate time.Time,
 ) []models.SellProposal {
-	sales := portfolio.LotSales(positions, lots, asset.PositionIdxs, tradeDate)
+	sales := portfolio.LotSales(snapshot.Positions, snapshot.Lots, asset.PositionIdxs, snapshot.CreatedAt)
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(sales, func(left, right models.LotSale) int {
 		return models.CompareTaxPerDollar(left.TaxImpactPerShare(rates), left.Price, right.TaxImpactPerShare(rates), right.Price)

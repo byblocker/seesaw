@@ -6,7 +6,6 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -29,7 +28,7 @@ func Plan(
 	var sells []models.SellProposal
 	var requests []buyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetRequests := rebalanceAsset(asset, snapshot.Positions, snapshot.Lots, request, snapshot.CreatedAt, maxValueDeviation)
+		assetSells, assetRequests := rebalanceAsset(snapshot, asset, request, maxValueDeviation)
 		sells = append(sells, assetSells...)
 		requests = append(requests, assetRequests...)
 	}
@@ -42,30 +41,28 @@ func Plan(
 }
 
 func rebalanceAsset(
+	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
-	positions []portfolio.Position,
-	lots []models.PositionLot,
 	request models.RebalanceRequest,
-	tradeDate time.Time,
 	maxValueDeviation decimal.Decimal,
 ) ([]models.SellProposal, []buyRequest) {
 	if asset.Plan == nil {
 		if request.Force {
 			log.Printf("Rebalancing %s: sell all", asset.Label)
-			return sellExcess(asset, positions, lots, asset.Value, request.TaxRates, tradeDate), nil
+			return sellExcess(snapshot, asset, asset.Value, request.TaxRates), nil
 		}
 		if request.TaxRates == nil {
 			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label)
 			return nil, nil
 		}
 		log.Printf("Rebalancing %s: harvest only", asset.Label)
-		return harvestUnplanned(asset, positions, lots, request.Settings, tradeDate), nil
+		return harvestUnplanned(snapshot, asset, request.Settings), nil
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
 		asset.Label, utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
 	for _, idx := range asset.PositionIdxs {
-		if position := positions[idx]; position.RecentlySold {
+		if position := snapshot.Positions[idx]; position.RecentlySold {
 			log.Printf("CANNOT buy %s: sold within wash-sale window", position.Ticker)
 		}
 	}
@@ -73,7 +70,7 @@ func rebalanceAsset(
 	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
 	var sell models.SellProposal
 	if request.TaxRates != nil {
-		sell = harvestAsset(asset, positions, lots, request.Settings, tradeDate)
+		sell = harvestAsset(snapshot, asset, request.Settings)
 	}
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
@@ -86,10 +83,10 @@ func rebalanceAsset(
 			log.Printf("SKIP selling %s: within %s of target", asset.Label, utils.FormatMoney(maxValueDeviation))
 			return nil, nil
 		}
-		return sellExcess(asset, positions, lots, asset.ValueDrift, request.TaxRates, tradeDate), nil
+		return sellExcess(snapshot, asset, asset.ValueDrift, request.TaxRates), nil
 	}
 
-	buy, ok := selectBuy(asset, positions, sell, shortfall)
+	buy, ok := selectBuy(snapshot, asset, sell, shortfall)
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
@@ -110,24 +107,22 @@ func rebalanceAsset(
 // Unless forced, we should not liquidate unplanned positions while rebalancing,
 // but we should eagerly harvest any tax-loss these positions have accrued.
 func harvestUnplanned(
+	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
-	positions []portfolio.Position,
-	lots []models.PositionLot,
 	settings config.Settings,
-	tradeDate time.Time,
 ) []models.SellProposal {
-	if !assetHasLoss(asset, positions, lots) {
+	if !assetHasLoss(snapshot, asset) {
 		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
 		return nil
 	}
 
 	var sells []models.SellProposal
 	for _, idx := range asset.PositionIdxs {
-		position := positions[idx]
-		if !hasLoss(position, lots) {
+		position := snapshot.Positions[idx]
+		if !hasLoss(snapshot, position) {
 			continue
 		}
-		if sell := harvestPosition(position, lots, settings, tradeDate); !sell.IsEmpty() {
+		if sell := harvestPosition(snapshot, position, settings); !sell.IsEmpty() {
 			sell.LogProceeds()
 			sells = append(sells, sell)
 		}
