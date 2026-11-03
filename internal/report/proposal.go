@@ -21,7 +21,7 @@ func Proposal(
 	if len(rows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
-		writeOrderTable(&output, "Cost", rows, rates)
+		writeOrderTable(&output, rows, rates)
 	}
 
 	writeEstimatedPortfolio(&output, estimated, formatted)
