@@ -1,10 +1,9 @@
 package portfolio
 
 import (
-	"cmp"
 	"fmt"
+	"seesaw/internal/calendar"
 	"seesaw/pkg/models"
-	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -19,39 +18,35 @@ type Position struct {
 	RecentlySold   bool
 }
 
-func newPosition(
-	ticker string,
-	assetIdx int,
-	quote models.Quote,
-	heldLots []models.Lot,
-	recentlyBought, recentlySold bool,
-	createdAt time.Time,
-) (Position, []LotSnapshot, error) {
-	if !quote.Bid.IsPositive() || !quote.Ask.IsPositive() {
-		return Position{}, nil, fmt.Errorf("missing quote for %s", ticker)
-	}
-
-	position := Position{
-		Ticker:         ticker,
-		AssetIdx:       assetIdx,
-		Quote:          quote,
-		RecentlyBought: recentlyBought,
-		RecentlySold:   recentlySold,
-	}
-
-	var lots []LotSnapshot
-	for _, lot := range heldLots {
-		if lot.Quantity.IsPositive() {
-			lots = append(lots, newLotSnapshot(lot, quote.Bid, createdAt, position.RecentlyBought))
+// Write each quote into its position, and reject any position left without a positive bid and ask.
+func setQuotes(positions []Position, positionIdxByTicker map[string]int, quotes []models.Quote) error {
+	for _, quote := range quotes {
+		if idx, ok := positionIdxByTicker[quote.Ticker]; ok {
+			positions[idx].Quote = quote
 		}
 	}
+	for _, position := range positions {
+		if !position.Quote.Bid.IsPositive() || !position.Quote.Ask.IsPositive() {
+			return fmt.Errorf("missing quote for %s", position.Ticker)
+		}
+	}
+	return nil
+}
 
-	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
-	slices.SortFunc(lots, func(left, right LotSnapshot) int {
-		return cmp.Compare(left.Id, right.Id)
-	})
-
-	return position, lots, nil
+// Trades within the wash-sale window bar harvesting a recent buy and buying back a recent sale.
+func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, transactions []models.Transaction, createdAt time.Time) {
+	for _, tx := range transactions {
+		idx, ok := positionIdxByTicker[tx.Ticker]
+		if !ok || calendar.DaysBetween(tx.Date, createdAt) > washSaleWindowDays {
+			continue
+		}
+		switch tx.Type {
+		case models.TxBuy:
+			positions[idx].RecentlyBought = true
+		case models.TxSell:
+			positions[idx].RecentlySold = true
+		}
+	}
 }
 
 func (position Position) Value(lots []LotSnapshot) decimal.Decimal {

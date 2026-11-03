@@ -1,14 +1,11 @@
 package portfolio
 
 import (
-	"seesaw/internal/calendar"
-	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -25,87 +22,39 @@ type Asset struct {
 	ValueDrift decimal.Decimal
 }
 
-// One position row per ticker, grouped by asset in plan order, with unplanned positions last.
-func groupByAsset(
-	plans []config.AssetPlan,
-	portfolio *models.Portfolio,
-	createdAt time.Time,
-) ([]Asset, []Position, []LotSnapshot, error) {
+// One asset row per plan, then one for holdings outside the plan, each with a position row per ticker.
+func newAssets(plans []config.AssetPlan, heldLots []models.Lot) ([]Asset, []Position, map[string]int) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
-
-	quoteByTicker := make(map[string]models.Quote, len(portfolio.Quotes))
-	for _, quote := range portfolio.Quotes {
-		quoteByTicker[quote.Ticker] = quote
-	}
-
-	lotsByTicker := map[string][]models.Lot{}
-	for _, lot := range portfolio.Lots {
-		lotsByTicker[lot.Ticker] = append(lotsByTicker[lot.Ticker], lot)
-	}
-
-	// Trades within the wash-sale window bar harvesting a recent buy and buying back a recent sale.
-	recentlyBought, recentlySold := collections.NewSet[string](), collections.NewSet[string]()
-	for _, tx := range portfolio.Transactions {
-		if calendar.DaysBetween(tx.Date, createdAt) > washSaleWindowDays {
-			continue
-		}
-		switch tx.Type {
-		case models.TxBuy:
-			recentlyBought.Add(tx.Ticker)
-		case models.TxSell:
-			recentlySold.Add(tx.Ticker)
-		}
-	}
-
 	var positions []Position
-	var lots []LotSnapshot
-	addAsset := func(plan *config.AssetPlan, label string, tickers []string) error {
+	positionIdxByTicker := map[string]int{}
+	addAsset := func(plan *config.AssetPlan, label string, tickers []string) {
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
+			positionIdxByTicker[ticker] = len(positions)
 			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
-			position, held, err := newPosition(ticker, len(assets), quoteByTicker[ticker], lotsByTicker[ticker], recentlyBought.Contains(ticker), recentlySold.Contains(ticker), createdAt)
-			if err != nil {
-				return err
-			}
-			for _, lot := range held {
-				lot.PositionIdx = len(positions)
-				position.LotIdxs = append(position.LotIdxs, len(lots))
-				lots = append(lots, lot)
-			}
-			positions = append(positions, position)
+			positions = append(positions, Position{Ticker: ticker, AssetIdx: len(assets)})
 		}
 		assets = append(assets, asset)
-		return nil
 	}
 
-	planned := collections.NewSet[string]()
 	for i := range plans {
-		plan := &plans[i]
-
-		tickers := slices.Collect(plan.Tickers())
-		planned.Add(tickers...)
-
-		if err := addAsset(plan, strings.Join(tickers, " / "), tickers); err != nil {
-			return nil, nil, nil, err
-		}
+		tickers := slices.Collect(plans[i].Tickers())
+		addAsset(&plans[i], strings.Join(tickers, " / "), tickers)
 	}
 
 	var unplanned []string
-	for ticker := range lotsByTicker {
-		if !planned.Contains(ticker) {
-			unplanned = append(unplanned, ticker)
+	for _, lot := range heldLots {
+		if _, planned := positionIdxByTicker[lot.Ticker]; !planned {
+			unplanned = append(unplanned, lot.Ticker)
 		}
 	}
-
 	if len(unplanned) > 0 {
-		// Map iteration order is random; sort so ties between unplanned positions break the same way every run.
+		// Brokers list lots in no set order; sort so ties between unplanned positions break the same way every run.
 		slices.Sort(unplanned)
-		if err := addAsset(nil, "OTHER", unplanned); err != nil {
-			return nil, nil, nil, err
-		}
+		addAsset(nil, "OTHER", slices.Compact(unplanned))
 	}
 
-	return assets, positions, lots, nil
+	return assets, positions, positionIdxByTicker
 }
 
 func (asset *Asset) allocate(totalValue decimal.Decimal) {

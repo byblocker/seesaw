@@ -42,10 +42,12 @@ func TakeSnapshot(
 	}
 
 	createdAt := time.Now()
-	assets, positions, lots, err := groupByAsset(plan.Assets, portfolio, createdAt)
-	if err != nil {
+	assets, positions, positionIdxByTicker := newAssets(plan.Assets, portfolio.Lots)
+	if err := setQuotes(positions, positionIdxByTicker, portfolio.Quotes); err != nil {
 		return Snapshot{}, err
 	}
+	flagRecentTrades(positions, positionIdxByTicker, portfolio.Transactions, createdAt)
+	lots := newLotSnapshots(positions, positionIdxByTicker, portfolio.Lots, createdAt)
 
 	totalValue := portfolio.Balances.CashBalance
 	for _, position := range positions {
