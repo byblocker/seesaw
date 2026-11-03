@@ -91,7 +91,7 @@ func (client *Client) Portfolio(
 	})
 
 	group.Go(func() (err error) {
-		portfolio.RecentTx, err = client.AllRecentTx(groupCtx, accounts, start, end, allTickers)
+		portfolio.Transactions, err = client.AllRecentTx(groupCtx, accounts, start, end, allTickers)
 		return err
 	})
 

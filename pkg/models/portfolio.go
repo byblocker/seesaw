@@ -19,7 +19,7 @@ type Balances struct {
 type Portfolio struct {
 	Balances         Balances
 	PositionByTicker map[string]Position
-	RecentTx         RecentTxByTicker
+	Transactions     []Transaction
 	Quotes           map[string]Quote
 }
 
