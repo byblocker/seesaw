@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"cmp"
+	"fmt"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -23,11 +24,16 @@ func newPosition(
 	assetIdx int,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
-) (Position, []LotSnapshot) {
+) (Position, []LotSnapshot, error) {
+	quote := portfolio.Quotes[ticker]
+	if !quote.Bid.IsPositive() || !quote.Ask.IsPositive() {
+		return Position{}, nil, fmt.Errorf("missing quote for %s", ticker)
+	}
+
 	position := Position{
 		Ticker:         ticker,
 		AssetIdx:       assetIdx,
-		Quote:          portfolio.Quotes[ticker],
+		Quote:          quote,
 		RecentlyBought: portfolio.RecentTx.HasBuyWithinWashWindow(ticker, createdAt),
 		RecentlySold:   portfolio.RecentTx.HasSellWithinWashWindow(ticker, createdAt),
 	}
@@ -43,11 +49,7 @@ func newPosition(
 		return cmp.Compare(left.Id, right.Id)
 	})
 
-	return position, lots
-}
-
-func (position Position) IsHeld() bool {
-	return len(position.LotIdxs) > 0
+	return position, lots, nil
 }
 
 func (position Position) Value(lots []LotSnapshot) decimal.Decimal {

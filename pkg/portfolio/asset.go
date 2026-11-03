@@ -29,15 +29,18 @@ func groupByAsset(
 	plans []config.AssetPlan,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
-) ([]Asset, []Position, []LotSnapshot) {
+) ([]Asset, []Position, []LotSnapshot, error) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
 	var positions []Position
 	var lots []LotSnapshot
-	addAsset := func(plan *config.AssetPlan, label string, tickers []string) {
+	addAsset := func(plan *config.AssetPlan, label string, tickers []string) error {
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
 			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
-			position, held := newPosition(ticker, len(assets), portfolio, createdAt)
+			position, held, err := newPosition(ticker, len(assets), portfolio, createdAt)
+			if err != nil {
+				return err
+			}
 			for _, lot := range held {
 				position.LotIdxs = append(position.LotIdxs, len(lots))
 				lots = append(lots, lot)
@@ -45,6 +48,7 @@ func groupByAsset(
 			positions = append(positions, position)
 		}
 		assets = append(assets, asset)
+		return nil
 	}
 
 	planned := collections.NewSet[string]()
@@ -54,7 +58,9 @@ func groupByAsset(
 		tickers := slices.Collect(plan.Tickers())
 		planned.Add(tickers...)
 
-		addAsset(plan, strings.Join(tickers, " / "), tickers)
+		if err := addAsset(plan, strings.Join(tickers, " / "), tickers); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
 	var unplanned []string
@@ -67,10 +73,12 @@ func groupByAsset(
 	if len(unplanned) > 0 {
 		// Map iteration order is random; sort so ties between unplanned positions break the same way every run.
 		slices.Sort(unplanned)
-		addAsset(nil, "OTHER", unplanned)
+		if err := addAsset(nil, "OTHER", unplanned); err != nil {
+			return nil, nil, nil, err
+		}
 	}
 
-	return assets, positions, lots
+	return assets, positions, lots, nil
 }
 
 func (asset *Asset) allocate(totalValue decimal.Decimal) {

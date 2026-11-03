@@ -39,13 +39,13 @@ func TakeSnapshot(
 	}
 
 	createdAt := time.Now()
-	assets, positions, lots := groupByAsset(plan.Assets, portfolio, createdAt)
+	assets, positions, lots, err := groupByAsset(plan.Assets, portfolio, createdAt)
+	if err != nil {
+		return nil, err
+	}
 
 	totalValue := portfolio.Balances.CashBalance
 	for _, position := range positions {
-		if position.IsHeld() && !position.Quote.Bid.IsPositive() {
-			return nil, fmt.Errorf("missing bid price for %s", position.Ticker)
-		}
 		asset := &assets[position.AssetIdx]
 		value := position.Value(lots)
 		asset.Value = asset.Value.Add(value)
