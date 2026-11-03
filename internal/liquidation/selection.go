@@ -61,10 +61,8 @@ func selectLots(
 }
 
 func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, left, right int) int {
-	leftPosition := snapshot.Positions[snapshot.Lots[left].PositionIdx]
-	rightPosition := snapshot.Positions[snapshot.Lots[right].PositionIdx]
-	leftAsset := snapshot.Assets[leftPosition.AssetIdx]
-	rightAsset := snapshot.Assets[rightPosition.AssetIdx]
+	leftAsset := snapshot.Assets[snapshot.Positions[snapshot.Lots[left].PositionIdx].AssetIdx]
+	rightAsset := snapshot.Assets[snapshot.Positions[snapshot.Lots[right].PositionIdx].AssetIdx]
 
 	// Sell holdings outside the plan before any planned lot
 	if leftIsPlanned, rightIsPlanned := leftAsset.Plan != nil, rightAsset.Plan != nil; leftIsPlanned != rightIsPlanned {
@@ -75,7 +73,7 @@ func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, lef
 	}
 
 	return cmp.Or(
-		portfolio.CompareTaxPerDollar(taxPerShare[left], leftPosition.Quote.Bid, taxPerShare[right], rightPosition.Quote.Bid),
+		portfolio.CompareTaxPerDollar(snapshot, taxPerShare, left, right),
 		// Ties go to the most overweight asset
 		rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
 	)
