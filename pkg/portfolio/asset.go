@@ -42,6 +42,7 @@ func groupByAsset(
 				return err
 			}
 			for _, lot := range held {
+				lot.PositionIdx = len(positions)
 				position.LotIdxs = append(position.LotIdxs, len(lots))
 				lots = append(lots, lot)
 			}

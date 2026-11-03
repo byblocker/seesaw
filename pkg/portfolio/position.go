@@ -64,17 +64,7 @@ func (position Position) Value(lots []LotSnapshot) decimal.Decimal {
 func (position Position) LotSales(snapshot Snapshot) []models.LotSale {
 	sales := make([]models.LotSale, 0, len(position.LotIdxs))
 	for _, idx := range position.LotIdxs {
-		lot := snapshot.Lots[idx]
-		sales = append(sales, models.LotSale{
-			Ticker:       position.Ticker,
-			Quantity:     lot.Quantity,
-			LotIdx:       idx,
-			Price:        position.Quote.Bid,
-			GainPerShare: lot.GainPerShare,
-			GainPct:      lot.GainPct,
-			LongTerm:     lot.LongTerm,
-			IsWashSale:   lot.IsWashSale,
-		})
+		sales = append(sales, snapshot.LotSale(idx, snapshot.Lots[idx].Quantity))
 	}
 	return sales
 }

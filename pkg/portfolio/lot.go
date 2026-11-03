@@ -11,6 +11,7 @@ import (
 
 type LotSnapshot struct {
 	models.PositionLot
+	PositionIdx int
 
 	// Selling at the snapshot's bid on its date
 	GainPerShare decimal.Decimal
