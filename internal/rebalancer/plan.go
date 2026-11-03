@@ -96,7 +96,7 @@ func rebalanceAsset(
 	if !sell.IsEmpty() {
 		sell.LogProceeds(snapshot)
 	}
-	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), buy.Ticker)
+	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), snapshot.Positions[buy.PositionIdx].Ticker)
 	if sell.IsEmpty() {
 		return nil, []buyRequest{buy}
 	}

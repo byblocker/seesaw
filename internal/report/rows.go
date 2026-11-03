@@ -75,13 +75,16 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 	return result
 }
 
-func formatBuys(buys []portfolio.Buy, rates *config.TaxSettings) [][]string {
+func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot, rates *config.TaxSettings) [][]string {
 	rows := make([][]string, 0, len(buys))
+	ticker := func(buy portfolio.Buy) string {
+		return snapshot.Positions[buy.PositionIdx].Ticker
+	}
 	buys = slices.SortedFunc(slices.Values(buys), func(left, right portfolio.Buy) int {
-		return strings.Compare(left.Ticker, right.Ticker)
+		return strings.Compare(ticker(left), ticker(right))
 	})
 	for _, buy := range buys {
-		row := formatBuy(buy)
+		row := formatBuy(buy, ticker(buy))
 		if rates != nil {
 			row = append(row, "—")
 		}
@@ -91,9 +94,9 @@ func formatBuys(buys []portfolio.Buy, rates *config.TaxSettings) [][]string {
 	return rows
 }
 
-func formatBuy(buy portfolio.Buy) []string {
+func formatBuy(buy portfolio.Buy, ticker string) []string {
 	return []string{
-		buy.Ticker,
+		ticker,
 		"BUY",
 		"—",
 		buy.Quantity.String(),

@@ -13,7 +13,7 @@ type RebalancePlan struct {
 }
 
 type Buy struct {
-	Ticker        string
+	PositionIdx   int
 	Price         decimal.Decimal
 	Quantity      decimal.Decimal
 	EstimatedCost decimal.Decimal

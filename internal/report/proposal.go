@@ -17,7 +17,7 @@ func Proposal(
 	output.WriteString("\nSuggested Orders\n\n")
 
 	formatted := formatSells(sells, estimated, rates)
-	rows := slices.Concat(formatted.rows, formatBuys(buys, rates))
+	rows := slices.Concat(formatted.rows, formatBuys(buys, estimated, rates))
 	if len(rows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {

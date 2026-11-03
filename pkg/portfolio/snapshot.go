@@ -76,7 +76,8 @@ func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal d
 		cash = cash.Add(sell.Proceeds)
 	}
 	for _, buy := range buys {
-		changeByTicker[buy.Ticker] = changeByTicker[buy.Ticker].Add(buy.EstimatedCost)
+		ticker := snapshot.Positions[buy.PositionIdx].Ticker
+		changeByTicker[ticker] = changeByTicker[ticker].Add(buy.EstimatedCost)
 		cash = cash.Sub(buy.EstimatedCost)
 	}
 
