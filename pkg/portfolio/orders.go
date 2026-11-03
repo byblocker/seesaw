@@ -20,11 +20,11 @@ type Buy struct {
 }
 
 type SellProposal struct {
-	Ticker     string
-	Price      decimal.Decimal
-	Lots       []LotSale
-	Proceeds   decimal.Decimal
-	RealizedPL decimal.Decimal
+	PositionIdx int
+	Price       decimal.Decimal
+	Lots        []LotSale
+	Proceeds    decimal.Decimal
+	RealizedPL  decimal.Decimal
 }
 
 // One proposal per position sold, in the order of each position's first sale.
@@ -36,10 +36,9 @@ func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 		lot := snapshot.Lots[sale.LotIdx]
 		i, exists := proposalByPosition[lot.PositionIdx]
 		if !exists {
-			position := snapshot.Positions[lot.PositionIdx]
 			i = len(proposals)
 			proposalByPosition[lot.PositionIdx] = i
-			proposals = append(proposals, SellProposal{Ticker: position.Ticker, Price: position.Quote.Bid})
+			proposals = append(proposals, SellProposal{PositionIdx: lot.PositionIdx, Price: snapshot.Positions[lot.PositionIdx].Quote.Bid})
 		}
 
 		proposals[i].Add(sale, lot)
@@ -63,8 +62,8 @@ func (p SellProposal) HarvestsAtLeast(other SellProposal) bool {
 	return p.RealizedPL.LessThanOrEqual(other.RealizedPL)
 }
 
-func (p SellProposal) LogProceeds() {
-	log.Printf("Estimated %s proceeds from selling %s", utils.FormatMoney(p.Proceeds), p.Ticker)
+func (p SellProposal) LogProceeds(snapshot Snapshot) {
+	log.Printf("Estimated %s proceeds from selling %s", utils.FormatMoney(p.Proceeds), snapshot.Positions[p.PositionIdx].Ticker)
 }
 
 type LotSale struct {

@@ -26,18 +26,21 @@ func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]stri
 	writeTable(output, headers, rows, 3)
 }
 
-func formatSells(sells []portfolio.SellProposal, lots []portfolio.LotSnapshot, rates *config.TaxSettings) formattedSells {
+func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, rates *config.TaxSettings) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
 	}
-	taxPerShare := portfolio.TaxPerShare(lots, rates)
+	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, rates)
+	ticker := func(sell portfolio.SellProposal) string {
+		return snapshot.Positions[sell.PositionIdx].Ticker
+	}
 	sells = slices.SortedFunc(slices.Values(sells), func(left, right portfolio.SellProposal) int {
-		return strings.Compare(left.Ticker, right.Ticker)
+		return strings.Compare(ticker(left), ticker(right))
 	})
 	for _, sell := range sells {
 		for _, sale := range sell.Lots {
-			lot := lots[sale.LotIdx]
+			lot := snapshot.Lots[sale.LotIdx]
 			realizedPL := sale.Quantity.Mul(lot.GainPerShare)
 			if lot.LongTerm {
 				result.longTermPL = result.longTermPL.Add(realizedPL)
@@ -45,7 +48,7 @@ func formatSells(sells []portfolio.SellProposal, lots []portfolio.LotSnapshot, r
 				result.shortTermPL = result.shortTermPL.Add(realizedPL)
 			}
 			row := []string{
-				sell.Ticker,
+				ticker(sell),
 				"SELL",
 				lot.TimeAcquired.Format(time.DateOnly),
 				sale.Quantity.String(),

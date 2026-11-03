@@ -20,7 +20,7 @@ type buyRequest struct {
 func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfolio.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
 	for _, idx := range asset.PositionIdxs {
 		position := snapshot.Positions[idx]
-		if position.Ticker != sell.Ticker && !position.RecentlySold {
+		if (sell.IsEmpty() || idx != sell.PositionIdx) && !position.RecentlySold {
 			return buyRequest{
 				Ticker: position.Ticker,
 				Amount: shortfall,

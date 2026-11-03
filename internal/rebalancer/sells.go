@@ -31,7 +31,7 @@ func harvestAsset(
 			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
-		sell := harvestPosition(snapshot, position, settings)
+		sell := harvestPosition(snapshot, idx, settings)
 		if sell.IsEmpty() {
 			continue
 		}
@@ -64,9 +64,10 @@ func hasReplacement(snapshot portfolio.Snapshot, asset portfolio.Asset, ticker s
 
 func harvestPosition(
 	snapshot portfolio.Snapshot,
-	position portfolio.Position,
+	positionIdx int,
 	settings config.Settings,
 ) portfolio.SellProposal {
+	position := snapshot.Positions[positionIdx]
 	ticker := position.Ticker
 	if position.RecentlyBought {
 		log.Printf("CANNOT harvest %s: bought within wash-sale window", ticker)
@@ -74,7 +75,7 @@ func harvestPosition(
 	}
 
 	minPctLoss := settings.MinPctLossToHarvest
-	candidate := portfolio.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
+	candidate := portfolio.SellProposal{PositionIdx: positionIdx, Price: position.Quote.Bid}
 	for _, idx := range position.LotIdxs {
 		if lot := snapshot.Lots[idx]; isHarvestable(lot, minPctLoss) {
 			candidate.Add(portfolio.LotSale{LotIdx: idx, Quantity: lot.Quantity}, lot)
@@ -139,7 +140,7 @@ func sellExcess(
 
 	proposals := portfolio.GroupSales(snapshot, sold)
 	for _, proposal := range proposals {
-		proposal.LogProceeds()
+		proposal.LogProceeds(snapshot)
 	}
 	return proposals
 }

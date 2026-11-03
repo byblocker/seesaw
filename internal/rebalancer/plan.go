@@ -94,7 +94,7 @@ func rebalanceAsset(
 	}
 
 	if !sell.IsEmpty() {
-		sell.LogProceeds()
+		sell.LogProceeds(snapshot)
 	}
 	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), buy.Ticker)
 	if sell.IsEmpty() {
@@ -117,12 +117,11 @@ func harvestUnplanned(
 
 	var sells []portfolio.SellProposal
 	for _, idx := range asset.PositionIdxs {
-		position := snapshot.Positions[idx]
-		if !hasLoss(snapshot, position) {
+		if !hasLoss(snapshot, snapshot.Positions[idx]) {
 			continue
 		}
-		if sell := harvestPosition(snapshot, position, settings); !sell.IsEmpty() {
-			sell.LogProceeds()
+		if sell := harvestPosition(snapshot, idx, settings); !sell.IsEmpty() {
+			sell.LogProceeds(snapshot)
 			sells = append(sells, sell)
 		}
 	}

@@ -71,7 +71,8 @@ func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal d
 	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
 	changeByTicker := map[string]decimal.Decimal{}
 	for _, sell := range sells {
-		changeByTicker[sell.Ticker] = changeByTicker[sell.Ticker].Sub(sell.Proceeds)
+		ticker := snapshot.Positions[sell.PositionIdx].Ticker
+		changeByTicker[ticker] = changeByTicker[ticker].Sub(sell.Proceeds)
 		cash = cash.Add(sell.Proceeds)
 	}
 	for _, buy := range buys {
