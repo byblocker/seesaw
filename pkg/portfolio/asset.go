@@ -29,14 +29,20 @@ func groupByAsset(
 	plans []config.AssetPlan,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
-) ([]Asset, []Position) {
+) ([]Asset, []Position, []models.PositionLot) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
 	var positions []Position
+	var lots []models.PositionLot
 	addAsset := func(plan *config.AssetPlan, label string, tickers []string) {
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
 			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
-			positions = append(positions, newPosition(ticker, len(assets), portfolio, createdAt))
+			position, held := newPosition(ticker, len(assets), portfolio, createdAt)
+			for _, lot := range held {
+				position.LotIdxs = append(position.LotIdxs, len(lots))
+				lots = append(lots, lot)
+			}
+			positions = append(positions, position)
 		}
 		assets = append(assets, asset)
 	}
@@ -64,7 +70,7 @@ func groupByAsset(
 		addAsset(nil, "OTHER", unplanned)
 	}
 
-	return assets, positions
+	return assets, positions, lots
 }
 
 func (asset *Asset) allocate(totalValue decimal.Decimal) {

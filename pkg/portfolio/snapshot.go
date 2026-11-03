@@ -19,6 +19,7 @@ type Snapshot struct {
 	Balances   models.Balances
 	Assets     []Asset
 	Positions  []Position
+	Lots       []models.PositionLot
 	TotalValue decimal.Decimal
 }
 
@@ -38,7 +39,7 @@ func TakeSnapshot(
 	}
 
 	createdAt := time.Now()
-	assets, positions := groupByAsset(plan.Assets, portfolio, createdAt)
+	assets, positions, lots := groupByAsset(plan.Assets, portfolio, createdAt)
 
 	totalValue := portfolio.Balances.CashBalance
 	for _, position := range positions {
@@ -46,8 +47,9 @@ func TakeSnapshot(
 			return nil, fmt.Errorf("missing bid price for %s", position.Ticker)
 		}
 		asset := &assets[position.AssetIdx]
-		asset.Value = asset.Value.Add(position.Value())
-		totalValue = totalValue.Add(position.Value())
+		value := position.Value(lots)
+		asset.Value = asset.Value.Add(value)
+		totalValue = totalValue.Add(value)
 	}
 
 	for i := range assets {
@@ -60,6 +62,7 @@ func TakeSnapshot(
 		Balances:   portfolio.Balances,
 		Assets:     assets,
 		Positions:  positions,
+		Lots:       lots,
 		TotalValue: totalValue,
 	}, nil
 }

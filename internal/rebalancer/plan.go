@@ -29,7 +29,7 @@ func Plan(
 	var sells []models.SellProposal
 	var requests []buyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetRequests := rebalanceAsset(asset, snapshot.Positions, request, snapshot.CreatedAt, maxValueDeviation)
+		assetSells, assetRequests := rebalanceAsset(asset, snapshot.Positions, snapshot.Lots, request, snapshot.CreatedAt, maxValueDeviation)
 		sells = append(sells, assetSells...)
 		requests = append(requests, assetRequests...)
 	}
@@ -44,6 +44,7 @@ func Plan(
 func rebalanceAsset(
 	asset portfolio.Asset,
 	positions []portfolio.Position,
+	lots []models.PositionLot,
 	request models.RebalanceRequest,
 	tradeDate time.Time,
 	maxValueDeviation decimal.Decimal,
@@ -51,14 +52,14 @@ func rebalanceAsset(
 	if asset.Plan == nil {
 		if request.Force {
 			log.Printf("Rebalancing %s: sell all", asset.Label)
-			return sellExcess(asset, positions, asset.Value, request.TaxRates, tradeDate), nil
+			return sellExcess(asset, positions, lots, asset.Value, request.TaxRates, tradeDate), nil
 		}
 		if request.TaxRates == nil {
 			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label)
 			return nil, nil
 		}
 		log.Printf("Rebalancing %s: harvest only", asset.Label)
-		return harvestUnplanned(asset, positions, request.Settings, tradeDate), nil
+		return harvestUnplanned(asset, positions, lots, request.Settings, tradeDate), nil
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
@@ -72,7 +73,7 @@ func rebalanceAsset(
 	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
 	var sell models.SellProposal
 	if request.TaxRates != nil {
-		sell = harvestAsset(asset, positions, request.Settings, tradeDate)
+		sell = harvestAsset(asset, positions, lots, request.Settings, tradeDate)
 	}
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
@@ -85,7 +86,7 @@ func rebalanceAsset(
 			log.Printf("SKIP selling %s: within %s of target", asset.Label, utils.FormatMoney(maxValueDeviation))
 			return nil, nil
 		}
-		return sellExcess(asset, positions, asset.ValueDrift, request.TaxRates, tradeDate), nil
+		return sellExcess(asset, positions, lots, asset.ValueDrift, request.TaxRates, tradeDate), nil
 	}
 
 	buy, ok := selectBuy(asset, positions, sell, shortfall)
@@ -111,10 +112,11 @@ func rebalanceAsset(
 func harvestUnplanned(
 	asset portfolio.Asset,
 	positions []portfolio.Position,
+	lots []models.PositionLot,
 	settings config.Settings,
 	tradeDate time.Time,
 ) []models.SellProposal {
-	if !assetHasLoss(asset, positions) {
+	if !assetHasLoss(asset, positions, lots) {
 		log.Printf("CANNOT harvest %s: no lots with loss", asset.Label)
 		return nil
 	}
@@ -122,10 +124,10 @@ func harvestUnplanned(
 	var sells []models.SellProposal
 	for _, idx := range asset.PositionIdxs {
 		position := positions[idx]
-		if !hasLoss(position) {
+		if !hasLoss(position, lots) {
 			continue
 		}
-		if sell := harvestPosition(position, settings, tradeDate); !sell.IsEmpty() {
+		if sell := harvestPosition(position, lots, settings, tradeDate); !sell.IsEmpty() {
 			sell.LogProceeds()
 			sells = append(sells, sell)
 		}

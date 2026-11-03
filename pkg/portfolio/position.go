@@ -12,7 +12,7 @@ import (
 type Position struct {
 	Ticker         string
 	AssetIdx       int
-	Lots           []models.PositionLot
+	LotIdxs        []int
 	Quote          models.Quote
 	RecentlyBought bool
 	RecentlySold   bool
@@ -23,7 +23,7 @@ func newPosition(
 	assetIdx int,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
-) Position {
+) (Position, []models.PositionLot) {
 	position := Position{
 		Ticker:         ticker,
 		AssetIdx:       assetIdx,
@@ -32,54 +32,51 @@ func newPosition(
 		RecentlySold:   portfolio.RecentTx.HasSellWithinWashWindow(ticker, createdAt),
 	}
 
+	var held []models.PositionLot
 	for _, lot := range portfolio.PositionByTicker[ticker].Lots {
 		if lot.Quantity.IsPositive() {
-			position.Lots = append(position.Lots, lot)
+			held = append(held, lot)
 		}
 	}
+	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
+	slices.SortFunc(held, func(left, right models.PositionLot) int {
+		return cmp.Compare(left.Id, right.Id)
+	})
 
-	return position
+	return position, held
 }
 
 func (position Position) IsHeld() bool {
-	return len(position.Lots) > 0
+	return len(position.LotIdxs) > 0
 }
 
-func (position Position) Quantity() decimal.Decimal {
+func (position Position) Value(lots []models.PositionLot) decimal.Decimal {
 	quantity := decimal.Zero
-	for _, lot := range position.Lots {
-		quantity = quantity.Add(lot.Quantity)
+	for _, idx := range position.LotIdxs {
+		quantity = quantity.Add(lots[idx].Quantity)
 	}
-	return quantity
+	return quantity.Mul(position.Quote.Bid)
 }
 
-func (position Position) Value() decimal.Decimal {
-	return position.Quantity().Mul(position.Quote.Bid)
-}
-
-func (position Position) LotSales(saleDate time.Time) []models.LotSale {
-	sales := make([]models.LotSale, 0, len(position.Lots))
-	for i := range position.Lots {
+func (position Position) LotSales(lots []models.PositionLot, saleDate time.Time) []models.LotSale {
+	sales := make([]models.LotSale, 0, len(position.LotIdxs))
+	for _, idx := range position.LotIdxs {
 		sale := models.NewLotSale(
 			position.Ticker,
-			&position.Lots[i],
+			&lots[idx],
 			position.Quote.Bid,
 			saleDate,
 			position.RecentlyBought,
 		)
 		sales = append(sales, sale)
 	}
-	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
-	slices.SortFunc(sales, func(left, right models.LotSale) int {
-		return cmp.Compare(left.Lot.Id, right.Lot.Id)
-	})
 	return sales
 }
 
-func LotSales(positions []Position, idxs []int, saleDate time.Time) []models.LotSale {
+func LotSales(positions []Position, lots []models.PositionLot, idxs []int, saleDate time.Time) []models.LotSale {
 	var sales []models.LotSale
 	for _, idx := range idxs {
-		sales = append(sales, positions[idx].LotSales(saleDate)...)
+		sales = append(sales, positions[idx].LotSales(lots, saleDate)...)
 	}
 	return sales
 }
