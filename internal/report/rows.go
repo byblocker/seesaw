@@ -27,7 +27,7 @@ func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]stri
 	writeTable(output, headers, rows, 3)
 }
 
-func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formattedSells {
+func formatSells(sells []models.SellProposal, lots []models.PositionLot, rates *config.TaxSettings) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
@@ -36,9 +36,9 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 		return strings.Compare(left.Ticker, right.Ticker)
 	})
 	for _, sell := range sells {
-		for _, lot := range sell.Lots {
-			realizedPL := lot.RealizedPL()
-			if lot.LongTerm {
+		for _, sale := range sell.Lots {
+			realizedPL := sale.RealizedPL()
+			if sale.LongTerm {
 				result.longTermPL = result.longTermPL.Add(realizedPL)
 			} else {
 				result.shortTermPL = result.shortTermPL.Add(realizedPL)
@@ -46,21 +46,21 @@ func formatSells(sells []models.SellProposal, rates *config.TaxSettings) formatt
 			row := []string{
 				sell.Ticker,
 				"SELL",
-				lot.Lot.TimeAcquired.Format(time.DateOnly),
-				lot.Quantity.String(),
+				lots[sale.LotIdx].TimeAcquired.Format(time.DateOnly),
+				sale.Quantity.String(),
 				utils.FormatPrice(sell.Price),
-				utils.FormatMoney(lot.Proceeds()),
+				utils.FormatMoney(sale.Proceeds()),
 				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {
-				impact := lot.EstimatedTaxImpact(*rates)
+				impact := sale.EstimatedTaxImpact(*rates)
 				row = append(row, utils.FormatMoney(impact))
 				if impact.IsNegative() {
 					result.relief = result.relief.Sub(impact)
 				} else {
 					result.tax = result.tax.Add(impact)
 				}
-				if lot.IsWashSale {
+				if sale.IsWashSale {
 					row[1] += " [WS]"
 					result.washSale = true
 				}

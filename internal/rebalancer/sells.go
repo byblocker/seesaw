@@ -90,7 +90,7 @@ func harvestPosition(
 	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, utils.FormatMoney(candidate.RealizedPL.Neg()))
 	for _, sale := range sales {
 		if sale.GainPct.IsNegative() {
-			logLot(sale, isHarvestable(sale, minPctLoss))
+			logLot(snapshot, sale, isHarvestable(sale, minPctLoss))
 		}
 	}
 	return candidate
@@ -101,13 +101,13 @@ func isHarvestable(sale models.LotSale, minPctLossToHarvest decimal.Decimal) boo
 	return gainPct.IsNegative() && gainPct.LessThanOrEqual(minPctLossToHarvest)
 }
 
-func logLot(sale models.LotSale, harvest bool) {
+func logLot(snapshot portfolio.Snapshot, sale models.LotSale, harvest bool) {
 	action := "IGNORE"
 	if harvest {
 		action = "HARVEST"
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
-		action, sale.Quantity, sale.Lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct.Neg()))
+		action, sale.Quantity, snapshot.Lots[sale.LotIdx].TimeAcquired.Format(time.DateOnly), utils.FormatPercent(sale.GainPct.Neg()))
 }
 
 // Sell whole shares of an asset worth at most excess, lowest tax per dollar first.

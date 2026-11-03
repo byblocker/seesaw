@@ -63,7 +63,8 @@ func (position Position) LotSales(lots []models.PositionLot, saleDate time.Time)
 	for _, idx := range position.LotIdxs {
 		sale := models.NewLotSale(
 			position.Ticker,
-			&lots[idx],
+			idx,
+			lots[idx],
 			position.Quote.Bid,
 			saleDate,
 			position.RecentlyBought,

@@ -63,7 +63,7 @@ func (p SellProposal) LogProceeds() {
 type LotSale struct {
 	Ticker       string
 	Quantity     decimal.Decimal
-	Lot          *PositionLot
+	LotIdx       int
 	Price        decimal.Decimal
 	GainPerShare decimal.Decimal
 	GainPct      decimal.Decimal
@@ -73,7 +73,8 @@ type LotSale struct {
 
 func NewLotSale(
 	ticker string,
-	lot *PositionLot,
+	lotIdx int,
+	lot PositionLot,
 	price decimal.Decimal,
 	saleDate time.Time,
 	isRecentlyBought bool,
@@ -86,7 +87,7 @@ func NewLotSale(
 	}
 
 	return LotSale{
-		Ticker: ticker, Lot: lot, Price: price,
+		Ticker: ticker, LotIdx: lotIdx, Price: price,
 		Quantity:     lot.Quantity,
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
