@@ -27,7 +27,7 @@ func harvestAsset(
 		if !hasLoss(snapshot, position) {
 			continue
 		}
-		if !hasReplacement(snapshot, asset, position.Ticker) {
+		if _, ok := replacement(snapshot, asset, idx); !ok {
 			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
@@ -55,11 +55,14 @@ func hasLoss(snapshot portfolio.Snapshot, position portfolio.Position) bool {
 	})
 }
 
-func hasReplacement(snapshot portfolio.Snapshot, asset portfolio.Asset, ticker string) bool {
-	return slices.ContainsFunc(asset.PositionIdxs, func(idx int) bool {
-		other := snapshot.Positions[idx]
-		return other.Ticker != ticker && !other.RecentlySold
-	})
+// The asset's first position other than excludeIdx that can be bought without washing a recent sale.
+func replacement(snapshot portfolio.Snapshot, asset portfolio.Asset, excludeIdx int) (int, bool) {
+	for _, idx := range asset.PositionIdxs {
+		if idx != excludeIdx && !snapshot.Positions[idx].RecentlySold {
+			return idx, true
+		}
+	}
+	return -1, false
 }
 
 func harvestPosition(

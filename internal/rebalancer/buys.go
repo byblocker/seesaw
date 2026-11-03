@@ -17,14 +17,12 @@ type buyRequest struct {
 }
 
 func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfolio.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
-	for _, idx := range asset.PositionIdxs {
-		position := snapshot.Positions[idx]
-		if (sell.IsEmpty() || idx != sell.PositionIdx) && !position.RecentlySold {
-			return buyRequest{PositionIdx: idx, Amount: shortfall}, true
-		}
+	soldIdx := -1
+	if !sell.IsEmpty() {
+		soldIdx = sell.PositionIdx
 	}
-
-	return buyRequest{}, false
+	idx, ok := replacement(snapshot, asset, soldIdx)
+	return buyRequest{PositionIdx: idx, Amount: shortfall}, ok
 }
 
 func sizeBuys(
