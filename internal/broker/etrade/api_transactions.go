@@ -8,6 +8,7 @@ import (
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
+	"slices"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ func (client *Client) AllRecentTx(
 	start, end time.Time,
 	tickers []string,
 ) ([]models.Transaction, error) {
-	byAccount, err := async.ForKeys(ctx, accounts, func(ctx context.Context, account Account) ([]models.Transaction, error) {
+	byAccount, err := async.Map(ctx, accounts, func(ctx context.Context, account Account) ([]models.Transaction, error) {
 		history, err := client.Transactions(ctx, account, start, end, tickers)
 		if err != nil {
 			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
@@ -49,11 +50,7 @@ func (client *Client) AllRecentTx(
 		return nil, err
 	}
 
-	var merged []models.Transaction
-	for _, account := range accounts {
-		merged = append(merged, byAccount[account]...)
-	}
-	return merged, nil
+	return slices.Concat(byAccount...), nil
 }
 
 func (client *Client) Transactions(
