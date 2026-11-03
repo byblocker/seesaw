@@ -39,7 +39,7 @@ func sizeBuys(
 	sells []models.SellProposal,
 	requests []buyRequest,
 	maxValueDeviation decimal.Decimal,
-) ([]models.Buy, error) {
+) []models.Buy {
 	balance := snapshot.Balances.BuyingPower
 	for _, sell := range sells {
 		balance = balance.Add(sell.Proceeds)
@@ -53,17 +53,13 @@ func sizeBuys(
 			break
 		}
 
-		buy, err := proposeBuy(
+		buy := proposeBuy(
 			request,
 			balance,
 			maxValueDeviation,
 			settings.MinFractionalShareToRound,
 			broker.AllowFractionalShares,
 		)
-		if err != nil {
-			return nil, fmt.Errorf("size buy for %s: %w", request.Ticker, err)
-		}
-
 		if buy.Quantity.IsZero() {
 			log.Printf("CANNOT buy %s: not enough for one share", request.Ticker)
 			continue
@@ -75,7 +71,7 @@ func sizeBuys(
 			buy.Quantity.String(), buy.Ticker, utils.FormatPrice(buy.Price), utils.FormatMoney(buy.EstimatedCost))
 		log.Printf("Remaining balance: %s", utils.FormatMoney(balance))
 	}
-	return buys, nil
+	return buys
 }
 
 func proposeBuy(
@@ -84,44 +80,40 @@ func proposeBuy(
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
 	allowFractionalShares bool,
-) (models.Buy, error) {
-	if !req.Ask.IsPositive() {
-		return models.Buy{}, fmt.Errorf("ask must be positive")
-	}
-
+) models.Buy {
 	valueToCover := decimal.Min(req.Amount, balance)
 	exact, _ := valueToCover.QuoRem(req.Ask, utils.DivisionDecimalPlaces)
 	if allowFractionalShares {
-		return req.buy(exact), nil
+		return req.buy(exact)
 	}
 
 	whole := exact.Floor()
 	fractional := exact.Sub(whole)
 	if fractional.IsZero() {
-		return req.buy(whole), nil
+		return req.buy(whole)
 	}
 
 	// Truncate so the shown count never rounds up to the whole share it falls short of.
 	cannotRound := fmt.Sprintf("CANNOT round up %s from %s share(s)", req.Ticker, exact.Truncate(2))
 	if fractional.LessThan(minFractionalShareToRound) {
 		log.Printf("%s: below rounding threshold", cannotRound)
-		return req.buy(whole), nil
+		return req.buy(whole)
 	}
 
 	rounded := whole.Add(decimal.NewFromInt(1))
 	cost := rounded.Mul(req.Ask)
 	if cost.GreaterThan(balance) {
 		log.Printf("%s: not enough funds", cannotRound)
-		return req.buy(whole), nil
+		return req.buy(whole)
 	}
 	maxAllowedCost := req.Amount.Add(maxValueDeviation)
 	if cost.GreaterThan(maxAllowedCost) {
 		log.Printf("%s: exceeds risk threshold", cannotRound)
-		return req.buy(whole), nil
+		return req.buy(whole)
 	}
 
 	log.Printf("CAN round up %s from %s to %s share(s)", req.Ticker, exact.Truncate(2), rounded)
-	return req.buy(rounded), nil
+	return req.buy(rounded)
 }
 
 func (req buyRequest) buy(quantity decimal.Decimal) models.Buy {

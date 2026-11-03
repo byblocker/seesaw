@@ -20,10 +20,7 @@ func Rebalance(
 		return nil, fmt.Errorf("empty or negative portfolio")
 	}
 
-	plan, err := rebalancer.Plan(snapshot, request, client.Settings())
-	if err != nil {
-		return nil, err
-	}
+	plan := rebalancer.Plan(snapshot, request, client.Settings())
 
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(plan.Buys), len(plan.Sells))
 	return plan, nil
