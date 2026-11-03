@@ -27,28 +27,32 @@ type SellProposal struct {
 	RealizedPL decimal.Decimal
 }
 
-func GroupSales(sales []LotSale) []SellProposal {
+// One proposal per position sold, in the order of each position's first sale.
+func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 	var proposals []SellProposal
-	proposalByTicker := map[string]int{}
+	proposalByPosition := map[int]int{}
 
 	for _, sale := range sales {
-		i, exists := proposalByTicker[sale.Ticker]
+		lot := snapshot.Lots[sale.LotIdx]
+		i, exists := proposalByPosition[lot.PositionIdx]
 		if !exists {
+			position := snapshot.Positions[lot.PositionIdx]
 			i = len(proposals)
-			proposalByTicker[sale.Ticker] = i
-			proposals = append(proposals, SellProposal{Ticker: sale.Ticker, Price: sale.Price})
+			proposalByPosition[lot.PositionIdx] = i
+			proposals = append(proposals, SellProposal{Ticker: position.Ticker, Price: position.Quote.Bid})
 		}
 
-		proposals[i].Add(sale)
+		proposals[i].Add(sale, lot)
 	}
 
 	return proposals
 }
 
-func (p *SellProposal) Add(sale LotSale) {
+// Add a sale of lot at the proposal's price.
+func (p *SellProposal) Add(sale LotSale, lot LotSnapshot) {
 	p.Lots = append(p.Lots, sale)
-	p.Proceeds = p.Proceeds.Add(sale.Proceeds())
-	p.RealizedPL = p.RealizedPL.Add(sale.RealizedPL())
+	p.Proceeds = p.Proceeds.Add(sale.Quantity.Mul(p.Price))
+	p.RealizedPL = p.RealizedPL.Add(sale.Quantity.Mul(lot.GainPerShare))
 }
 
 func (p SellProposal) IsEmpty() bool {
@@ -64,20 +68,6 @@ func (p SellProposal) LogProceeds() {
 }
 
 type LotSale struct {
-	Ticker       string
-	Quantity     decimal.Decimal
-	LotIdx       int
-	Price        decimal.Decimal
-	GainPerShare decimal.Decimal
-	GainPct      decimal.Decimal
-	LongTerm     bool
-	IsWashSale   bool
-}
-
-func (sale LotSale) Proceeds() decimal.Decimal {
-	return sale.Quantity.Mul(sale.Price)
-}
-
-func (sale LotSale) RealizedPL() decimal.Decimal {
-	return sale.Quantity.Mul(sale.GainPerShare)
+	LotIdx   int
+	Quantity decimal.Decimal
 }

@@ -67,22 +67,6 @@ func TakeSnapshot(
 	}, nil
 }
 
-// A sale of quantity shares of the lot at its position's bid on the snapshot's date.
-func (snapshot Snapshot) LotSale(lotIdx int, quantity decimal.Decimal) LotSale {
-	lot := snapshot.Lots[lotIdx]
-	position := snapshot.Positions[lot.PositionIdx]
-	return LotSale{
-		Ticker:       position.Ticker,
-		Quantity:     quantity,
-		LotIdx:       lotIdx,
-		Price:        position.Quote.Bid,
-		GainPerShare: lot.GainPerShare,
-		GainPct:      lot.GainPct,
-		LongTerm:     lot.LongTerm,
-		IsWashSale:   lot.IsWashSale,
-	}
-}
-
 func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal decimal.Decimal) Snapshot {
 	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
 	changeByTicker := map[string]decimal.Decimal{}

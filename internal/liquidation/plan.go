@@ -44,5 +44,5 @@ func PlanSales(
 		return nil, err
 	}
 
-	return portfolio.GroupSales(sales), nil
+	return portfolio.GroupSales(snapshot, sales), nil
 }

@@ -37,8 +37,9 @@ func formatSells(sells []portfolio.SellProposal, lots []portfolio.LotSnapshot, r
 	})
 	for _, sell := range sells {
 		for _, sale := range sell.Lots {
-			realizedPL := sale.RealizedPL()
-			if sale.LongTerm {
+			lot := lots[sale.LotIdx]
+			realizedPL := sale.Quantity.Mul(lot.GainPerShare)
+			if lot.LongTerm {
 				result.longTermPL = result.longTermPL.Add(realizedPL)
 			} else {
 				result.shortTermPL = result.shortTermPL.Add(realizedPL)
@@ -46,10 +47,10 @@ func formatSells(sells []portfolio.SellProposal, lots []portfolio.LotSnapshot, r
 			row := []string{
 				sell.Ticker,
 				"SELL",
-				lots[sale.LotIdx].TimeAcquired.Format(time.DateOnly),
+				lot.TimeAcquired.Format(time.DateOnly),
 				sale.Quantity.String(),
 				utils.FormatPrice(sell.Price),
-				utils.FormatMoney(sale.Proceeds()),
+				utils.FormatMoney(sale.Quantity.Mul(sell.Price)),
 				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {
@@ -60,7 +61,7 @@ func formatSells(sells []portfolio.SellProposal, lots []portfolio.LotSnapshot, r
 				} else {
 					result.tax = result.tax.Add(impact)
 				}
-				if sale.IsWashSale {
+				if lot.IsWashSale {
 					row[1] += " [WS]"
 					result.washSale = true
 				}

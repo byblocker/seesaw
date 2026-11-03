@@ -43,10 +43,11 @@ func selectLots(
 			continue
 		}
 
-		sale := snapshot.LotSale(lotIdx, decimal.NewFromInt(sharesToSell))
-		sales = append(sales, sale)
-		proceeds = proceeds.Add(sale.Proceeds())
-		sold[assetIdx] = sold[assetIdx].Add(sale.Proceeds())
+		quantity := decimal.NewFromInt(sharesToSell)
+		sales = append(sales, portfolio.LotSale{LotIdx: lotIdx, Quantity: quantity})
+		saleProceeds := quantity.Mul(bid)
+		proceeds = proceeds.Add(saleProceeds)
+		sold[assetIdx] = sold[assetIdx].Add(saleProceeds)
 	}
 
 	if proceeds.LessThan(amountNeeded) {

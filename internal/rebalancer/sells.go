@@ -77,7 +77,7 @@ func harvestPosition(
 	candidate := portfolio.SellProposal{Ticker: ticker, Price: position.Quote.Bid}
 	for _, idx := range position.LotIdxs {
 		if lot := snapshot.Lots[idx]; isHarvestable(lot, minPctLoss) {
-			candidate.Add(snapshot.LotSale(idx, lot.Quantity))
+			candidate.Add(portfolio.LotSale{LotIdx: idx, Quantity: lot.Quantity}, lot)
 		}
 	}
 	if candidate.IsEmpty() {
@@ -127,17 +127,17 @@ func sellExcess(
 	remaining := excess
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
-		maxShares, _ := remaining.QuoRem(snapshot.Positions[lot.PositionIdx].Quote.Bid, 0)
+		bid := snapshot.Positions[lot.PositionIdx].Quote.Bid
+		maxShares, _ := remaining.QuoRem(bid, 0)
 		quantity := decimal.Min(lot.Quantity.Floor(), maxShares)
 		if !quantity.IsPositive() {
 			continue
 		}
-		sale := snapshot.LotSale(lotIdx, quantity)
-		sold = append(sold, sale)
-		remaining = remaining.Sub(sale.Proceeds())
+		sold = append(sold, portfolio.LotSale{LotIdx: lotIdx, Quantity: quantity})
+		remaining = remaining.Sub(quantity.Mul(bid))
 	}
 
-	proposals := portfolio.GroupSales(sold)
+	proposals := portfolio.GroupSales(snapshot, sold)
 	for _, proposal := range proposals {
 		proposal.LogProceeds()
 	}
