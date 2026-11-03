@@ -53,10 +53,6 @@ func (p SellProposal) IsEmpty() bool {
 	return len(p.Lots) == 0
 }
 
-func (p SellProposal) HarvestsAtLeast(other SellProposal) bool {
-	return p.RealizedPL.LessThanOrEqual(other.RealizedPL)
-}
-
 type LotSale struct {
 	LotIdx   int
 	Quantity decimal.Decimal

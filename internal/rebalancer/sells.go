@@ -35,8 +35,8 @@ func harvestAsset(
 		if sell.IsEmpty() {
 			continue
 		}
-		// Since we begin with the primary position, ties favor selling the alternate.
-		if best.IsEmpty() || sell.HarvestsAtLeast(best) {
+		// Keep the deepest loss. Since we begin with the primary position, ties favor selling the alternate.
+		if best.IsEmpty() || sell.RealizedPL.LessThanOrEqual(best.RealizedPL) {
 			best = sell
 		}
 	}
