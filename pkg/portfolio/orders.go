@@ -1,11 +1,6 @@
 package portfolio
 
-import (
-	"log"
-	"seesaw/internal/utils"
-
-	"github.com/shopspring/decimal"
-)
+import "github.com/shopspring/decimal"
 
 type RebalancePlan struct {
 	Buys  []Buy
@@ -60,10 +55,6 @@ func (p SellProposal) IsEmpty() bool {
 
 func (p SellProposal) HarvestsAtLeast(other SellProposal) bool {
 	return p.RealizedPL.LessThanOrEqual(other.RealizedPL)
-}
-
-func (p SellProposal) LogProceeds(snapshot Snapshot) {
-	log.Printf("Estimated %s proceeds from selling %s", utils.FormatMoney(p.Proceeds), snapshot.Positions[p.PositionIdx].Ticker)
 }
 
 type LotSale struct {

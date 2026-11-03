@@ -143,7 +143,11 @@ func sellExcess(
 
 	proposals := portfolio.GroupSales(snapshot, sold)
 	for _, proposal := range proposals {
-		proposal.LogProceeds(snapshot)
+		logProceeds(snapshot, proposal)
 	}
 	return proposals
+}
+
+func logProceeds(snapshot portfolio.Snapshot, sell portfolio.SellProposal) {
+	log.Printf("Estimated %s proceeds from selling %s", utils.FormatMoney(sell.Proceeds), snapshot.Positions[sell.PositionIdx].Ticker)
 }

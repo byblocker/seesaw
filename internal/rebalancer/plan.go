@@ -94,7 +94,7 @@ func rebalanceAsset(
 	}
 
 	if !sell.IsEmpty() {
-		sell.LogProceeds(snapshot)
+		logProceeds(snapshot, sell)
 	}
 	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), snapshot.Positions[buy.PositionIdx].Ticker)
 	if sell.IsEmpty() {
@@ -121,7 +121,7 @@ func harvestUnplanned(
 			continue
 		}
 		if sell := harvestPosition(snapshot, idx, settings); !sell.IsEmpty() {
-			sell.LogProceeds(snapshot)
+			logProceeds(snapshot, sell)
 			sells = append(sells, sell)
 		}
 	}
