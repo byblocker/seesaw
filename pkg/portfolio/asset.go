@@ -42,13 +42,18 @@ func groupByAsset(
 		lotsByTicker[lot.Ticker] = append(lotsByTicker[lot.Ticker], lot)
 	}
 
+	transactionsByTicker := map[string][]models.Transaction{}
+	for _, tx := range portfolio.Transactions {
+		transactionsByTicker[tx.Ticker] = append(transactionsByTicker[tx.Ticker], tx)
+	}
+
 	var positions []Position
 	var lots []LotSnapshot
 	addAsset := func(plan *config.AssetPlan, label string, tickers []string) error {
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
 			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
-			position, held, err := newPosition(ticker, len(assets), quoteByTicker[ticker], lotsByTicker[ticker], portfolio, createdAt)
+			position, held, err := newPosition(ticker, len(assets), quoteByTicker[ticker], lotsByTicker[ticker], transactionsByTicker[ticker], createdAt)
 			if err != nil {
 				return err
 			}

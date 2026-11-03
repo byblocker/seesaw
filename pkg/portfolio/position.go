@@ -25,7 +25,7 @@ func newPosition(
 	assetIdx int,
 	quote models.Quote,
 	heldLots []models.Lot,
-	portfolio *models.Portfolio,
+	transactions []models.Transaction,
 	createdAt time.Time,
 ) (Position, []LotSnapshot, error) {
 	if !quote.Bid.IsPositive() || !quote.Ask.IsPositive() {
@@ -36,8 +36,8 @@ func newPosition(
 		Ticker:         ticker,
 		AssetIdx:       assetIdx,
 		Quote:          quote,
-		RecentlyBought: tradedWithinWashWindow(portfolio.Transactions, ticker, models.TxBuy, createdAt),
-		RecentlySold:   tradedWithinWashWindow(portfolio.Transactions, ticker, models.TxSell, createdAt),
+		RecentlyBought: tradedWithinWashWindow(transactions, models.TxBuy, createdAt),
+		RecentlySold:   tradedWithinWashWindow(transactions, models.TxSell, createdAt),
 	}
 
 	var lots []LotSnapshot
@@ -55,9 +55,9 @@ func newPosition(
 	return position, lots, nil
 }
 
-func tradedWithinWashWindow(transactions []models.Transaction, ticker string, txType models.TransactionType, day time.Time) bool {
+func tradedWithinWashWindow(transactions []models.Transaction, txType models.TransactionType, day time.Time) bool {
 	return slices.ContainsFunc(transactions, func(tx models.Transaction) bool {
-		return tx.Ticker == ticker && tx.Type == txType && calendar.DaysBetween(tx.Date, day) <= models.WashSaleWindowDays
+		return tx.Type == txType && calendar.DaysBetween(tx.Date, day) <= models.WashSaleWindowDays
 	})
 }
 
