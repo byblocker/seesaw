@@ -11,22 +11,32 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func selectLots(lots []sellableLot, amountNeeded decimal.Decimal) ([]models.LotSale, error) {
-	// Remaining ties keep plan order, then lot ID order, from collectLots, so plans repeat exactly.
-	slices.SortStableFunc(lots, compareLots)
+func selectLots(
+	snapshot portfolio.Snapshot,
+	lotIdxs []int,
+	taxPerShare []decimal.Decimal,
+	valueAboveMin []decimal.Decimal,
+	amountNeeded decimal.Decimal,
+) ([]models.LotSale, error) {
+	// Remaining ties keep plan order, then lot ID order, from sellableLots, so plans repeat exactly.
+	slices.SortStableFunc(lotIdxs, func(left, right int) int {
+		return compareLots(snapshot, taxPerShare, left, right)
+	})
 	var sales []models.LotSale
 	proceeds := decimal.Zero
+	sold := make([]decimal.Decimal, len(snapshot.Assets))
 
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
-	for i := range lots {
-		lot := &lots[i]
-		asset, bid := lot.asset, lot.sale.Price
+	for _, lotIdx := range lotIdxs {
+		lot := snapshot.Lots[lotIdx]
+		position := snapshot.Positions[lot.PositionIdx]
+		assetIdx, bid := position.AssetIdx, position.Quote.Bid
 
 		stillNeeded := amountNeeded.Sub(proceeds)
-		sharesToSell := min(lot.wholeShares, sharesNeeded(stillNeeded, bid))
+		sharesToSell := min(wholeShares(lot), sharesNeeded(stillNeeded, bid))
 
-		if asset.isPlanned {
-			valueLeftAboveMin := asset.valueAboveMinAllowed.Sub(asset.sold)
+		if snapshot.Assets[assetIdx].Plan != nil {
+			valueLeftAboveMin := valueAboveMin[assetIdx].Sub(sold[assetIdx])
 			sharesToSell = min(sharesToSell, sharesNeeded(valueLeftAboveMin, bid))
 		}
 
@@ -34,13 +44,10 @@ func selectLots(lots []sellableLot, amountNeeded decimal.Decimal) ([]models.LotS
 			continue
 		}
 
-		sale := lot.sale
-		sale.Quantity = decimal.NewFromInt(sharesToSell)
+		sale := snapshot.LotSale(lotIdx, decimal.NewFromInt(sharesToSell))
 		sales = append(sales, sale)
-
-		saleProceeds := lot.saleProceeds(sharesToSell)
-		proceeds = proceeds.Add(saleProceeds)
-		asset.sold = asset.sold.Add(saleProceeds)
+		proceeds = proceeds.Add(sale.Proceeds())
+		sold[assetIdx] = sold[assetIdx].Add(sale.Proceeds())
 	}
 
 	if proceeds.LessThan(amountNeeded) {
@@ -53,19 +60,24 @@ func selectLots(lots []sellableLot, amountNeeded decimal.Decimal) ([]models.LotS
 	return sales, nil
 }
 
-func compareLots(left, right sellableLot) int {
+func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, left, right int) int {
+	leftPosition := snapshot.Positions[snapshot.Lots[left].PositionIdx]
+	rightPosition := snapshot.Positions[snapshot.Lots[right].PositionIdx]
+	leftAsset := snapshot.Assets[leftPosition.AssetIdx]
+	rightAsset := snapshot.Assets[rightPosition.AssetIdx]
+
 	// Sell holdings outside the plan before any planned lot
-	if left.asset.isPlanned != right.asset.isPlanned {
-		if left.asset.isPlanned {
+	if leftIsPlanned, rightIsPlanned := leftAsset.Plan != nil, rightAsset.Plan != nil; leftIsPlanned != rightIsPlanned {
+		if leftIsPlanned {
 			return 1
 		}
 		return -1
 	}
 
 	return cmp.Or(
-		portfolio.CompareTaxPerDollar(left.taxPerShare, left.sale.Price, right.taxPerShare, right.sale.Price),
+		portfolio.CompareTaxPerDollar(taxPerShare[left], leftPosition.Quote.Bid, taxPerShare[right], rightPosition.Quote.Bid),
 		// Ties go to the most overweight asset
-		right.asset.drift.Cmp(left.asset.drift),
+		rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
 	)
 }
 

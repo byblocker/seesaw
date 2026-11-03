@@ -22,11 +22,13 @@ func PlanSales(
 	}
 
 	log.Printf("Selecting liquidation sales for at least %s", utils.FormatMoney(amountNeeded))
-	lots := collectLots(snapshot, request, amountNeeded)
+	lotIdxs := sellableLots(snapshot)
 
 	sellableValue := decimal.Zero
-	for i := range lots {
-		sellableValue = sellableValue.Add(lots[i].saleProceeds(lots[i].wholeShares))
+	for _, lotIdx := range lotIdxs {
+		lot := snapshot.Lots[lotIdx]
+		bid := snapshot.Positions[lot.PositionIdx].Quote.Bid
+		sellableValue = sellableValue.Add(bid.Mul(decimal.NewFromInt(wholeShares(lot))))
 	}
 	if sellableValue.LessThan(amountNeeded) {
 		return nil, fmt.Errorf(
@@ -35,7 +37,9 @@ func PlanSales(
 		)
 	}
 
-	sales, err := selectLots(lots, amountNeeded)
+	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, request.TaxRates)
+	valueAboveMin := valueAboveMinAllowed(snapshot, request.Settings.AllocationLowerLimit, amountNeeded)
+	sales, err := selectLots(snapshot, lotIdxs, taxPerShare, valueAboveMin, amountNeeded)
 	if err != nil {
 		return nil, err
 	}
