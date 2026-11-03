@@ -39,13 +39,13 @@ func showSnapshot(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func takeSnapshot(cmd *cobra.Command, client models.BrokerClient, plan *config.Plan) (*portfolio.Snapshot, error) {
+func takeSnapshot(cmd *cobra.Command, client models.BrokerClient, plan *config.Plan) (portfolio.Snapshot, error) {
 	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
 	if err != nil {
-		return nil, err
+		return portfolio.Snapshot{}, err
 	}
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(*snapshot)); err != nil {
-		return nil, fmt.Errorf("write snapshot summary: %w", err)
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(snapshot)); err != nil {
+		return portfolio.Snapshot{}, fmt.Errorf("write snapshot summary: %w", err)
 	}
 	return snapshot, nil
 }

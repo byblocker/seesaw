@@ -74,7 +74,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sells, err := trading.Liquidate(*snapshot, request)
+	sells, err := trading.Liquidate(snapshot, request)
 	if err != nil {
 		return err
 	}

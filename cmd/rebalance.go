@@ -54,7 +54,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(*snapshot, client.Settings(), models.RebalanceRequest{
+	orders, err := trading.Rebalance(snapshot, client.Settings(), models.RebalanceRequest{
 		Settings: plan.Settings,
 		TaxRates: taxRates,
 		Force:    forceRebalance,

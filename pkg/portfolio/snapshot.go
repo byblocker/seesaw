@@ -27,7 +27,7 @@ func TakeSnapshot(
 	ctx context.Context,
 	client models.BrokerClient,
 	plan *config.Plan,
-) (*Snapshot, error) {
+) (Snapshot, error) {
 	portfolio, err := client.Portfolio(
 		ctx,
 		plan.AccountId,
@@ -35,13 +35,13 @@ func TakeSnapshot(
 		slices.Collect(plan.Tickers()),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve portfolio: %w", err)
+		return Snapshot{}, fmt.Errorf("failed to retrieve portfolio: %w", err)
 	}
 
 	createdAt := time.Now()
 	assets, positions, lots, err := groupByAsset(plan.Assets, portfolio, createdAt)
 	if err != nil {
-		return nil, err
+		return Snapshot{}, err
 	}
 
 	totalValue := portfolio.Balances.CashBalance
@@ -56,7 +56,7 @@ func TakeSnapshot(
 		assets[i].allocate(totalValue)
 	}
 
-	return &Snapshot{
+	return Snapshot{
 		Id:         plan.AccountId,
 		CreatedAt:  createdAt,
 		Balances:   portfolio.Balances,
