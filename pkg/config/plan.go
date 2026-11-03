@@ -32,11 +32,7 @@ type planYAML struct {
 }
 
 func (plan *Plan) AccountLabel() string {
-	id := plan.AccountId
-	if len(id) > 4 {
-		id = id[len(id)-4:]
-	}
-	return fmt.Sprintf("%s #%s", strings.ToUpper(strings.TrimSpace(plan.Broker)), id)
+	return fmt.Sprintf("%s #%s", strings.ToUpper(strings.TrimSpace(plan.Broker)), utils.AccountSuffix(plan.AccountId))
 }
 
 func (plan *Plan) Tickers() iter.Seq[string] {

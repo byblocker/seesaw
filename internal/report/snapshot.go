@@ -10,9 +10,7 @@ import (
 
 func Snapshot(snapshot portfolio.Snapshot) string {
 	var output strings.Builder
-	account := snapshot.Id[len(snapshot.Id)-4:]
-
-	fmt.Fprintf(&output, "\nAccount %s as of %s\n", account,
+	fmt.Fprintf(&output, "\nAccount %s as of %s\n", utils.AccountSuffix(snapshot.Id),
 		snapshot.CreatedAt.Format(time.DateTime+" MST"))
 	output.WriteByte('\n')
 	divider := ""
