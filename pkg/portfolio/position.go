@@ -69,17 +69,17 @@ func (position Position) LotSales(saleDate time.Time) []models.LotSale {
 		)
 		sales = append(sales, sale)
 	}
+	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
+	slices.SortFunc(sales, func(left, right models.LotSale) int {
+		return cmp.Compare(left.Lot.Id, right.Lot.Id)
+	})
 	return sales
 }
 
 func LotSales(positions []Position, idxs []int, saleDate time.Time) []models.LotSale {
 	var sales []models.LotSale
 	for _, idx := range idxs {
-		positionSales := positions[idx].LotSales(saleDate)
-		slices.SortFunc(positionSales, func(left, right models.LotSale) int {
-			return cmp.Compare(left.Lot.Id, right.Lot.Id)
-		})
-		sales = append(sales, positionSales...)
+		sales = append(sales, positions[idx].LotSales(saleDate)...)
 	}
 	return sales
 }
