@@ -51,7 +51,7 @@ func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quo
 				return models.Quote{}, fmt.Errorf("quote %s: %w", ticker, err)
 			}
 
-			return models.Quote{Ask: quote.All.Ask, Bid: quote.All.Bid}, nil
+			return models.Quote{Ticker: ticker, Ask: quote.All.Ask, Bid: quote.All.Bid}, nil
 		}
 	}
 

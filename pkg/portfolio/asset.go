@@ -31,13 +31,18 @@ func groupByAsset(
 	createdAt time.Time,
 ) ([]Asset, []Position, []LotSnapshot, error) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
+	quoteByTicker := make(map[string]models.Quote, len(portfolio.Quotes))
+	for _, quote := range portfolio.Quotes {
+		quoteByTicker[quote.Ticker] = quote
+	}
+
 	var positions []Position
 	var lots []LotSnapshot
 	addAsset := func(plan *config.AssetPlan, label string, tickers []string) error {
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
 			asset.PositionIdxs = append(asset.PositionIdxs, len(positions))
-			position, held, err := newPosition(ticker, len(assets), portfolio, createdAt)
+			position, held, err := newPosition(ticker, len(assets), quoteByTicker[ticker], portfolio, createdAt)
 			if err != nil {
 				return err
 			}

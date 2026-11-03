@@ -7,8 +7,9 @@ import (
 )
 
 type Quote struct {
-	Ask decimal.Decimal
-	Bid decimal.Decimal
+	Ticker string
+	Ask    decimal.Decimal
+	Bid    decimal.Decimal
 }
 
 type Balances struct {
@@ -20,7 +21,7 @@ type Portfolio struct {
 	Balances         Balances
 	PositionByTicker map[string]Position
 	Transactions     []Transaction
-	Quotes           map[string]Quote
+	Quotes           []Quote
 }
 
 type Position struct {

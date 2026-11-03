@@ -23,10 +23,10 @@ type Position struct {
 func newPosition(
 	ticker string,
 	assetIdx int,
+	quote models.Quote,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
 ) (Position, []LotSnapshot, error) {
-	quote := portfolio.Quotes[ticker]
 	if !quote.Bid.IsPositive() || !quote.Ask.IsPositive() {
 		return Position{}, nil, fmt.Errorf("missing quote for %s", ticker)
 	}
@@ -42,7 +42,7 @@ func newPosition(
 	var lots []LotSnapshot
 	for _, lot := range portfolio.PositionByTicker[ticker].Lots {
 		if lot.Quantity.IsPositive() {
-			lots = append(lots, newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought))
+			lots = append(lots, newLotSnapshot(lot, quote.Bid, createdAt, position.RecentlyBought))
 		}
 	}
 	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
