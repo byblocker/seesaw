@@ -66,6 +66,7 @@ type LotSale struct {
 	Lot          *PositionLot
 	Price        decimal.Decimal
 	GainPerShare decimal.Decimal
+	GainPct      decimal.Decimal
 	LongTerm     bool
 	IsWashSale   bool
 }
@@ -79,11 +80,16 @@ func NewLotSale(
 ) LotSale {
 	gainPerShare := price.Sub(lot.PricePaid)
 	isWashSale := isRecentlyBought && gainPerShare.IsNegative()
+	gainPct := decimal.Zero
+	if lot.PricePaid.IsPositive() {
+		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, utils.DivisionDecimalPlaces)
+	}
 
 	return LotSale{
 		Ticker: ticker, Lot: lot, Price: price,
 		Quantity:     lot.Quantity,
 		GainPerShare: gainPerShare,
+		GainPct:      gainPct,
 		LongTerm:     lot.IsLongTermAt(saleDate),
 		IsWashSale:   isWashSale,
 	}
@@ -113,16 +119,6 @@ func (sale LotSale) Proceeds() decimal.Decimal {
 
 func (sale LotSale) RealizedPL() decimal.Decimal {
 	return sale.Quantity.Mul(sale.GainPerShare)
-}
-
-// Gain or loss at the sale price as a fraction of the price paid.
-func (sale LotSale) GainPct() decimal.Decimal {
-	if !sale.Lot.PricePaid.IsPositive() {
-		return decimal.Zero
-	}
-
-	gainPct, _ := sale.GainPerShare.QuoRem(sale.Lot.PricePaid, utils.DivisionDecimalPlaces)
-	return gainPct
 }
 
 func (sale LotSale) EstimatedTaxImpact(rates config.TaxSettings) decimal.Decimal {
