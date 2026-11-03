@@ -14,7 +14,7 @@ import (
 const transactionHistoryDays = models.WashSaleWindowDays + 1
 
 type Snapshot struct {
-	Id         string
+	AccountId  string
 	CreatedAt  time.Time
 	Balances   models.Balances
 	Assets     []Asset
@@ -57,7 +57,7 @@ func TakeSnapshot(
 	}
 
 	return Snapshot{
-		Id:         plan.AccountId,
+		AccountId:  plan.AccountId,
 		CreatedAt:  createdAt,
 		Balances:   portfolio.Balances,
 		Assets:     assets,
