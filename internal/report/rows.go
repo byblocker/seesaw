@@ -27,7 +27,7 @@ func writeOrderTable(output *strings.Builder, amountHeader string, rows [][]stri
 	writeTable(output, headers, rows, 3)
 }
 
-func formatSells(sells []models.SellProposal, lots []models.PositionLot, rates *config.TaxSettings) formattedSells {
+func formatSells(sells []models.SellProposal, lots []portfolio.LotSnapshot, rates *config.TaxSettings) formattedSells {
 	result := formattedSells{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,

@@ -4,7 +4,6 @@ import (
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -69,31 +68,6 @@ type LotSale struct {
 	GainPct      decimal.Decimal
 	LongTerm     bool
 	IsWashSale   bool
-}
-
-func NewLotSale(
-	ticker string,
-	lotIdx int,
-	lot PositionLot,
-	price decimal.Decimal,
-	saleDate time.Time,
-	isRecentlyBought bool,
-) LotSale {
-	gainPerShare := price.Sub(lot.PricePaid)
-	isWashSale := isRecentlyBought && gainPerShare.IsNegative()
-	gainPct := decimal.Zero
-	if lot.PricePaid.IsPositive() {
-		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, utils.DivisionDecimalPlaces)
-	}
-
-	return LotSale{
-		Ticker: ticker, LotIdx: lotIdx, Price: price,
-		Quantity:     lot.Quantity,
-		GainPerShare: gainPerShare,
-		GainPct:      gainPct,
-		LongTerm:     lot.IsLongTermAt(saleDate),
-		IsWashSale:   isWashSale,
-	}
 }
 
 // Zero without rates, as for an account that is not taxable.

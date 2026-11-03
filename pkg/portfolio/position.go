@@ -23,7 +23,7 @@ func newPosition(
 	assetIdx int,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
-) (Position, []models.PositionLot) {
+) (Position, []LotSnapshot) {
 	position := Position{
 		Ticker:         ticker,
 		AssetIdx:       assetIdx,
@@ -32,25 +32,25 @@ func newPosition(
 		RecentlySold:   portfolio.RecentTx.HasSellWithinWashWindow(ticker, createdAt),
 	}
 
-	var held []models.PositionLot
+	var lots []LotSnapshot
 	for _, lot := range portfolio.PositionByTicker[ticker].Lots {
 		if lot.Quantity.IsPositive() {
-			held = append(held, lot)
+			lots = append(lots, newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought))
 		}
 	}
 	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
-	slices.SortFunc(held, func(left, right models.PositionLot) int {
+	slices.SortFunc(lots, func(left, right LotSnapshot) int {
 		return cmp.Compare(left.Id, right.Id)
 	})
 
-	return position, held
+	return position, lots
 }
 
 func (position Position) IsHeld() bool {
 	return len(position.LotIdxs) > 0
 }
 
-func (position Position) Value(lots []models.PositionLot) decimal.Decimal {
+func (position Position) Value(lots []LotSnapshot) decimal.Decimal {
 	quantity := decimal.Zero
 	for _, idx := range position.LotIdxs {
 		quantity = quantity.Add(lots[idx].Quantity)
@@ -62,15 +62,17 @@ func (position Position) Value(lots []models.PositionLot) decimal.Decimal {
 func (position Position) LotSales(snapshot Snapshot) []models.LotSale {
 	sales := make([]models.LotSale, 0, len(position.LotIdxs))
 	for _, idx := range position.LotIdxs {
-		sale := models.NewLotSale(
-			position.Ticker,
-			idx,
-			snapshot.Lots[idx],
-			position.Quote.Bid,
-			snapshot.CreatedAt,
-			position.RecentlyBought,
-		)
-		sales = append(sales, sale)
+		lot := snapshot.Lots[idx]
+		sales = append(sales, models.LotSale{
+			Ticker:       position.Ticker,
+			Quantity:     lot.Quantity,
+			LotIdx:       idx,
+			Price:        position.Quote.Bid,
+			GainPerShare: lot.GainPerShare,
+			GainPct:      lot.GainPct,
+			LongTerm:     lot.LongTerm,
+			IsWashSale:   lot.IsWashSale,
+		})
 	}
 	return sales
 }

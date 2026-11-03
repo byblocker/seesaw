@@ -19,7 +19,7 @@ type Snapshot struct {
 	Balances   models.Balances
 	Assets     []Asset
 	Positions  []Position
-	Lots       []models.PositionLot
+	Lots       []LotSnapshot
 	TotalValue decimal.Decimal
 }
 

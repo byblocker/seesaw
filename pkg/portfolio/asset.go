@@ -29,10 +29,10 @@ func groupByAsset(
 	plans []config.AssetPlan,
 	portfolio *models.Portfolio,
 	createdAt time.Time,
-) ([]Asset, []Position, []models.PositionLot) {
+) ([]Asset, []Position, []LotSnapshot) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
 	var positions []Position
-	var lots []models.PositionLot
+	var lots []LotSnapshot
 	addAsset := func(plan *config.AssetPlan, label string, tickers []string) {
 		asset := Asset{Plan: plan, Label: label}
 		for _, ticker := range tickers {
