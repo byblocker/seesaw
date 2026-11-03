@@ -14,7 +14,7 @@ func Plan(
 	snapshot portfolio.Snapshot,
 	request models.RebalanceRequest,
 	broker models.BrokerSettings,
-) *models.RebalancePlan {
+) models.RebalancePlan {
 	request.Settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
 	maxValueDeviation := snapshot.TotalValue.Mul(request.Settings.AllocationUpperLimit)
 	if request.Force {
@@ -34,7 +34,7 @@ func Plan(
 	}
 
 	buys := sizeBuys(snapshot, request.Settings, broker, sells, requests, maxValueDeviation)
-	return &models.RebalancePlan{Buys: buys, Sells: sells}
+	return models.RebalancePlan{Buys: buys, Sells: sells}
 }
 
 func rebalanceAsset(

@@ -12,12 +12,12 @@ func Rebalance(
 	snapshot portfolio.Snapshot,
 	client models.BrokerClient,
 	request models.RebalanceRequest,
-) (*models.RebalancePlan, error) {
+) (models.RebalancePlan, error) {
 	if err := request.Validate(); err != nil {
-		return nil, err
+		return models.RebalancePlan{}, err
 	}
 	if !snapshot.TotalValue.IsPositive() {
-		return nil, fmt.Errorf("empty or negative portfolio")
+		return models.RebalancePlan{}, fmt.Errorf("empty or negative portfolio")
 	}
 
 	plan := rebalancer.Plan(snapshot, request, client.Settings())
