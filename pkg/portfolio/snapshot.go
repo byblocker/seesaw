@@ -67,28 +67,24 @@ func TakeSnapshot(
 	}, nil
 }
 
+// The snapshot after the orders and the withdrawal. Its positions and lots are the snapshot's own, unchanged.
 func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal decimal.Decimal) Snapshot {
+	simulated := snapshot
+	simulated.Assets = slices.Clone(snapshot.Assets)
 	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
-	changeByTicker := map[string]decimal.Decimal{}
 	for _, sell := range sells {
-		ticker := snapshot.Positions[sell.PositionIdx].Ticker
-		changeByTicker[ticker] = changeByTicker[ticker].Sub(sell.Proceeds)
+		asset := &simulated.Assets[snapshot.Positions[sell.PositionIdx].AssetIdx]
+		asset.Value = asset.Value.Sub(sell.Proceeds)
 		cash = cash.Add(sell.Proceeds)
 	}
 	for _, buy := range buys {
-		ticker := snapshot.Positions[buy.PositionIdx].Ticker
-		changeByTicker[ticker] = changeByTicker[ticker].Add(buy.EstimatedCost)
+		asset := &simulated.Assets[snapshot.Positions[buy.PositionIdx].AssetIdx]
+		asset.Value = asset.Value.Add(buy.EstimatedCost)
 		cash = cash.Sub(buy.EstimatedCost)
 	}
 
-	simulated := snapshot
 	simulated.Balances.CashBalance = cash
-	simulated.Assets = slices.Clone(snapshot.Assets)
 	simulated.TotalValue = cash
-	for _, position := range simulated.Positions {
-		asset := &simulated.Assets[position.AssetIdx]
-		asset.Value = asset.Value.Add(changeByTicker[position.Ticker])
-	}
 	for _, asset := range simulated.Assets {
 		simulated.TotalValue = simulated.TotalValue.Add(asset.Value)
 	}
