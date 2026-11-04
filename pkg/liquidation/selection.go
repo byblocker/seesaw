@@ -13,13 +13,13 @@ import (
 func selectLots(
 	snapshot portfolio.Snapshot,
 	lotIdxs []int,
-	taxPerShare []decimal.Decimal,
+	taxPerDollar []decimal.Decimal,
 	valueAboveMin []decimal.Decimal,
 	amountNeeded decimal.Decimal,
 ) ([]portfolio.LotSale, error) {
 	// Remaining ties keep plan order, then lot ID order, from sellableLots, so plans repeat exactly.
 	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
-		return compareLots(snapshot, taxPerShare, leftLotIdx, rightLotIdx)
+		return compareLots(snapshot, taxPerDollar, leftLotIdx, rightLotIdx)
 	})
 	var sales []portfolio.LotSale
 	proceeds := decimal.Zero
@@ -62,7 +62,7 @@ func selectLots(
 	return sales, nil
 }
 
-func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, leftLotIdx, rightLotIdx int) int {
+func compareLots(snapshot portfolio.Snapshot, taxPerDollar []decimal.Decimal, leftLotIdx, rightLotIdx int) int {
 	leftAsset := snapshot.Assets[snapshot.Lots[leftLotIdx].AssetIdx]
 	rightAsset := snapshot.Assets[snapshot.Lots[rightLotIdx].AssetIdx]
 
@@ -75,7 +75,7 @@ func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, lef
 	}
 
 	return cmp.Or(
-		portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, leftLotIdx, rightLotIdx),
+		taxPerDollar[leftLotIdx].Cmp(taxPerDollar[rightLotIdx]),
 		// Ties go to the most overweight asset
 		rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
 	)

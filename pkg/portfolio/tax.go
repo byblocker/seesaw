@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"time"
 
@@ -43,6 +44,16 @@ func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 		taxPerShare[lotIdx] = lot.Snapshot.GainPerShare.Mul(rate)
 	}
 	return taxPerShare
+}
+
+// Tax per dollar raised selling each lot at its bid, by lot row. Truncating the quotient
+// never reorders lots, so sorting by it matches the exact ratio up to ties below its precision.
+func TaxPerDollar(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
+	taxPerDollar := TaxPerShare(lots, rates)
+	for lotIdx, lot := range lots {
+		taxPerDollar[lotIdx], _ = taxPerDollar[lotIdx].QuoRem(lot.Snapshot.Bid, utils.DivisionDecimalPlaces)
+	}
+	return taxPerDollar
 }
 
 // Compare two lots by tax per dollar raised selling at their bids,
