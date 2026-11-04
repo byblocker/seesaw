@@ -31,6 +31,9 @@ func selectLots(
 		assetIdx, bid := lot.AssetIdx, lot.Snapshot.Bid
 
 		stillNeeded := amountNeeded.Sub(proceeds)
+		if !stillNeeded.IsPositive() {
+			break
+		}
 		sharesToSell := min(wholeShares(lot), sharesAtLeast(stillNeeded, bid))
 
 		if snapshot.Assets[assetIdx].Plan != nil {
