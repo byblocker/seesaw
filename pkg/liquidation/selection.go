@@ -28,8 +28,7 @@ func selectLots(
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
-		position := snapshot.Positions[lot.PositionIdx]
-		assetIdx, bid := position.AssetIdx, position.Quote.Bid
+		assetIdx, bid := lot.AssetIdx, snapshot.Positions[lot.PositionIdx].Quote.Bid
 
 		stillNeeded := amountNeeded.Sub(proceeds)
 		sharesToSell := min(wholeShares(lot), sharesAtLeast(stillNeeded, bid))
@@ -61,8 +60,8 @@ func selectLots(
 }
 
 func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, left, right int) int {
-	leftAsset := snapshot.Assets[snapshot.Positions[snapshot.Lots[left].PositionIdx].AssetIdx]
-	rightAsset := snapshot.Assets[snapshot.Positions[snapshot.Lots[right].PositionIdx].AssetIdx]
+	leftAsset := snapshot.Assets[snapshot.Lots[left].AssetIdx]
+	rightAsset := snapshot.Assets[snapshot.Lots[right].AssetIdx]
 
 	// Sell holdings outside the plan before any planned lot
 	if leftIsPlanned, rightIsPlanned := leftAsset.Plan != nil, rightAsset.Plan != nil; leftIsPlanned != rightIsPlanned {

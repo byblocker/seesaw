@@ -48,6 +48,7 @@ type Position struct {
 
 type Lot struct {
 	models.TaxLot
+	AssetIdx    int
 	PositionIdx int
 	Market      LotSnapshot
 }
@@ -174,6 +175,7 @@ func newLots(positions []Position, positionIdxByTicker map[string]int, taxLots [
 		position.LotIdxs = append(position.LotIdxs, len(lots))
 		lots = append(lots, Lot{
 			TaxLot:      lot,
+			AssetIdx:    position.AssetIdx,
 			PositionIdx: positionIdx,
 			Market:      newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought),
 		})
