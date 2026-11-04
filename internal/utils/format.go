@@ -39,3 +39,11 @@ func formatDollars(amount decimal.Decimal, digits string) string {
 	output.WriteString(fraction)
 	return output.String()
 }
+
+// The last four characters of an account ID, or the whole ID when shorter.
+func AccountSuffix(id string) string {
+	if len(id) > 4 {
+		return id[len(id)-4:]
+	}
+	return id
+}

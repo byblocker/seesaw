@@ -2,27 +2,26 @@ package report
 
 import (
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
 )
 
 func Proposal(
-	sells []models.SellProposal,
-	buys []models.Buy,
+	sells []portfolio.SellProposal,
+	buys []portfolio.Buy,
 	estimated portfolio.Snapshot,
 	rates *config.TaxSettings,
 ) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
-	formatted := formatSells(sells, rates)
-	rows := slices.Concat(formatted.rows, formatBuys(buys, rates))
+	formatted := formatSells(sells, estimated, rates)
+	rows := slices.Concat(formatted.rows, formatBuys(buys, estimated, rates))
 	if len(rows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
-		writeOrderTable(&output, "Cost", rows, rates)
+		writeOrderTable(&output, rows, rates)
 	}
 
 	writeEstimatedPortfolio(&output, estimated, formatted)

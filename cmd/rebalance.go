@@ -6,8 +6,7 @@ import (
 	"log"
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
-	"seesaw/pkg/models"
-	"seesaw/pkg/trading"
+	"seesaw/pkg/rebalancer"
 
 	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
@@ -44,6 +43,16 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	request := rebalancer.Request{
+		Settings: plan.Settings,
+		TaxRates: taxRates,
+		Force:    forceRebalance,
+	}
+	// Reject a bad request before the broker login, not after.
+	if err := request.Validate(); err != nil {
+		return err
+	}
+
 	client, err := broker.Connect(cmd.Context(), plan.Broker)
 	if err != nil {
 		return err
@@ -54,17 +63,13 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := trading.Rebalance(*snapshot, client, models.RebalanceRequest{
-		Settings: plan.Settings,
-		TaxRates: taxRates,
-		Force:    forceRebalance,
-	})
+	sells, buys, err := rebalancer.Plan(snapshot, request, client.Settings())
 	if err != nil {
 		return err
 	}
 
-	estimated := snapshot.Simulate(orders.Sells, orders.Buys, decimal.Zero)
-	proposal := report.Proposal(orders.Sells, orders.Buys, estimated, taxRates)
+	estimated := snapshot.Simulate(sells, buys, decimal.Zero)
+	proposal := report.Proposal(sells, buys, estimated, request.TaxRates)
 
 	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)

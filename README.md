@@ -189,7 +189,7 @@ _seesaw_ uses existing cash first and proposes whole-share sales for any shortfa
 
 The planner sells holdings outside your plan first. Within each group, it ranks lots by their estimated tax per dollar raised, so lots compare fairly across share prices, and sells the lowest first. For taxable portfolios, that sells the deepest losses first and the smallest gains last, weighing each lot at its short- or long-term rate. Ties go to the asset furthest above its target, then follow your plan's asset order.
 
-Each planned asset sells only down to its minimum allocation, though it may end up to one share below it when whole shares do not divide evenly. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance. The last lot sold rounds up to a whole share, so proceeds can exceed the amount needed by less than one share.
+Each planned asset sells only down to its minimum allocation, never below it; when its next whole share would cross the minimum, the planner sells from other assets instead. Allocations are measured against the portfolio after the requested withdrawal, so the planner never sells more than needed only to rebalance. The last lot sold rounds up to a whole share, so proceeds can exceed the amount needed by less than one share.
 
 Each withdrawal is planned on its own at your configured rates. The planner does not net gains and losses across the tax year, apply loss carryforwards, or account for tax brackets.
 
@@ -233,7 +233,7 @@ user, err := config.NewUser(&tax) // nil tax: no taxable portfolios
 
 `NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil.
 
-Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `trading.Rebalance` and `trading.Liquidate` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
+Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `rebalancer.Plan` and `liquidation.PlanSales` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
 
 ## Development Choices
 

@@ -8,8 +8,7 @@ import (
 	"seesaw/internal/report"
 	"seesaw/internal/utils"
 	"seesaw/pkg/broker"
-	"seesaw/pkg/models"
-	"seesaw/pkg/trading"
+	"seesaw/pkg/liquidation"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -54,7 +53,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	request := models.LiquidationRequest{
+	request := liquidation.Request{
 		Amount:   amount,
 		Settings: plan.Settings,
 		TaxRates: taxRates,
@@ -74,7 +73,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sells, err := trading.Liquidate(*snapshot, request)
+	sells, err := liquidation.PlanSales(snapshot, request)
 	if err != nil {
 		return err
 	}
