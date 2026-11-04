@@ -136,8 +136,8 @@ func newAssets(plans []config.AssetPlan, taxLots []models.TaxLot) ([]Asset, []Po
 // Write each quote into its position, and reject any position left without a positive bid and ask.
 func setQuotes(positions []Position, positionIdxByTicker map[string]int, quotes []models.Quote) error {
 	for _, quote := range quotes {
-		if idx, ok := positionIdxByTicker[quote.Ticker]; ok {
-			positions[idx].Quote = quote
+		if positionIdx, ok := positionIdxByTicker[quote.Ticker]; ok {
+			positions[positionIdx].Quote = quote
 		}
 	}
 	for _, position := range positions {
@@ -151,15 +151,15 @@ func setQuotes(positions []Position, positionIdxByTicker map[string]int, quotes 
 // Trades within the wash-sale window bar harvesting a recent buy and buying back a recent sale.
 func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, transactions []models.Transaction, createdAt time.Time) {
 	for _, tx := range transactions {
-		idx, ok := positionIdxByTicker[tx.Ticker]
+		positionIdx, ok := positionIdxByTicker[tx.Ticker]
 		if !ok || calendar.DaysBetween(tx.Date, createdAt) > washSaleWindowDays {
 			continue
 		}
 		switch tx.Type {
 		case models.TxBuy:
-			positions[idx].RecentlyBought = true
+			positions[positionIdx].RecentlyBought = true
 		case models.TxSell:
-			positions[idx].RecentlySold = true
+			positions[positionIdx].RecentlySold = true
 		}
 	}
 }
@@ -183,9 +183,9 @@ func newLots(positions []Position, positionIdxByTicker map[string]int, taxLots [
 	}
 
 	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
-	for i := range positions {
-		slices.SortFunc(positions[i].LotIdxs, func(left, right int) int {
-			return cmp.Compare(lots[left].Id, lots[right].Id)
+	for positionIdx := range positions {
+		slices.SortFunc(positions[positionIdx].LotIdxs, func(leftLotIdx, rightLotIdx int) int {
+			return cmp.Compare(lots[leftLotIdx].Id, lots[rightLotIdx].Id)
 		})
 	}
 	return lots
@@ -211,8 +211,8 @@ func newLotSnapshot(lot models.TaxLot, bid decimal.Decimal, createdAt time.Time,
 func addPositionValues(assets []Asset, positions []Position, lots []Lot) {
 	for _, position := range positions {
 		quantity := decimal.Zero
-		for _, idx := range position.LotIdxs {
-			quantity = quantity.Add(lots[idx].Quantity)
+		for _, lotIdx := range position.LotIdxs {
+			quantity = quantity.Add(lots[lotIdx].Quantity)
 		}
 		asset := &assets[position.AssetIdx]
 		asset.Value = asset.Value.Add(quantity.Mul(position.Quote.Bid))
@@ -226,8 +226,8 @@ func allocate(assets []Asset, cash decimal.Decimal) decimal.Decimal {
 		totalValue = totalValue.Add(asset.Value)
 	}
 
-	for i := range assets {
-		asset := &assets[i]
+	for assetIdx := range assets {
+		asset := &assets[assetIdx]
 		asset.Allocation = decimal.Zero
 		if !totalValue.IsZero() {
 			asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)

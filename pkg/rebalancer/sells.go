@@ -22,16 +22,16 @@ func harvestAsset(
 	}
 
 	var best portfolio.SellProposal
-	for _, idx := range asset.PositionIdxs {
-		position := snapshot.Positions[idx]
+	for _, positionIdx := range asset.PositionIdxs {
+		position := snapshot.Positions[positionIdx]
 		if !hasLoss(snapshot, position) {
 			continue
 		}
-		if _, ok := replacement(snapshot, asset, idx); !ok {
+		if _, ok := replacement(snapshot, asset, positionIdx); !ok {
 			log.Printf("CANNOT harvest %s: no replacement ticker", position.Ticker)
 			continue
 		}
-		sell := harvestPosition(snapshot, idx, settings)
+		sell := harvestPosition(snapshot, positionIdx, settings)
 		if sell.IsEmpty() {
 			continue
 		}
@@ -44,22 +44,22 @@ func harvestAsset(
 }
 
 func assetHasLoss(snapshot portfolio.Snapshot, asset portfolio.Asset) bool {
-	return slices.ContainsFunc(asset.PositionIdxs, func(idx int) bool {
-		return hasLoss(snapshot, snapshot.Positions[idx])
+	return slices.ContainsFunc(asset.PositionIdxs, func(positionIdx int) bool {
+		return hasLoss(snapshot, snapshot.Positions[positionIdx])
 	})
 }
 
 func hasLoss(snapshot portfolio.Snapshot, position portfolio.Position) bool {
-	return slices.ContainsFunc(position.LotIdxs, func(idx int) bool {
-		return snapshot.Lots[idx].Snapshot.GainPerShare.IsNegative()
+	return slices.ContainsFunc(position.LotIdxs, func(lotIdx int) bool {
+		return snapshot.Lots[lotIdx].Snapshot.GainPerShare.IsNegative()
 	})
 }
 
-// The asset's first position other than excludeIdx that can be bought without washing a recent sale.
-func replacement(snapshot portfolio.Snapshot, asset portfolio.Asset, excludeIdx int) (int, bool) {
-	for _, idx := range asset.PositionIdxs {
-		if idx != excludeIdx && !snapshot.Positions[idx].RecentlySold {
-			return idx, true
+// The asset's first position other than excludedPositionIdx that can be bought without washing a recent sale.
+func replacement(snapshot portfolio.Snapshot, asset portfolio.Asset, excludedPositionIdx int) (int, bool) {
+	for _, positionIdx := range asset.PositionIdxs {
+		if positionIdx != excludedPositionIdx && !snapshot.Positions[positionIdx].RecentlySold {
+			return positionIdx, true
 		}
 	}
 	return -1, false
@@ -79,9 +79,9 @@ func harvestPosition(
 
 	minPctLoss := settings.MinPctLossToHarvest
 	candidate := portfolio.SellProposal{PositionIdx: positionIdx}
-	for _, idx := range position.LotIdxs {
-		if lot := snapshot.Lots[idx]; isHarvestable(lot, minPctLoss) {
-			candidate.Add(portfolio.LotSale{LotIdx: idx, Quantity: lot.Quantity}, lot)
+	for _, lotIdx := range position.LotIdxs {
+		if lot := snapshot.Lots[lotIdx]; isHarvestable(lot, minPctLoss) {
+			candidate.Add(portfolio.LotSale{LotIdx: lotIdx, Quantity: lot.Quantity}, lot)
 		}
 	}
 	if candidate.IsEmpty() {
@@ -90,8 +90,8 @@ func harvestPosition(
 	}
 
 	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, utils.FormatMoney(candidate.RealizedPL.Neg()))
-	for _, idx := range position.LotIdxs {
-		if lot := snapshot.Lots[idx]; lot.Snapshot.GainPct.IsNegative() {
+	for _, lotIdx := range position.LotIdxs {
+		if lot := snapshot.Lots[lotIdx]; lot.Snapshot.GainPct.IsNegative() {
 			logLot(lot, isHarvestable(lot, minPctLoss))
 		}
 	}
@@ -119,12 +119,12 @@ func sellExcess(
 	taxPerShare []decimal.Decimal,
 ) []portfolio.SellProposal {
 	var lotIdxs []int
-	for _, idx := range asset.PositionIdxs {
-		lotIdxs = append(lotIdxs, snapshot.Positions[idx].LotIdxs...)
+	for _, positionIdx := range asset.PositionIdxs {
+		lotIdxs = append(lotIdxs, snapshot.Positions[positionIdx].LotIdxs...)
 	}
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
-	slices.SortStableFunc(lotIdxs, func(left, right int) int {
-		return portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, left, right)
+	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
+		return portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, leftLotIdx, rightLotIdx)
 	})
 
 	var sold []portfolio.LotSale

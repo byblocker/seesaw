@@ -32,7 +32,7 @@ func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 	if rates == nil {
 		return taxPerShare
 	}
-	for i, lot := range lots {
+	for lotIdx, lot := range lots {
 		if lot.Snapshot.IsWashSale {
 			continue
 		}
@@ -40,7 +40,7 @@ func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 		if lot.Snapshot.LongTerm {
 			rate = rates.LongTermGainRate
 		}
-		taxPerShare[i] = lot.Snapshot.GainPerShare.Mul(rate)
+		taxPerShare[lotIdx] = lot.Snapshot.GainPerShare.Mul(rate)
 	}
 	return taxPerShare
 }

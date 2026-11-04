@@ -18,8 +18,8 @@ func selectLots(
 	amountNeeded decimal.Decimal,
 ) ([]portfolio.LotSale, error) {
 	// Remaining ties keep plan order, then lot ID order, from sellableLots, so plans repeat exactly.
-	slices.SortStableFunc(lotIdxs, func(left, right int) int {
-		return compareLots(snapshot, taxPerShare, left, right)
+	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
+		return compareLots(snapshot, taxPerShare, leftLotIdx, rightLotIdx)
 	})
 	var sales []portfolio.LotSale
 	proceeds := decimal.Zero
@@ -59,9 +59,9 @@ func selectLots(
 	return sales, nil
 }
 
-func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, left, right int) int {
-	leftAsset := snapshot.Assets[snapshot.Lots[left].AssetIdx]
-	rightAsset := snapshot.Assets[snapshot.Lots[right].AssetIdx]
+func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, leftLotIdx, rightLotIdx int) int {
+	leftAsset := snapshot.Assets[snapshot.Lots[leftLotIdx].AssetIdx]
+	rightAsset := snapshot.Assets[snapshot.Lots[rightLotIdx].AssetIdx]
 
 	// Sell holdings outside the plan before any planned lot
 	if leftIsPlanned, rightIsPlanned := leftAsset.Plan != nil, rightAsset.Plan != nil; leftIsPlanned != rightIsPlanned {
@@ -72,7 +72,7 @@ func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, lef
 	}
 
 	return cmp.Or(
-		portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, left, right),
+		portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, leftLotIdx, rightLotIdx),
 		// Ties go to the most overweight asset
 		rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
 	)

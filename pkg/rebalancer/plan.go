@@ -85,8 +85,8 @@ func rebalanceAsset(
 
 	log.Printf("Rebalancing %s: %s --> %s",
 		asset.Label, utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
-	for _, idx := range asset.PositionIdxs {
-		if position := snapshot.Positions[idx]; position.RecentlySold {
+	for _, positionIdx := range asset.PositionIdxs {
+		if position := snapshot.Positions[positionIdx]; position.RecentlySold {
 			log.Printf("CANNOT buy %s: sold within wash-sale window", position.Ticker)
 		}
 	}
@@ -141,11 +141,11 @@ func harvestUnplanned(
 	}
 
 	var sells []portfolio.SellProposal
-	for _, idx := range asset.PositionIdxs {
-		if !hasLoss(snapshot, snapshot.Positions[idx]) {
+	for _, positionIdx := range asset.PositionIdxs {
+		if !hasLoss(snapshot, snapshot.Positions[positionIdx]) {
 			continue
 		}
-		if sell := harvestPosition(snapshot, idx, settings); !sell.IsEmpty() {
+		if sell := harvestPosition(snapshot, positionIdx, settings); !sell.IsEmpty() {
 			logProceeds(snapshot, sell)
 			sells = append(sells, sell)
 		}
