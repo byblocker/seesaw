@@ -25,18 +25,18 @@ type SellProposal struct {
 // One proposal per position sold, in the order of each position's first sale.
 func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 	var proposals []SellProposal
-	proposalByPosition := map[int]int{}
+	proposalIdxByPositionIdx := map[int]int{}
 
 	for _, sale := range sales {
 		lot := snapshot.Lots[sale.LotIdx]
-		i, exists := proposalByPosition[lot.PositionIdx]
+		idx, exists := proposalIdxByPositionIdx[lot.PositionIdx]
 		if !exists {
-			i = len(proposals)
-			proposalByPosition[lot.PositionIdx] = i
+			idx = len(proposals)
+			proposalIdxByPositionIdx[lot.PositionIdx] = idx
 			proposals = append(proposals, SellProposal{PositionIdx: lot.PositionIdx, Price: snapshot.Positions[lot.PositionIdx].Quote.Bid})
 		}
 
-		proposals[i].Add(sale, lot)
+		proposals[idx].Add(sale, lot)
 	}
 
 	return proposals
