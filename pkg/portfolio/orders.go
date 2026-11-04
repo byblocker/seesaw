@@ -6,11 +6,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type RebalancePlan struct {
-	Buys  []Buy
-	Sells []SellProposal
-}
-
 type Buy struct {
 	PositionIdx   int
 	Price         decimal.Decimal

@@ -63,13 +63,13 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	orders, err := rebalancer.Plan(snapshot, request, client.Settings())
+	sells, buys, err := rebalancer.Plan(snapshot, request, client.Settings())
 	if err != nil {
 		return err
 	}
 
-	estimated := snapshot.Simulate(orders.Sells, orders.Buys, decimal.Zero)
-	proposal := report.Proposal(orders.Sells, orders.Buys, estimated, request.TaxRates)
+	estimated := snapshot.Simulate(sells, buys, decimal.Zero)
+	proposal := report.Proposal(sells, buys, estimated, request.TaxRates)
 
 	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
