@@ -79,7 +79,7 @@ func (client *Client) Portfolio(
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	group.Go(func() (err error) {
-		byPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(byTicker)), func(ctx context.Context, pos positionResponse) ([]models.Lot, error) {
+		byPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(byTicker)), func(ctx context.Context, pos positionResponse) ([]models.TaxLot, error) {
 			return client.fetchPosition(ctx, selected.key, pos)
 		})
 		portfolio.Lots = slices.Concat(byPosition...)

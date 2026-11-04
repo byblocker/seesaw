@@ -19,12 +19,12 @@ type Balances struct {
 
 type Portfolio struct {
 	Balances     Balances
-	Lots         []Lot
+	Lots         []TaxLot
 	Transactions []Transaction
 	Quotes       []Quote
 }
 
-type Lot struct {
+type TaxLot struct {
 	Ticker       string
 	Id           int64
 	Quantity     decimal.Decimal

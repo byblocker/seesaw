@@ -151,7 +151,7 @@ func (client *Client) fetchPosition(
 	ctx context.Context,
 	accountKey string,
 	pos positionResponse,
-) ([]models.Lot, error) {
+) ([]models.TaxLot, error) {
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio/%d",
 		client.apiBaseURL,
@@ -172,12 +172,12 @@ func (client *Client) fetchPosition(
 		return nil, fmt.Errorf("no lots returned for position %d (%s)", pos.Id, pos.Ticker)
 	}
 
-	lots := make([]models.Lot, 0, len(response.PositionLotsResponse.PositionLots))
+	lots := make([]models.TaxLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
 		if err := utils.ValidateFields(lot, "lot."); err != nil {
 			return nil, fmt.Errorf("lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
 		}
-		lots = append(lots, models.Lot{
+		lots = append(lots, models.TaxLot{
 			Ticker:       pos.Ticker,
 			Id:           lot.Id,
 			Quantity:     *lot.Quantity,

@@ -47,7 +47,7 @@ type Position struct {
 }
 
 type LotSnapshot struct {
-	models.Lot
+	models.TaxLot
 	PositionIdx int
 
 	// Selling at the snapshot's bid on its date
@@ -104,7 +104,7 @@ func TakeSnapshot(
 }
 
 // One asset row per plan, then one for holdings outside the plan, each with a position row per ticker.
-func newAssets(plans []config.AssetPlan, heldLots []models.Lot) ([]Asset, []Position, map[string]int) {
+func newAssets(plans []config.AssetPlan, taxLots []models.TaxLot) ([]Asset, []Position, map[string]int) {
 	assets := make([]Asset, 0, len(plans)+1) // includes asset for unplanned positions
 	var positions []Position
 	positionIdxByTicker := map[string]int{}
@@ -124,7 +124,7 @@ func newAssets(plans []config.AssetPlan, heldLots []models.Lot) ([]Asset, []Posi
 	}
 
 	var unplanned []string
-	for _, lot := range heldLots {
+	for _, lot := range taxLots {
 		if _, planned := positionIdxByTicker[lot.Ticker]; !planned {
 			unplanned = append(unplanned, lot.Ticker)
 		}
@@ -170,9 +170,9 @@ func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, 
 }
 
 // A lot row for every held lot, recorded in its position's LotIdxs in lot ID order.
-func newLotSnapshots(positions []Position, positionIdxByTicker map[string]int, heldLots []models.Lot, createdAt time.Time) []LotSnapshot {
+func newLotSnapshots(positions []Position, positionIdxByTicker map[string]int, taxLots []models.TaxLot, createdAt time.Time) []LotSnapshot {
 	var lots []LotSnapshot
-	for _, lot := range heldLots {
+	for _, lot := range taxLots {
 		if !lot.Quantity.IsPositive() {
 			continue
 		}
@@ -193,7 +193,7 @@ func newLotSnapshots(positions []Position, positionIdxByTicker map[string]int, h
 	return lots
 }
 
-func newLotSnapshot(lot models.Lot, bid decimal.Decimal, createdAt time.Time, recentlyBought bool) LotSnapshot {
+func newLotSnapshot(lot models.TaxLot, bid decimal.Decimal, createdAt time.Time, recentlyBought bool) LotSnapshot {
 	gainPerShare := bid.Sub(lot.PricePaid)
 	gainPct := decimal.Zero
 	if lot.PricePaid.IsPositive() {
@@ -201,7 +201,7 @@ func newLotSnapshot(lot models.Lot, bid decimal.Decimal, createdAt time.Time, re
 	}
 
 	return LotSnapshot{
-		Lot:          lot,
+		TaxLot:       lot,
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),
