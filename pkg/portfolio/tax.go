@@ -27,20 +27,20 @@ func isLongTerm(timeAcquired, saleDate time.Time) bool {
 }
 
 // Tax on selling one share of each lot, by lot row. All zero without rates, as for an account that is not taxable.
-func TaxPerShare(lots []LotSnapshot, rates *config.TaxSettings) []decimal.Decimal {
+func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 	taxPerShare := make([]decimal.Decimal, len(lots))
 	if rates == nil {
 		return taxPerShare
 	}
 	for i, lot := range lots {
-		if lot.IsWashSale {
+		if lot.Market.IsWashSale {
 			continue
 		}
 		rate := rates.ShortTermGainRate
-		if lot.LongTerm {
+		if lot.Market.LongTerm {
 			rate = rates.LongTermGainRate
 		}
-		taxPerShare[i] = lot.GainPerShare.Mul(rate)
+		taxPerShare[i] = lot.Market.GainPerShare.Mul(rate)
 	}
 	return taxPerShare
 }

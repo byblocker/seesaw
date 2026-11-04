@@ -22,7 +22,7 @@ func sellableLots(snapshot portfolio.Snapshot) []int {
 	return lotIdxs
 }
 
-func wholeShares(lot portfolio.LotSnapshot) int64 {
+func wholeShares(lot portfolio.Lot) int64 {
 	return lot.Quantity.Floor().IntPart()
 }
 

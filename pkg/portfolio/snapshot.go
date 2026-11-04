@@ -21,7 +21,7 @@ type Snapshot struct {
 	Balances   models.Balances
 	Assets     []Asset
 	Positions  []Position
-	Lots       []LotSnapshot
+	Lots       []Lot
 	TotalValue decimal.Decimal
 }
 
@@ -46,11 +46,14 @@ type Position struct {
 	RecentlySold   bool
 }
 
-type LotSnapshot struct {
+type Lot struct {
 	models.TaxLot
 	PositionIdx int
+	Market      LotSnapshot
+}
 
-	// Selling at the snapshot's bid on its date
+// What selling the lot at the snapshot's bid on its date would realize, and how it would be taxed.
+type LotSnapshot struct {
 	GainPerShare decimal.Decimal
 	GainPct      decimal.Decimal // Fraction of the price paid
 	LongTerm     bool
@@ -78,7 +81,7 @@ func TakeSnapshot(
 		return Snapshot{}, err
 	}
 	flagRecentTrades(positions, positionIdxByTicker, portfolio.Transactions, createdAt)
-	lots := newLotSnapshots(positions, positionIdxByTicker, portfolio.Lots, createdAt)
+	lots := newLots(positions, positionIdxByTicker, portfolio.Lots, createdAt)
 
 	totalValue := portfolio.Balances.CashBalance
 	for _, position := range positions {
@@ -170,18 +173,20 @@ func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, 
 }
 
 // A lot row for every held lot, recorded in its position's LotIdxs in lot ID order.
-func newLotSnapshots(positions []Position, positionIdxByTicker map[string]int, taxLots []models.TaxLot, createdAt time.Time) []LotSnapshot {
-	var lots []LotSnapshot
+func newLots(positions []Position, positionIdxByTicker map[string]int, taxLots []models.TaxLot, createdAt time.Time) []Lot {
+	var lots []Lot
 	for _, lot := range taxLots {
 		if !lot.Quantity.IsPositive() {
 			continue
 		}
 		positionIdx := positionIdxByTicker[lot.Ticker] // newAssets gave every held ticker a position
 		position := &positions[positionIdx]
-		row := newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought)
-		row.PositionIdx = positionIdx
 		position.LotIdxs = append(position.LotIdxs, len(lots))
-		lots = append(lots, row)
+		lots = append(lots, Lot{
+			TaxLot:      lot,
+			PositionIdx: positionIdx,
+			Market:      newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought),
+		})
 	}
 
 	// Brokers list lots in no set order; sort by lot ID so plans repeat exactly.
@@ -201,7 +206,6 @@ func newLotSnapshot(lot models.TaxLot, bid decimal.Decimal, createdAt time.Time,
 	}
 
 	return LotSnapshot{
-		TaxLot:       lot,
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),
@@ -209,7 +213,7 @@ func newLotSnapshot(lot models.TaxLot, bid decimal.Decimal, createdAt time.Time,
 	}
 }
 
-func (position Position) Value(lots []LotSnapshot) decimal.Decimal {
+func (position Position) Value(lots []Lot) decimal.Decimal {
 	quantity := decimal.Zero
 	for _, idx := range position.LotIdxs {
 		quantity = quantity.Add(lots[idx].Quantity)

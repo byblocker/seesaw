@@ -51,7 +51,7 @@ func assetHasLoss(snapshot portfolio.Snapshot, asset portfolio.Asset) bool {
 
 func hasLoss(snapshot portfolio.Snapshot, position portfolio.Position) bool {
 	return slices.ContainsFunc(position.LotIdxs, func(idx int) bool {
-		return snapshot.Lots[idx].GainPerShare.IsNegative()
+		return snapshot.Lots[idx].Market.GainPerShare.IsNegative()
 	})
 }
 
@@ -91,24 +91,24 @@ func harvestPosition(
 
 	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, utils.FormatMoney(candidate.RealizedPL.Neg()))
 	for _, idx := range position.LotIdxs {
-		if lot := snapshot.Lots[idx]; lot.GainPct.IsNegative() {
+		if lot := snapshot.Lots[idx]; lot.Market.GainPct.IsNegative() {
 			logLot(lot, isHarvestable(lot, minPctLoss))
 		}
 	}
 	return candidate
 }
 
-func isHarvestable(lot portfolio.LotSnapshot, minPctLossToHarvest decimal.Decimal) bool {
-	return lot.GainPct.IsNegative() && lot.GainPct.LessThanOrEqual(minPctLossToHarvest)
+func isHarvestable(lot portfolio.Lot, minPctLossToHarvest decimal.Decimal) bool {
+	return lot.Market.GainPct.IsNegative() && lot.Market.GainPct.LessThanOrEqual(minPctLossToHarvest)
 }
 
-func logLot(lot portfolio.LotSnapshot, harvest bool) {
+func logLot(lot portfolio.Lot, harvest bool) {
 	action := "IGNORE"
 	if harvest {
 		action = "HARVEST"
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
-		action, lot.Quantity, lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(lot.GainPct.Neg()))
+		action, lot.Quantity, lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(lot.Market.GainPct.Neg()))
 }
 
 // Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
