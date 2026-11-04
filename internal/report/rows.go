@@ -52,8 +52,8 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 				"SELL",
 				lot.TimeAcquired.Format(time.DateOnly),
 				sale.Quantity.String(),
-				utils.FormatPrice(sell.Price),
-				utils.FormatMoney(sale.Quantity.Mul(sell.Price)),
+				utils.FormatPrice(lot.Market.Bid),
+				utils.FormatMoney(sale.Quantity.Mul(lot.Market.Bid)),
 				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {

@@ -15,7 +15,6 @@ type Buy struct {
 
 type SellProposal struct {
 	PositionIdx int
-	Price       decimal.Decimal
 	Lots        []LotSale
 	Proceeds    decimal.Decimal
 	RealizedPL  decimal.Decimal
@@ -27,18 +26,16 @@ func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 	for _, sale := range sales {
 		lot := snapshot.Lots[sale.LotIdx]
 		proposal := &proposals[lot.PositionIdx]
-		if proposal.IsEmpty() {
-			*proposal = SellProposal{PositionIdx: lot.PositionIdx, Price: lot.Market.Bid}
-		}
+		proposal.PositionIdx = lot.PositionIdx
 		proposal.Add(sale, lot)
 	}
 	return slices.DeleteFunc(proposals, SellProposal.IsEmpty)
 }
 
-// Add a sale of lot at the proposal's price.
+// Add a sale of lot at its bid.
 func (p *SellProposal) Add(sale LotSale, lot Lot) {
 	p.Lots = append(p.Lots, sale)
-	p.Proceeds = p.Proceeds.Add(sale.Quantity.Mul(p.Price))
+	p.Proceeds = p.Proceeds.Add(sale.Quantity.Mul(lot.Market.Bid))
 	p.RealizedPL = p.RealizedPL.Add(sale.Quantity.Mul(lot.Market.GainPerShare))
 }
 

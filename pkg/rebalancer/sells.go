@@ -78,7 +78,7 @@ func harvestPosition(
 	}
 
 	minPctLoss := settings.MinPctLossToHarvest
-	candidate := portfolio.SellProposal{PositionIdx: positionIdx, Price: position.Quote.Bid}
+	candidate := portfolio.SellProposal{PositionIdx: positionIdx}
 	for _, idx := range position.LotIdxs {
 		if lot := snapshot.Lots[idx]; isHarvestable(lot, minPctLoss) {
 			candidate.Add(portfolio.LotSale{LotIdx: idx, Quantity: lot.Quantity}, lot)
