@@ -33,14 +33,14 @@ func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 		return taxPerShare
 	}
 	for i, lot := range lots {
-		if lot.Market.IsWashSale {
+		if lot.Snapshot.IsWashSale {
 			continue
 		}
 		rate := rates.ShortTermGainRate
-		if lot.Market.LongTerm {
+		if lot.Snapshot.LongTerm {
 			rate = rates.LongTermGainRate
 		}
-		taxPerShare[i] = lot.Market.GainPerShare.Mul(rate)
+		taxPerShare[i] = lot.Snapshot.GainPerShare.Mul(rate)
 	}
 	return taxPerShare
 }
@@ -48,6 +48,6 @@ func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 // Compare two lots by tax per dollar raised selling at their bids,
 // exactly across share prices by scaling each tax per share with the other lot's bid.
 func CompareTaxPerDollar(lots []Lot, taxPerShare []decimal.Decimal, leftLotIdx, rightLotIdx int) int {
-	leftBid, rightBid := lots[leftLotIdx].Market.Bid, lots[rightLotIdx].Market.Bid
+	leftBid, rightBid := lots[leftLotIdx].Snapshot.Bid, lots[rightLotIdx].Snapshot.Bid
 	return taxPerShare[leftLotIdx].Mul(rightBid).Cmp(taxPerShare[rightLotIdx].Mul(leftBid))
 }

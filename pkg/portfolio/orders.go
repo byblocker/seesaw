@@ -35,8 +35,8 @@ func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 // Add a sale of lot at its bid.
 func (p *SellProposal) Add(sale LotSale, lot Lot) {
 	p.Lots = append(p.Lots, sale)
-	p.Proceeds = p.Proceeds.Add(sale.Quantity.Mul(lot.Market.Bid))
-	p.RealizedPL = p.RealizedPL.Add(sale.Quantity.Mul(lot.Market.GainPerShare))
+	p.Proceeds = p.Proceeds.Add(sale.Quantity.Mul(lot.Snapshot.Bid))
+	p.RealizedPL = p.RealizedPL.Add(sale.Quantity.Mul(lot.Snapshot.GainPerShare))
 }
 
 func (p SellProposal) IsEmpty() bool {

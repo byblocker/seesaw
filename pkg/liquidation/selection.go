@@ -28,7 +28,7 @@ func selectLots(
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
-		assetIdx, bid := lot.AssetIdx, lot.Market.Bid
+		assetIdx, bid := lot.AssetIdx, lot.Snapshot.Bid
 
 		stillNeeded := amountNeeded.Sub(proceeds)
 		sharesToSell := min(wholeShares(lot), sharesAtLeast(stillNeeded, bid))

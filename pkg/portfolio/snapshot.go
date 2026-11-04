@@ -50,7 +50,7 @@ type Lot struct {
 	models.TaxLot
 	AssetIdx    int
 	PositionIdx int
-	Market      LotSnapshot
+	Snapshot    LotSnapshot
 }
 
 // What selling the lot at the snapshot's bid on its date would realize, and how it would be taxed.
@@ -178,7 +178,7 @@ func newLots(positions []Position, positionIdxByTicker map[string]int, taxLots [
 			TaxLot:      lot,
 			AssetIdx:    position.AssetIdx,
 			PositionIdx: positionIdx,
-			Market:      newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought),
+			Snapshot:    newLotSnapshot(lot, position.Quote.Bid, createdAt, position.RecentlyBought),
 		})
 	}
 
