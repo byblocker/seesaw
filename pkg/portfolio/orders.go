@@ -1,6 +1,10 @@
 package portfolio
 
-import "github.com/shopspring/decimal"
+import (
+	"slices"
+
+	"github.com/shopspring/decimal"
+)
 
 type RebalancePlan struct {
 	Buys  []Buy
@@ -22,24 +26,18 @@ type SellProposal struct {
 	RealizedPL  decimal.Decimal
 }
 
-// One proposal per position sold, in the order of each position's first sale.
+// One proposal per position sold, in position order.
 func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
-	var proposals []SellProposal
-	proposalIdxByPositionIdx := map[int]int{}
-
+	proposals := make([]SellProposal, len(snapshot.Positions)) // by position row
 	for _, sale := range sales {
 		lot := snapshot.Lots[sale.LotIdx]
-		idx, exists := proposalIdxByPositionIdx[lot.PositionIdx]
-		if !exists {
-			idx = len(proposals)
-			proposalIdxByPositionIdx[lot.PositionIdx] = idx
-			proposals = append(proposals, SellProposal{PositionIdx: lot.PositionIdx, Price: snapshot.Positions[lot.PositionIdx].Quote.Bid})
+		proposal := &proposals[lot.PositionIdx]
+		if proposal.IsEmpty() {
+			*proposal = SellProposal{PositionIdx: lot.PositionIdx, Price: snapshot.Positions[lot.PositionIdx].Quote.Bid}
 		}
-
-		proposals[idx].Add(sale, lot)
+		proposal.Add(sale, lot)
 	}
-
-	return proposals
+	return slices.DeleteFunc(proposals, SellProposal.IsEmpty)
 }
 
 // Add a sale of lot at the proposal's price.
