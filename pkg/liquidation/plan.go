@@ -5,19 +5,43 @@ import (
 	"log"
 
 	"seesaw/internal/utils"
-	"seesaw/pkg/models"
+	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
 )
 
+type Request struct {
+	Amount   decimal.Decimal
+	Settings config.Settings
+	TaxRates *config.TaxSettings // Nil for non-taxable accounts
+}
+
+func (request Request) Validate() error {
+	if !request.Amount.IsPositive() {
+		return fmt.Errorf("withdrawal must be positive")
+	}
+	if err := request.Settings.Validate(); err != nil {
+		return err
+	}
+	if request.TaxRates != nil {
+		return request.TaxRates.Validate()
+	}
+	return nil
+}
+
 func PlanSales(
 	snapshot portfolio.Snapshot,
-	request models.LiquidationRequest,
+	request Request,
 ) ([]portfolio.SellProposal, error) {
+	if err := request.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Use existing cash first, and sell only for the rest of the withdrawal.
 	amountNeeded := utils.ClampNonNegative(request.Amount.Sub(snapshot.Balances.CashBalance))
 	if amountNeeded.IsZero() {
+		log.Print("Liquidation planning complete: 0 sell(s)")
 		return nil, nil
 	}
 
@@ -44,5 +68,7 @@ func PlanSales(
 		return nil, err
 	}
 
-	return portfolio.GroupSales(snapshot, sales), nil
+	sells := portfolio.GroupSales(snapshot, sales)
+	log.Printf("Liquidation planning complete: %d sell(s)", len(sells))
+	return sells, nil
 }

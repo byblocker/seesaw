@@ -233,7 +233,7 @@ user, err := config.NewUser(&tax) // nil tax: no taxable portfolios
 
 `NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil.
 
-Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `rebalancer.Plan` and `trading.Liquidate` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
+Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `rebalancer.Plan` and `liquidation.PlanSales` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
 
 ## Development Choices
 
