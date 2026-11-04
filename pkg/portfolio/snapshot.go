@@ -82,18 +82,8 @@ func TakeSnapshot(
 	}
 	flagRecentTrades(positions, positionIdxByTicker, portfolio.Transactions, createdAt)
 	lots := newLots(positions, positionIdxByTicker, portfolio.Lots, createdAt)
-
-	totalValue := portfolio.Balances.CashBalance
-	for _, position := range positions {
-		asset := &assets[position.AssetIdx]
-		value := position.Value(lots)
-		asset.Value = asset.Value.Add(value)
-		totalValue = totalValue.Add(value)
-	}
-
-	for i := range assets {
-		assets[i].allocate(totalValue)
-	}
+	addPositionValues(assets, positions, lots)
+	totalValue := allocate(assets, portfolio.Balances.CashBalance)
 
 	return Snapshot{
 		AccountId:  plan.AccountId,
@@ -213,25 +203,39 @@ func newLotSnapshot(lot models.TaxLot, bid decimal.Decimal, createdAt time.Time,
 	}
 }
 
-func (position Position) Value(lots []Lot) decimal.Decimal {
-	quantity := decimal.Zero
-	for _, idx := range position.LotIdxs {
-		quantity = quantity.Add(lots[idx].Quantity)
+// Add each position's holdings at its bid to its asset's value.
+func addPositionValues(assets []Asset, positions []Position, lots []Lot) {
+	for _, position := range positions {
+		quantity := decimal.Zero
+		for _, idx := range position.LotIdxs {
+			quantity = quantity.Add(lots[idx].Quantity)
+		}
+		asset := &assets[position.AssetIdx]
+		asset.Value = asset.Value.Add(quantity.Mul(position.Quote.Bid))
 	}
-	return quantity.Mul(position.Quote.Bid)
 }
 
-func (asset *Asset) allocate(totalValue decimal.Decimal) {
-	asset.Allocation = decimal.Zero
-	if !totalValue.IsZero() {
-		asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
+// Set each asset's allocation and drift from the asset values plus cash, and return that total.
+func allocate(assets []Asset, cash decimal.Decimal) decimal.Decimal {
+	totalValue := cash
+	for _, asset := range assets {
+		totalValue = totalValue.Add(asset.Value)
 	}
 
-	if asset.Plan != nil {
-		asset.AllocDrift = asset.Allocation.Sub(asset.Plan.TargetAllocation)
-		expectedValue := totalValue.Mul(asset.Plan.TargetAllocation)
-		asset.ValueDrift = asset.Value.Sub(expectedValue)
+	for i := range assets {
+		asset := &assets[i]
+		asset.Allocation = decimal.Zero
+		if !totalValue.IsZero() {
+			asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
+		}
+
+		if asset.Plan != nil {
+			asset.AllocDrift = asset.Allocation.Sub(asset.Plan.TargetAllocation)
+			expectedValue := totalValue.Mul(asset.Plan.TargetAllocation)
+			asset.ValueDrift = asset.Value.Sub(expectedValue)
+		}
 	}
+	return totalValue
 }
 
 // The snapshot after the orders and the withdrawal. Its positions and lots are the snapshot's own, unchanged.
@@ -251,13 +255,6 @@ func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal d
 	}
 
 	simulated.Balances.CashBalance = cash
-	simulated.TotalValue = cash
-	for _, asset := range simulated.Assets {
-		simulated.TotalValue = simulated.TotalValue.Add(asset.Value)
-	}
-
-	for i := range simulated.Assets {
-		simulated.Assets[i].allocate(simulated.TotalValue)
-	}
+	simulated.TotalValue = allocate(simulated.Assets, cash)
 	return simulated
 }
