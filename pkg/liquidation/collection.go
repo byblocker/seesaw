@@ -32,11 +32,7 @@ func valueAboveMinAllowed(
 	maxDeviation decimal.Decimal,
 	amountNeeded decimal.Decimal,
 ) []decimal.Decimal {
-	totalValue := decimal.Zero
-	for _, asset := range snapshot.Assets {
-		totalValue = totalValue.Add(asset.Value)
-	}
-	totalValueAfterSale := totalValue.Sub(amountNeeded)
+	totalValueAfterSale := snapshot.TotalValue.Sub(snapshot.Balances.CashBalance).Sub(amountNeeded)
 
 	values := make([]decimal.Decimal, len(snapshot.Assets))
 	for i, asset := range snapshot.Assets {
