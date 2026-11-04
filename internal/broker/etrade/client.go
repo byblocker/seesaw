@@ -32,16 +32,16 @@ func (client *Client) Portfolio(
 	accountID string,
 	daysBack int,
 	tickers []string,
-) (*models.Portfolio, error) {
+) (models.Portfolio, error) {
 	if daysBack <= 0 {
-		return nil, fmt.Errorf("transaction lookback must be positive")
+		return models.Portfolio{}, fmt.Errorf("transaction lookback must be positive")
 	}
 
 	// We grab all accounts since different accounts may include transactions
 	// that could be relevant for tax-loss harvesting and wash-sale avoidance.
 	accounts, err := client.Accounts(ctx)
 	if err != nil {
-		return nil, err
+		return models.Portfolio{}, err
 	}
 
 	selected, found := collections.Find(
@@ -51,12 +51,12 @@ func (client *Client) Portfolio(
 		},
 	)
 	if !found {
-		return nil, fmt.Errorf("could not find active brokerage account %s", accountID)
+		return models.Portfolio{}, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
 
 	byTicker, err := client.listPositions(ctx, selected)
 	if err != nil {
-		return nil, err
+		return models.Portfolio{}, err
 	}
 
 	// Include any held tickers along with the planned tickers
@@ -74,7 +74,7 @@ func (client *Client) Portfolio(
 	)
 
 	// One timer covers every request below, since concurrent timers would interleave their lines.
-	portfolio := &models.Portfolio{}
+	var portfolio models.Portfolio
 	stop := utils.StartTimer("Fetching tax lots, balances, transactions, and quotes")
 	group, groupCtx := errgroup.WithContext(ctx)
 
@@ -105,7 +105,7 @@ func (client *Client) Portfolio(
 	err = group.Wait()
 	stop(err)
 	if err != nil {
-		return nil, err
+		return models.Portfolio{}, err
 	}
 
 	return portfolio, nil
