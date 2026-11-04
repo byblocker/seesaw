@@ -124,14 +124,14 @@ func sellExcess(
 	}
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(lotIdxs, func(left, right int) int {
-		return portfolio.CompareTaxPerDollar(snapshot, taxPerShare, left, right)
+		return portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, left, right)
 	})
 
 	var sold []portfolio.LotSale
 	remaining := excess
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
-		bid := snapshot.Positions[lot.PositionIdx].Quote.Bid
+		bid := lot.Market.Bid
 		maxShares, _ := remaining.QuoRem(bid, 0)
 		quantity := decimal.Min(lot.Quantity.Floor(), maxShares)
 		if !quantity.IsPositive() {

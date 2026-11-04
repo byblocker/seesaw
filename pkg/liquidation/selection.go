@@ -28,7 +28,7 @@ func selectLots(
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
-		assetIdx, bid := lot.AssetIdx, snapshot.Positions[lot.PositionIdx].Quote.Bid
+		assetIdx, bid := lot.AssetIdx, lot.Market.Bid
 
 		stillNeeded := amountNeeded.Sub(proceeds)
 		sharesToSell := min(wholeShares(lot), sharesAtLeast(stillNeeded, bid))
@@ -72,7 +72,7 @@ func compareLots(snapshot portfolio.Snapshot, taxPerShare []decimal.Decimal, lef
 	}
 
 	return cmp.Or(
-		portfolio.CompareTaxPerDollar(snapshot, taxPerShare, left, right),
+		portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, left, right),
 		// Ties go to the most overweight asset
 		rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
 	)

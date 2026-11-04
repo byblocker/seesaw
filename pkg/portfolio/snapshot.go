@@ -55,6 +55,7 @@ type Lot struct {
 
 // What selling the lot at the snapshot's bid on its date would realize, and how it would be taxed.
 type LotSnapshot struct {
+	Bid          decimal.Decimal
 	GainPerShare decimal.Decimal
 	GainPct      decimal.Decimal // Fraction of the price paid
 	LongTerm     bool
@@ -198,6 +199,7 @@ func newLotSnapshot(lot models.TaxLot, bid decimal.Decimal, createdAt time.Time,
 	}
 
 	return LotSnapshot{
+		Bid:          bid,
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),

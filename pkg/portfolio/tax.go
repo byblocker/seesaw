@@ -47,8 +47,7 @@ func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 
 // Compare two lots by tax per dollar raised selling at their bids,
 // exactly across share prices by scaling each tax per share with the other lot's bid.
-func CompareTaxPerDollar(snapshot Snapshot, taxPerShare []decimal.Decimal, leftLotIdx, rightLotIdx int) int {
-	leftBid := snapshot.Positions[snapshot.Lots[leftLotIdx].PositionIdx].Quote.Bid
-	rightBid := snapshot.Positions[snapshot.Lots[rightLotIdx].PositionIdx].Quote.Bid
+func CompareTaxPerDollar(lots []Lot, taxPerShare []decimal.Decimal, leftLotIdx, rightLotIdx int) int {
+	leftBid, rightBid := lots[leftLotIdx].Market.Bid, lots[rightLotIdx].Market.Bid
 	return taxPerShare[leftLotIdx].Mul(rightBid).Cmp(taxPerShare[rightLotIdx].Mul(leftBid))
 }

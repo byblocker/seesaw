@@ -28,7 +28,7 @@ func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 		lot := snapshot.Lots[sale.LotIdx]
 		proposal := &proposals[lot.PositionIdx]
 		if proposal.IsEmpty() {
-			*proposal = SellProposal{PositionIdx: lot.PositionIdx, Price: snapshot.Positions[lot.PositionIdx].Quote.Bid}
+			*proposal = SellProposal{PositionIdx: lot.PositionIdx, Price: lot.Market.Bid}
 		}
 		proposal.Add(sale, lot)
 	}
