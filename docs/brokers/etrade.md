@@ -30,7 +30,7 @@ If authentication fails after saving, run `seesaw snapshot <portfolio>` to retry
 
 ## Authentication
 
-ETRADE expires OAuth tokens at midnight in the `America/New_York` timezone. _seesaw_ reuses cached tokens during the day and renews them after two hours of inactivity. 
+ETRADE expires OAuth tokens at midnight in the `America/New_York` timezone. _seesaw_ reuses saved tokens during the day and renews them after two hours of inactivity. 
 
 When _seesaw_ first authenticates for the day, _seesaw_ will open the browser to start the authorization flow.
 

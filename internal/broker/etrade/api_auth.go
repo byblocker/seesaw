@@ -34,7 +34,7 @@ const (
 	etradeMaxAccessTokenAge = 2 * time.Hour
 )
 
-type oauthCache struct {
+type oauthSession struct {
 	ConfigurationHash [32]byte      `json:"configuration_hash"`
 	Token             *oauth1.Token `json:"token"`
 	LastRefreshed     time.Time     `json:"last_used"`
@@ -76,13 +76,13 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	return client, nil
 }
 
-func cacheOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHash [32]byte) error {
+func saveOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHash [32]byte) error {
 	expiresAt, err := calendar.EndOfDay(refreshedAt, timezone)
 	if err != nil {
 		return err
 	}
 
-	return keyring.Set(accessTokenKey, oauthCache{
+	return keyring.Set(accessTokenKey, oauthSession{
 		ConfigurationHash: configurationHash,
 		Token:             token,
 		LastRefreshed:     refreshedAt,
@@ -91,20 +91,20 @@ func cacheOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHa
 }
 
 func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	access, err := keyring.Get[oauthCache](accessTokenKey)
+	access, err := keyring.Get[oauthSession](accessTokenKey)
 	if errors.Is(err, keyring.ErrNotFound) {
-		return nil, fmt.Errorf("no cached token")
+		return nil, fmt.Errorf("no saved token")
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	if access.ConfigurationHash != configurationHash || access.Token == nil || access.Token.Token == "" || access.Token.TokenSecret == "" {
-		return nil, fmt.Errorf("cached token does not match ETrade configuration or is incomplete")
+		return nil, fmt.Errorf("saved token does not match ETrade configuration or is incomplete")
 	}
 
 	if time.Now().After(access.ExpiresAt) {
-		return nil, fmt.Errorf("cached token expired")
+		return nil, fmt.Errorf("saved token expired")
 	}
 
 	client := utils.NewHTTPClient(oauth.Client(ctx, access.Token))
@@ -116,7 +116,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 			return nil, fmt.Errorf("failed to renew token: %w", err)
 		}
 
-		if err := cacheOAuthToken(access.Token, time.Now(), configurationHash); err != nil {
+		if err := saveOAuthToken(access.Token, time.Now(), configurationHash); err != nil {
 			return nil, err
 		}
 	}
@@ -155,8 +155,8 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 	}
 
 	token := oauth1.NewToken(accessToken, accessSecret)
-	if err := cacheOAuthToken(token, time.Now(), configurationHash); err != nil {
-		return nil, fmt.Errorf("failed to cache new access token: %w", err)
+	if err := saveOAuthToken(token, time.Now(), configurationHash); err != nil {
+		return nil, fmt.Errorf("failed to save new access token: %w", err)
 	}
 
 	return utils.NewHTTPClient(oauth.Client(ctx, token)), nil
