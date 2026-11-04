@@ -1,6 +1,7 @@
 package rebalancer
 
 import (
+	"fmt"
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
@@ -10,11 +11,34 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+type Request struct {
+	Settings config.Settings
+	TaxRates *config.TaxSettings // Nil for non-taxable accounts
+	Force    bool
+}
+
+func (request Request) Validate() error {
+	if err := request.Settings.Validate(); err != nil {
+		return err
+	}
+	if request.TaxRates != nil {
+		return request.TaxRates.Validate()
+	}
+	return nil
+}
+
 func Plan(
 	snapshot portfolio.Snapshot,
-	request models.RebalanceRequest,
+	request Request,
 	broker models.BrokerSettings,
-) portfolio.RebalancePlan {
+) (portfolio.RebalancePlan, error) {
+	if err := request.Validate(); err != nil {
+		return portfolio.RebalancePlan{}, err
+	}
+	if !snapshot.TotalValue.IsPositive() {
+		return portfolio.RebalancePlan{}, fmt.Errorf("empty or negative portfolio")
+	}
+
 	request.Settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
 	maxValueDeviation := snapshot.TotalValue.Mul(request.Settings.AllocationUpperLimit)
 	if request.Force {
@@ -35,13 +59,14 @@ func Plan(
 	}
 
 	buys := sizeBuys(snapshot, request.Settings, broker, sells, requests, maxValueDeviation)
-	return portfolio.RebalancePlan{Buys: buys, Sells: sells}
+	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
+	return portfolio.RebalancePlan{Buys: buys, Sells: sells}, nil
 }
 
 func rebalanceAsset(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
-	request models.RebalanceRequest,
+	request Request,
 	taxPerShare []decimal.Decimal,
 	maxValueDeviation decimal.Decimal,
 ) ([]portfolio.SellProposal, []buyRequest) {
