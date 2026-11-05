@@ -54,17 +54,6 @@ func (client *Client) Portfolio(
 		return models.Portfolio{}, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
 
-	byTicker, err := client.listPositions(ctx, selected)
-	if err != nil {
-		return models.Portfolio{}, err
-	}
-
-	// Include any held tickers along with the planned tickers
-	allTickers := collections.SetFrom(
-		slices.Values(tickers),
-		maps.Keys(byTicker),
-	).Slice()
-
 	end := time.Now()
 	start := end.AddDate(0, 0, -daysBack)
 	log.Printf(
@@ -75,10 +64,30 @@ func (client *Client) Portfolio(
 
 	// One timer covers every request below, since concurrent timers would interleave their lines.
 	var portfolio models.Portfolio
-	stop := utils.StartTimer("Fetching tax lots, balances, transactions, and quotes")
+	var allTickers []string
+	var txRows []transactionRow
+	stop := utils.StartTimer("Fetching holdings, tax lots, balances, transactions, and quotes")
 	group, groupCtx := errgroup.WithContext(ctx)
 
-	group.Go(func() (err error) {
+	// Only the tax lots and quotes wait on the holdings list.
+	group.Go(func() error {
+		byTicker, err := client.listPositions(groupCtx, selected)
+		if err != nil {
+			return err
+		}
+
+		// Include any held tickers along with the planned tickers
+		allTickers = collections.SetFrom(
+			slices.Values(tickers),
+			maps.Keys(byTicker),
+		).Slice()
+
+		// One request per ticker returns faster than one request listing every ticker.
+		group.Go(func() (err error) {
+			portfolio.Quotes, err = async.Map(groupCtx, allTickers, client.fetchQuote)
+			return err
+		})
+
 		byPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(byTicker)), func(ctx context.Context, pos positionResponse) ([]models.TaxLot, error) {
 			return client.fetchPosition(ctx, selected.key, pos)
 		})
@@ -91,15 +100,8 @@ func (client *Client) Portfolio(
 		return err
 	})
 
-	var txRows []transactionRow
 	group.Go(func() (err error) {
 		txRows, err = client.fetchTransactions(groupCtx, accounts, start, end)
-		return err
-	})
-
-	// One request per ticker returns faster than one request listing every ticker.
-	group.Go(func() (err error) {
-		portfolio.Quotes, err = async.Map(groupCtx, allTickers, client.fetchQuote)
 		return err
 	})
 

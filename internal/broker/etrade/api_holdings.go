@@ -66,11 +66,9 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 	byTicker := map[string]positionResponse{}
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
-		stop := utils.StartTimer("Fetching holdings")
 		response, err := utils.FetchJSON[portfolioResponse](
 			ctx, client.httpClient, endpoint+"?"+query.Encode(),
 		)
-		stop(err)
 		if err != nil {
 			return nil, fmt.Errorf("fetch portfolio page %d: %w", currentPage, err)
 		}
