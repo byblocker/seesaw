@@ -34,11 +34,11 @@ func selectLots(
 		if !stillNeeded.IsPositive() {
 			break
 		}
-		sharesToSell := min(wholeShares(lot), sharesAtLeast(stillNeeded, bid))
+		sharesToSell := min(lot.WholeShares(), sharesAtLeast(stillNeeded, bid))
 
 		if snapshot.Assets[assetIdx].Plan != nil {
 			valueLeftAboveMin := valueAboveMin[assetIdx].Sub(proceedsByAsset[assetIdx])
-			sharesToSell = min(sharesToSell, sharesAtMost(valueLeftAboveMin, bid))
+			sharesToSell = min(sharesToSell, portfolio.SharesAtMost(valueLeftAboveMin, bid))
 		}
 
 		if sharesToSell <= 0 {
@@ -92,15 +92,5 @@ func sharesAtLeast(amount, price decimal.Decimal) int64 {
 		return shares.IntPart() + 1
 	}
 
-	return shares.IntPart()
-}
-
-// Whole shares at price that raise at most amount.
-func sharesAtMost(amount, price decimal.Decimal) int64 {
-	if !amount.IsPositive() {
-		return 0
-	}
-
-	shares, _ := amount.QuoRem(price, 0)
 	return shares.IntPart()
 }

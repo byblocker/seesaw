@@ -13,17 +13,13 @@ func sellableLots(snapshot portfolio.Snapshot) []int {
 	for _, asset := range snapshot.Assets {
 		for _, positionIdx := range asset.PositionIdxs {
 			for _, lotIdx := range snapshot.Positions[positionIdx].LotIdxs {
-				if wholeShares(snapshot.Lots[lotIdx]) > 0 {
+				if snapshot.Lots[lotIdx].WholeShares() > 0 {
 					lotIdxs = append(lotIdxs, lotIdx)
 				}
 			}
 		}
 	}
 	return lotIdxs
-}
-
-func wholeShares(lot portfolio.Lot) int64 {
-	return lot.Quantity.Floor().IntPart()
 }
 
 // How much of each asset can be sold before it falls below its minimum allocation, by asset row.

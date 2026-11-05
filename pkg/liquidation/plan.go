@@ -51,7 +51,7 @@ func PlanSales(
 	sellableValue := decimal.Zero
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
-		sellableValue = sellableValue.Add(lot.Snapshot.Bid.Mul(decimal.NewFromInt(wholeShares(lot))))
+		sellableValue = sellableValue.Add(lot.Snapshot.Bid.Mul(decimal.NewFromInt(lot.WholeShares())))
 	}
 	if sellableValue.LessThan(amountNeeded) {
 		return nil, fmt.Errorf(

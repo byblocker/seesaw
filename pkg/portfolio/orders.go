@@ -43,6 +43,20 @@ func (proposal SellProposal) IsEmpty() bool {
 	return len(proposal.Lots) == 0
 }
 
+func (lot Lot) WholeShares() int64 {
+	return lot.Quantity.Floor().IntPart()
+}
+
+// Whole shares at price that raise at most amount.
+func SharesAtMost(amount, price decimal.Decimal) int64 {
+	if !amount.IsPositive() {
+		return 0
+	}
+
+	shares, _ := amount.QuoRem(price, 0)
+	return shares.IntPart()
+}
+
 type LotSale struct {
 	LotIdx   int
 	Quantity decimal.Decimal

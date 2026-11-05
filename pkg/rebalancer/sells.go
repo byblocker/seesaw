@@ -132,11 +132,11 @@ func sellExcess(
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
 		bid := lot.Snapshot.Bid
-		maxShares, _ := remaining.QuoRem(bid, 0)
-		quantity := decimal.Min(lot.Quantity.Floor(), maxShares)
-		if !quantity.IsPositive() {
+		shares := min(lot.WholeShares(), portfolio.SharesAtMost(remaining, bid))
+		if shares <= 0 {
 			continue
 		}
+		quantity := decimal.NewFromInt(shares)
 		sales = append(sales, portfolio.LotSale{LotIdx: lotIdx, Quantity: quantity})
 		remaining = remaining.Sub(quantity.Mul(bid))
 	}
