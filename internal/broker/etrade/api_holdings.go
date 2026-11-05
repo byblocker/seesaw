@@ -86,8 +86,12 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 
 		totalPages = max(totalPages, reportedPages)
 		positionsBeforePage := len(positionsByTicker)
-		if err := addPositions(positionsByTicker, page.Portfolios); err != nil {
-			return nil, fmt.Errorf("load portfolio page %d: %w", currentPage, err)
+		for _, portfolio := range page.Portfolios {
+			for _, position := range portfolio.Positions {
+				if err := addPosition(positionsByTicker, position); err != nil {
+					return nil, fmt.Errorf("load portfolio page %d: %w", currentPage, err)
+				}
+			}
 		}
 
 		if nextPage == 0 {
@@ -129,19 +133,15 @@ func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err er
 	return nextPage, totalPages, nil
 }
 
-func addPositions(positionsByTicker map[string]positionResponse, portfolios []accountPortfolioResponse) error {
-	for _, portfolio := range portfolios {
-		for _, position := range portfolio.Positions {
-			position.Ticker = strings.TrimSpace(position.Ticker)
-			if err := utils.ValidateFields(position, "position."); err != nil {
-				return err
-			}
-			if _, exists := positionsByTicker[position.Ticker]; exists {
-				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
-			}
-			positionsByTicker[position.Ticker] = position
-		}
+func addPosition(positionsByTicker map[string]positionResponse, position positionResponse) error {
+	position.Ticker = strings.TrimSpace(position.Ticker)
+	if err := utils.ValidateFields(position, "position."); err != nil {
+		return err
 	}
+	if _, exists := positionsByTicker[position.Ticker]; exists {
+		return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
+	}
+	positionsByTicker[position.Ticker] = position
 	return nil
 }
 
