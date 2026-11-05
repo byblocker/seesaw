@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"regexp"
-	"seesaw/internal/report"
 	"seesaw/internal/utils"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/liquidation"
@@ -74,12 +72,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	estimated := snapshot.Simulate(sells, nil, request.Amount)
-	proposal := report.Proposal(sells, nil, estimated, request.TaxRates)
-	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
-		return fmt.Errorf("write liquidation summary: %w", err)
-	}
-	return nil
+	return writeProposal(cmd, snapshot, sells, nil, request.Amount, request.TaxRates)
 }
 
 var amountPattern = regexp.MustCompile(`^\$?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$`)

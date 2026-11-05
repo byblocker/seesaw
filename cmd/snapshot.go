@@ -9,6 +9,7 @@ import (
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
+	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )
 
@@ -48,4 +49,21 @@ func takeSnapshot(cmd *cobra.Command, client models.BrokerClient, plan *config.P
 		return portfolio.Snapshot{}, fmt.Errorf("write snapshot summary: %w", err)
 	}
 	return snapshot, nil
+}
+
+// Write the orders and the portfolio they would leave after the withdrawal.
+func writeProposal(
+	cmd *cobra.Command,
+	snapshot portfolio.Snapshot,
+	sells []portfolio.SellProposal,
+	buys []portfolio.Buy,
+	withdrawal decimal.Decimal,
+	taxRates *config.TaxSettings,
+) error {
+	estimated := snapshot.Simulate(sells, buys, withdrawal)
+	proposal := report.Proposal(sells, buys, estimated, taxRates)
+	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
+		return fmt.Errorf("write proposed orders: %w", err)
+	}
+	return nil
 }

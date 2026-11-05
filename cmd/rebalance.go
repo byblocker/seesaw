@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"fmt"
-	"io"
 	"log"
-	"seesaw/internal/report"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/rebalancer"
 
@@ -64,11 +61,5 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	estimated := snapshot.Simulate(sells, buys, decimal.Zero)
-	proposal := report.Proposal(sells, buys, estimated, request.TaxRates)
-
-	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
-		return fmt.Errorf("write proposed orders: %w", err)
-	}
-	return nil
+	return writeProposal(cmd, snapshot, sells, buys, decimal.Zero, request.TaxRates)
 }
