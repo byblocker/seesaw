@@ -54,7 +54,7 @@ func loadPlan(name string) (*config.Plan, error) {
 
 	plan, err := config.LoadPlan(planPath(name))
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, missingPlanError(name)
+		return nil, planChoiceError(name, fmt.Sprintf("no portfolio plan named %q", name))
 	}
 	return plan, err
 }
@@ -64,19 +64,16 @@ func requirePlanName(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		return cobra.ExactArgs(1)(cmd, args)
 	}
-	names := planNames()
-	if len(names) == 0 {
-		return noPlansError("<name>")
-	}
-	return fmt.Errorf("must specify a supported portfolio: %s", strings.Join(names, ", "))
+	return planChoiceError("<name>", "must specify a supported portfolio")
 }
 
-func missingPlanError(name string) error {
+// The problem followed by the plans to choose from, or how to create one when there are none.
+func planChoiceError(name, problem string) error {
 	names := planNames()
 	if len(names) == 0 {
 		return noPlansError(name)
 	}
-	return fmt.Errorf("no portfolio plan named %q: %s", name, strings.Join(names, ", "))
+	return fmt.Errorf("%s: %s", problem, strings.Join(names, ", "))
 }
 
 func noPlansError(name string) error {
