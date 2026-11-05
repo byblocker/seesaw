@@ -91,7 +91,7 @@ func saveOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHas
 }
 
 func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	access, err := keyring.Get[oauthSession](accessTokenKey)
+	session, err := keyring.Get[oauthSession](accessTokenKey)
 	if errors.Is(err, keyring.ErrNotFound) {
 		return nil, fmt.Errorf("no saved token")
 	}
@@ -99,24 +99,24 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		return nil, err
 	}
 
-	if access.ConfigurationHash != configurationHash || access.Token == nil || access.Token.Token == "" || access.Token.TokenSecret == "" {
+	if session.ConfigurationHash != configurationHash || session.Token == nil || session.Token.Token == "" || session.Token.TokenSecret == "" {
 		return nil, fmt.Errorf("saved token does not match ETrade configuration or is incomplete")
 	}
 
-	if time.Now().After(access.ExpiresAt) {
+	if time.Now().After(session.ExpiresAt) {
 		return nil, fmt.Errorf("saved token expired")
 	}
 
-	client := utils.NewHTTPClient(oauth.Client(ctx, access.Token))
+	client := utils.NewHTTPClient(oauth.Client(ctx, session.Token))
 
-	if time.Since(access.LastRefreshed) > etradeMaxAccessTokenAge {
+	if time.Since(session.LastRefreshed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
 		_, err := client.R().SetContext(ctx).Get(etradeRenewAccessURL)
 		if err != nil {
 			return nil, fmt.Errorf("failed to renew token: %w", err)
 		}
 
-		if err := saveOAuthToken(access.Token, time.Now(), configurationHash); err != nil {
+		if err := saveOAuthToken(session.Token, time.Now(), configurationHash); err != nil {
 			return nil, err
 		}
 	}
