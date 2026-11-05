@@ -116,7 +116,7 @@ func sellExcess(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
 	excess decimal.Decimal,
-	taxPerShare []decimal.Decimal,
+	taxPerDollar []decimal.Decimal,
 ) []portfolio.SellProposal {
 	var lotIdxs []int
 	for _, positionIdx := range asset.PositionIdxs {
@@ -124,7 +124,7 @@ func sellExcess(
 	}
 	// Ties keep plan order, then lot ID order, so plans repeat exactly.
 	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
-		return portfolio.CompareTaxPerDollar(snapshot.Lots, taxPerShare, leftLotIdx, rightLotIdx)
+		return taxPerDollar[leftLotIdx].Cmp(taxPerDollar[rightLotIdx])
 	})
 
 	var sold []portfolio.LotSale
