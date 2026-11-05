@@ -33,14 +33,14 @@ func GroupSales(snapshot Snapshot, sales []LotSale) []SellProposal {
 }
 
 // Add a sale of lot at its bid.
-func (p *SellProposal) Add(sale LotSale, lot Lot) {
-	p.Lots = append(p.Lots, sale)
-	p.Proceeds = p.Proceeds.Add(sale.Quantity.Mul(lot.Snapshot.Bid))
-	p.RealizedPL = p.RealizedPL.Add(sale.Quantity.Mul(lot.Snapshot.GainPerShare))
+func (proposal *SellProposal) Add(sale LotSale, lot Lot) {
+	proposal.Lots = append(proposal.Lots, sale)
+	proposal.Proceeds = proposal.Proceeds.Add(sale.Quantity.Mul(lot.Snapshot.Bid))
+	proposal.RealizedPL = proposal.RealizedPL.Add(sale.Quantity.Mul(lot.Snapshot.GainPerShare))
 }
 
-func (p SellProposal) IsEmpty() bool {
-	return len(p.Lots) == 0
+func (proposal SellProposal) IsEmpty() bool {
+	return len(proposal.Lots) == 0
 }
 
 type LotSale struct {
