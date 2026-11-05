@@ -63,7 +63,7 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 		"view": {"COMPLETE"},
 	}
 
-	byTicker := map[string]positionResponse{}
+	positionsByTicker := map[string]positionResponse{}
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
 		response, err := utils.FetchJSON[portfolioResponse](
@@ -73,20 +73,20 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 			return nil, fmt.Errorf("fetch portfolio page %d: %w", currentPage, err)
 		}
 
-		data := response.PortfolioResponse
-		if len(data.Portfolios) == 0 {
+		page := response.PortfolioResponse
+		if len(page.Portfolios) == 0 {
 			return nil, fmt.Errorf("no portfolio returned for account %s on page %d", account.id, currentPage)
 		}
 
 		pagesFetched++
-		nextPage, reportedPages, err := data.pagination()
+		nextPage, reportedPages, err := page.pagination()
 		if err != nil {
 			return nil, err
 		}
 
 		totalPages = max(totalPages, reportedPages)
-		positionsBeforePage := len(byTicker)
-		if err := addPositions(byTicker, data.Portfolios); err != nil {
+		positionsBeforePage := len(positionsByTicker)
+		if err := addPositions(positionsByTicker, page.Portfolios); err != nil {
 			return nil, fmt.Errorf("load portfolio page %d: %w", currentPage, err)
 		}
 
@@ -97,7 +97,7 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 			break
 		}
 
-		if nextPage <= currentPage || len(byTicker) == positionsBeforePage {
+		if nextPage <= currentPage || len(positionsByTicker) == positionsBeforePage {
 			return nil, fmt.Errorf("portfolio pagination made no progress on page %d (next %d)", currentPage, nextPage)
 		}
 
@@ -105,7 +105,7 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 		query.Set("pageNumber", strconv.Itoa(nextPage))
 	}
 
-	return byTicker, nil
+	return positionsByTicker, nil
 }
 
 func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err error) {
@@ -129,17 +129,17 @@ func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err er
 	return nextPage, totalPages, nil
 }
 
-func addPositions(byTicker map[string]positionResponse, pages []accountPortfolioResponse) error {
-	for _, page := range pages {
-		for _, pos := range page.Positions {
-			pos.Ticker = strings.TrimSpace(pos.Ticker)
-			if err := utils.ValidateFields(pos, "position."); err != nil {
+func addPositions(positionsByTicker map[string]positionResponse, portfolios []accountPortfolioResponse) error {
+	for _, portfolio := range portfolios {
+		for _, position := range portfolio.Positions {
+			position.Ticker = strings.TrimSpace(position.Ticker)
+			if err := utils.ValidateFields(position, "position."); err != nil {
 				return err
 			}
-			if _, exists := byTicker[pos.Ticker]; exists {
-				return fmt.Errorf("duplicate portfolio ticker %q", pos.Ticker)
+			if _, exists := positionsByTicker[position.Ticker]; exists {
+				return fmt.Errorf("duplicate portfolio ticker %q", position.Ticker)
 			}
-			byTicker[pos.Ticker] = pos
+			positionsByTicker[position.Ticker] = position
 		}
 	}
 	return nil
@@ -148,13 +148,13 @@ func addPositions(byTicker map[string]positionResponse, pages []accountPortfolio
 func (client *Client) fetchPosition(
 	ctx context.Context,
 	accountKey string,
-	pos positionResponse,
+	position positionResponse,
 ) ([]models.TaxLot, error) {
 	endpoint := fmt.Sprintf(
 		"%s/accounts/%s/portfolio/%d",
 		client.apiBaseURL,
 		url.PathEscape(accountKey),
-		pos.Id,
+		position.Id,
 	)
 	response, err := utils.FetchJSON[getPositionLotResponse](
 		ctx,
@@ -162,21 +162,21 @@ func (client *Client) fetchPosition(
 		endpoint,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("fetch lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
+		return nil, fmt.Errorf("fetch lots for position %d (%s): %w", position.Id, position.Ticker, err)
 	}
 
 	// A position without lots would look like zero shares to the rebalancer.
 	if len(response.PositionLotsResponse.PositionLots) == 0 {
-		return nil, fmt.Errorf("no lots returned for position %d (%s)", pos.Id, pos.Ticker)
+		return nil, fmt.Errorf("no lots returned for position %d (%s)", position.Id, position.Ticker)
 	}
 
 	lots := make([]models.TaxLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
 		if err := utils.ValidateFields(lot, "lot."); err != nil {
-			return nil, fmt.Errorf("lots for position %d (%s): %w", pos.Id, pos.Ticker, err)
+			return nil, fmt.Errorf("lots for position %d (%s): %w", position.Id, position.Ticker, err)
 		}
 		lots = append(lots, models.TaxLot{
-			Ticker:       pos.Ticker,
+			Ticker:       position.Ticker,
 			Id:           lot.Id,
 			Quantity:     *lot.Quantity,
 			PricePaid:    *lot.PricePaid,
