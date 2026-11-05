@@ -23,7 +23,7 @@ func selectLots(
 	})
 	var sales []portfolio.LotSale
 	proceeds := decimal.Zero
-	sold := make([]decimal.Decimal, len(snapshot.Assets))
+	proceedsByAsset := make([]decimal.Decimal, len(snapshot.Assets))
 
 	// Sell the most tax-efficient lots first while keeping assets at their minimum allocation.
 	for _, lotIdx := range lotIdxs {
@@ -37,7 +37,7 @@ func selectLots(
 		sharesToSell := min(wholeShares(lot), sharesAtLeast(stillNeeded, bid))
 
 		if snapshot.Assets[assetIdx].Plan != nil {
-			valueLeftAboveMin := valueAboveMin[assetIdx].Sub(sold[assetIdx])
+			valueLeftAboveMin := valueAboveMin[assetIdx].Sub(proceedsByAsset[assetIdx])
 			sharesToSell = min(sharesToSell, sharesAtMost(valueLeftAboveMin, bid))
 		}
 
@@ -49,7 +49,7 @@ func selectLots(
 		sales = append(sales, portfolio.LotSale{LotIdx: lotIdx, Quantity: quantity})
 		saleProceeds := quantity.Mul(bid)
 		proceeds = proceeds.Add(saleProceeds)
-		sold[assetIdx] = sold[assetIdx].Add(saleProceeds)
+		proceedsByAsset[assetIdx] = proceedsByAsset[assetIdx].Add(saleProceeds)
 	}
 
 	if proceeds.LessThan(amountNeeded) {

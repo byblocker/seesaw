@@ -34,13 +34,13 @@ func valueAboveMinAllowed(
 ) []decimal.Decimal {
 	totalValueAfterSale := snapshot.TotalValue.Sub(snapshot.Balances.CashBalance).Sub(amountNeeded)
 
-	values := make([]decimal.Decimal, len(snapshot.Assets))
+	valueAboveMin := make([]decimal.Decimal, len(snapshot.Assets))
 	for assetIdx, asset := range snapshot.Assets {
 		minAllocAllowed := decimal.Zero
 		if asset.Plan != nil {
 			minAllocAllowed = utils.ClampNonNegative(asset.Plan.TargetAllocation.Sub(maxDeviation))
 		}
-		values[assetIdx] = asset.Value.Sub(totalValueAfterSale.Mul(minAllocAllowed))
+		valueAboveMin[assetIdx] = asset.Value.Sub(totalValueAfterSale.Mul(minAllocAllowed))
 	}
-	return values
+	return valueAboveMin
 }
