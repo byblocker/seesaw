@@ -91,8 +91,9 @@ func (client *Client) Portfolio(
 		return err
 	})
 
+	var txRows []transactionRow
 	group.Go(func() (err error) {
-		portfolio.Transactions, err = client.AllRecentTx(groupCtx, accounts, start, end, allTickers)
+		txRows, err = client.fetchTransactions(groupCtx, accounts, start, end)
 		return err
 	})
 
@@ -103,6 +104,9 @@ func (client *Client) Portfolio(
 	})
 
 	err = group.Wait()
+	if err == nil {
+		portfolio.Transactions, err = parseTransactions(txRows, allTickers)
+	}
 	stop(err)
 	if err != nil {
 		return models.Portfolio{}, err
