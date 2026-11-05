@@ -109,12 +109,8 @@ func ParsePlan(reader io.Reader) (*Plan, error) {
 	if err := decoder.Decode(&decoded); err != nil {
 		return nil, fmt.Errorf("failed to parse portfolio plan: %w", err)
 	}
-	var extraDocument any
-	if err := decoder.Decode(&extraDocument); err != io.EOF {
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse portfolio plan: %w", err)
-		}
-		return nil, fmt.Errorf("portfolio plan must contain exactly one YAML document")
+	if err := requireSingleDocument(decoder, "portfolio plan"); err != nil {
+		return nil, err
 	}
 
 	if decoded.IsTaxable == nil {
@@ -126,6 +122,19 @@ func ParsePlan(reader io.Reader) (*Plan, error) {
 	}
 
 	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, settings, decoded.Assets)
+}
+
+// Reject any YAML document after the one the decoder already read.
+func requireSingleDocument(decoder *yaml.Decoder, description string) error {
+	var extraDocument any
+	err := decoder.Decode(&extraDocument)
+	if err == io.EOF {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to parse %s: %w", description, err)
+	}
+	return fmt.Errorf("%s must contain exactly one YAML document", description)
 }
 
 // Tickers must be unique across assets, and target allocations must sum to 1.

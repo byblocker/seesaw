@@ -50,12 +50,8 @@ func ParseUser(reader io.Reader) (*User, error) {
 		return nil, fmt.Errorf("failed to parse user config: %w", err)
 	}
 
-	var extraDocument any
-	if err := decoder.Decode(&extraDocument); err != io.EOF {
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse user config: %w", err)
-		}
-		return nil, fmt.Errorf("user config must contain exactly one YAML document")
+	if err := requireSingleDocument(decoder, "user config"); err != nil {
+		return nil, err
 	}
 
 	var tax *TaxSettings
