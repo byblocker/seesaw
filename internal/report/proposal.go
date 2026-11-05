@@ -16,17 +16,17 @@ func Proposal(
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
-	formatted := formatSells(sells, estimated, rates)
-	rows := slices.Concat(formatted.rows, formatBuys(buys, estimated, rates))
+	summary := formatSells(sells, estimated, rates)
+	rows := slices.Concat(summary.rows, formatBuys(buys, estimated, rates))
 	if len(rows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
 		writeOrderTable(&output, rows, rates)
 	}
 
-	writeEstimatedPortfolio(&output, estimated, formatted)
+	writeEstimatedPortfolio(&output, estimated, summary)
 
-	if formatted.washSale {
+	if summary.washSale {
 		output.WriteString("\n[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")
 	}
 	return output.String()

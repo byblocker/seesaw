@@ -11,7 +11,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type formattedSells struct {
+type sellSummary struct {
 	rows                    [][]string
 	shortTermPL, longTermPL decimal.Decimal
 	tax                     decimal.Decimal
@@ -26,8 +26,8 @@ func writeOrderTable(output *strings.Builder, rows [][]string, rates *config.Tax
 	writeTable(output, headers, rows, 3)
 }
 
-func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, rates *config.TaxSettings) formattedSells {
-	result := formattedSells{
+func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, rates *config.TaxSettings) sellSummary {
+	summary := sellSummary{
 		rows:    make([][]string, 0, len(sells)),
 		showTax: rates != nil && len(sells) > 0,
 	}
@@ -43,9 +43,9 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 			lot := snapshot.Lots[sale.LotIdx]
 			realizedPL := sale.Quantity.Mul(lot.Snapshot.GainPerShare)
 			if lot.Snapshot.LongTerm {
-				result.longTermPL = result.longTermPL.Add(realizedPL)
+				summary.longTermPL = summary.longTermPL.Add(realizedPL)
 			} else {
-				result.shortTermPL = result.shortTermPL.Add(realizedPL)
+				summary.shortTermPL = summary.shortTermPL.Add(realizedPL)
 			}
 			row := []string{
 				ticker(sell),
@@ -57,18 +57,18 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {
-				impact := sale.Quantity.Mul(taxPerShare[sale.LotIdx])
-				row = append(row, utils.FormatMoney(impact))
-				result.tax = result.tax.Add(impact)
+				saleTax := sale.Quantity.Mul(taxPerShare[sale.LotIdx])
+				row = append(row, utils.FormatMoney(saleTax))
+				summary.tax = summary.tax.Add(saleTax)
 				if lot.Snapshot.IsWashSale {
 					row[1] += " [WS]"
-					result.washSale = true
+					summary.washSale = true
 				}
 			}
-			result.rows = append(result.rows, row)
+			summary.rows = append(summary.rows, row)
 		}
 	}
-	return result
+	return summary
 }
 
 func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot, rates *config.TaxSettings) [][]string {
@@ -108,7 +108,7 @@ func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 }
 
 // Show the account after the orders, and for taxable portfolios, what the sales realize.
-func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot, sells formattedSells) {
+func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot, summary sellSummary) {
 	output.WriteString("Estimated Portfolio\n\n")
 	divider := writeAssets(output, estimated.Assets)
 
@@ -116,11 +116,11 @@ func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapsh
 		{"Balance:", utils.FormatMoney(estimated.Balances.CashBalance)},
 		{"Total:", utils.FormatMoney(estimated.TotalValue)},
 	}
-	if sells.showTax {
+	if summary.showTax {
 		writeSummaries(output, balances, [][2]string{
-			{"Short-term P/L:", utils.FormatMoney(sells.shortTermPL)},
-			{"Long-term P/L:", utils.FormatMoney(sells.longTermPL)},
-			{"Estimated tax:", utils.FormatMoney(sells.tax)},
+			{"Short-term P/L:", utils.FormatMoney(summary.shortTermPL)},
+			{"Long-term P/L:", utils.FormatMoney(summary.longTermPL)},
+			{"Estimated tax:", utils.FormatMoney(summary.tax)},
 		})
 	} else {
 		writeSummaries(output, balances)
