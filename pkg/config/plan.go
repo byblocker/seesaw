@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"iter"
@@ -116,20 +115,11 @@ func LoadPlan(path string) (*Plan, error) {
 }
 
 func ParsePlan(reader io.Reader) (*Plan, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"failed to read portfolio plan: %w", err,
-		)
-	}
-
 	var decoded planYAML
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder := yaml.NewDecoder(reader)
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&decoded); err != nil {
-		return nil, fmt.Errorf(
-			"failed to parse portfolio plan: %w", err,
-		)
+		return nil, fmt.Errorf("failed to parse portfolio plan: %w", err)
 	}
 	var extraDocument any
 	if err := decoder.Decode(&extraDocument); err != io.EOF {
