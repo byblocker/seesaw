@@ -39,7 +39,7 @@ func (client *Client) Portfolio(
 
 	// We grab all accounts since different accounts may include transactions
 	// that could be relevant for tax-loss harvesting and wash-sale avoidance.
-	accounts, err := client.Accounts(ctx)
+	accounts, err := client.fetchAccounts(ctx)
 	if err != nil {
 		return models.Portfolio{}, err
 	}
@@ -89,14 +89,14 @@ func (client *Client) Portfolio(
 		})
 
 		lotsByPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(positionsByTicker)), func(ctx context.Context, position positionResponse) ([]models.TaxLot, error) {
-			return client.fetchPosition(ctx, selectedAccount.key, position)
+			return client.fetchLots(ctx, selectedAccount.key, position)
 		})
 		portfolio.Lots = slices.Concat(lotsByPosition...)
 		return err
 	})
 
 	group.Go(func() (err error) {
-		portfolio.Balances, err = client.Balances(groupCtx, selectedAccount)
+		portfolio.Balances, err = client.fetchBalances(groupCtx, selectedAccount)
 		return err
 	})
 

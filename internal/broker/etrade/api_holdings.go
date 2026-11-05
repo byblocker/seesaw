@@ -145,7 +145,7 @@ func addPosition(positionsByTicker map[string]positionResponse, position positio
 	return nil
 }
 
-func (client *Client) fetchPosition(
+func (client *Client) fetchLots(
 	ctx context.Context,
 	accountKey string,
 	position positionResponse,

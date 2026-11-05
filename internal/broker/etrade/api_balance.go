@@ -19,7 +19,7 @@ type balanceResponse struct {
 	} `json:"BalanceResponse"`
 }
 
-func (client *Client) Balances(ctx context.Context, account Account) (models.Balances, error) {
+func (client *Client) fetchBalances(ctx context.Context, account Account) (models.Balances, error) {
 	if account.key == "" {
 		return models.Balances{}, fmt.Errorf("expected an ETRADE account with a nonempty key")
 	}

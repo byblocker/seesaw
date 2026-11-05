@@ -33,7 +33,7 @@ type listAccountsAPIResponse struct {
 	} `json:"AccountListResponse"`
 }
 
-func (client *Client) Accounts(ctx context.Context) ([]Account, error) {
+func (client *Client) fetchAccounts(ctx context.Context) ([]Account, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
