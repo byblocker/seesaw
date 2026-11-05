@@ -60,18 +60,11 @@ func (client *Client) fetchTransactionsFor(
 	account Account,
 	start, end time.Time,
 ) ([]transactionRow, error) {
-	if account.key == "" {
-		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
-	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 
-	pageURL := fmt.Sprintf(
-		"%s/accounts/%s/transactions",
-		client.apiBaseURL,
-		url.PathEscape(account.key),
-	)
+	pageURL := client.endpointFor(account, "transactions")
 	query := url.Values{
 		"startDate": {start.Format(dateFormat)},
 		"endDate":   {end.Format(dateFormat)},

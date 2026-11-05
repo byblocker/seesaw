@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"maps"
+	"net/url"
 	"seesaw/internal/async"
 	"seesaw/internal/collections"
 	"seesaw/internal/utils"
@@ -25,6 +26,10 @@ var _ models.BrokerClient = (*Client)(nil)
 
 func (client *Client) Settings() models.BrokerSettings {
 	return models.BrokerSettings{AllowFractionalShares: false}
+}
+
+func (client *Client) endpointFor(account Account, path string) string {
+	return fmt.Sprintf("%s/accounts/%s/%s", client.apiBaseURL, url.PathEscape(account.key), path)
 }
 
 func (client *Client) Portfolio(
@@ -89,7 +94,7 @@ func (client *Client) Portfolio(
 		})
 
 		lotsByPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(positionsByTicker)), func(ctx context.Context, position positionResponse) ([]models.TaxLot, error) {
-			return client.fetchLots(ctx, selectedAccount.key, position)
+			return client.fetchLots(ctx, selectedAccount, position)
 		})
 		portfolio.Lots = slices.Concat(lotsByPosition...)
 		return err

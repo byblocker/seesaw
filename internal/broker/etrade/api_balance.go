@@ -20,11 +20,7 @@ type balanceResponse struct {
 }
 
 func (client *Client) fetchBalances(ctx context.Context, account Account) (models.Balances, error) {
-	if account.key == "" {
-		return models.Balances{}, fmt.Errorf("expected an ETRADE account with a nonempty key")
-	}
-
-	endpoint := fmt.Sprintf("%s/accounts/%s/balance", client.apiBaseURL, url.PathEscape(account.key))
+	endpoint := client.endpointFor(account, "balance")
 	query := url.Values{
 		"instType":    {brokerageAccountType},
 		"realTimeNAV": {"true"},

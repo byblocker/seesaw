@@ -50,15 +50,7 @@ type getPositionLotResponse struct {
 
 // List the account's positions by ticker, without their lots.
 func (client *Client) listPositions(ctx context.Context, account Account) (map[string]positionResponse, error) {
-	if account.key == "" {
-		return nil, fmt.Errorf("expected an ETRADE account with a nonempty key")
-	}
-
-	endpoint := fmt.Sprintf(
-		"%s/accounts/%s/portfolio",
-		client.apiBaseURL,
-		url.PathEscape(account.key),
-	)
+	endpoint := client.endpointFor(account, "portfolio")
 	query := url.Values{
 		"view": {"COMPLETE"},
 	}
@@ -147,15 +139,10 @@ func addPosition(positionsByTicker map[string]positionResponse, position positio
 
 func (client *Client) fetchLots(
 	ctx context.Context,
-	accountKey string,
+	account Account,
 	position positionResponse,
 ) ([]models.TaxLot, error) {
-	endpoint := fmt.Sprintf(
-		"%s/accounts/%s/portfolio/%d",
-		client.apiBaseURL,
-		url.PathEscape(accountKey),
-		position.Id,
-	)
+	endpoint := client.endpointFor(account, "portfolio/"+strconv.FormatInt(position.Id, 10))
 	response, err := utils.FetchJSON[getPositionLotResponse](
 		ctx,
 		client.httpClient,
