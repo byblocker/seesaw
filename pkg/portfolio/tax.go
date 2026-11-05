@@ -2,7 +2,6 @@ package portfolio
 
 import (
 	"seesaw/internal/calendar"
-	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"time"
 
@@ -34,23 +33,4 @@ func (lot LotSnapshot) taxPerShare(rates *config.TaxSettings) decimal.Decimal {
 		rate = rates.LongTermGainRate
 	}
 	return lot.GainPerShare.Mul(rate)
-}
-
-// Tax on selling one share of each lot, by lot row. All zero without rates, as for an account that is not taxable.
-func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
-	taxPerShare := make([]decimal.Decimal, len(lots))
-	for lotIdx, lot := range lots {
-		taxPerShare[lotIdx] = lot.Snapshot.taxPerShare(rates)
-	}
-	return taxPerShare
-}
-
-// Tax per dollar raised selling each lot at its bid, by lot row. Truncating the quotient
-// never reorders lots, so sorting by it matches the exact ratio up to ties below its precision.
-func TaxPerDollar(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
-	taxPerDollar := TaxPerShare(lots, rates)
-	for lotIdx, lot := range lots {
-		taxPerDollar[lotIdx], _ = taxPerDollar[lotIdx].QuoRem(lot.Snapshot.Bid, utils.DivisionDecimalPlaces)
-	}
-	return taxPerDollar
 }

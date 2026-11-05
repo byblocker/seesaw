@@ -39,7 +39,6 @@ func writeOrderTable(output *strings.Builder, sales sellSummary, buys []table.Ro
 
 func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, rates *config.TaxSettings) sellSummary {
 	summary := sellSummary{rows: make([]table.Row, 0, len(sells))}
-	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, rates)
 	ticker := func(sell portfolio.SellProposal) string {
 		return snapshot.Positions[sell.PositionIdx].Ticker
 	}
@@ -70,7 +69,7 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 				utils.FormatMoney(realizedPL),
 			}
 			if rates != nil {
-				saleTax := sale.Quantity.Mul(taxPerShare[sale.LotIdx])
+				saleTax := sale.Quantity.Mul(lot.Snapshot.TaxPerShare)
 				row = append(row, utils.FormatMoney(saleTax))
 				summary.tax = summary.tax.Add(saleTax)
 			}

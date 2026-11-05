@@ -60,9 +60,8 @@ func PlanSales(
 		)
 	}
 
-	taxPerDollar := portfolio.TaxPerDollar(snapshot.Lots, request.TaxRates)
 	valueAboveMin := valueAboveMinAllowed(snapshot, request.Settings.AllocationLowerLimit, amountNeeded)
-	sales, err := selectLots(snapshot, lotIdxs, taxPerDollar, valueAboveMin, amountNeeded)
+	sales, err := selectLots(snapshot, lotIdxs, valueAboveMin, amountNeeded)
 	if err != nil {
 		return nil, err
 	}
