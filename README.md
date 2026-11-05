@@ -134,18 +134,17 @@ go run . rebalance < name of your portfolio >
 Suggested Orders
 
 Ticker    Action  Acquired    Shares    Price        Cost       P/L
-___________________________________________________________________
+───────────────────────────────────────────────────────────────────
 TICKER_A  SELL    2026-06-10      10  $100.00   $1,000.00  -$100.00
-
-TICKER_B  BUY     —               15  $100.00  -$1,500.00         —
-
-TICKER_C  BUY     —                5  $100.00    -$500.00         —
-___________________________________________________________________
+TICKER_B  BUY                     15  $100.00  -$1,500.00
+TICKER_C  BUY                      5  $100.00    -$500.00
 ```
+
+Taxable portfolios add a Tax column, and below the orders, the realized short- and long-term P/L and their total with the net estimated tax, where a negative amount is potential relief.
 
 When no trades qualify, you will see `No trades suggested.`, and the Estimated Portfolio matches the snapshot.
 
-4. Review the Estimated Portfolio: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost. Below the table, the balance is the cash left in the account, ready to withdraw or transfer, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief.
+4. Review the Estimated Portfolio: each asset's value, allocation, and deviation from target after the suggested orders, with buys counted at their estimated cost. The Cash row is the cash left in the account, ready to withdraw or transfer, and the Total includes it.
 
 Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`, they show quote fetching for the snapshot, each asset's tax-loss and purchase decisions with the reasons for skipped trades, purchase sizing, and final trade counts.
 
@@ -193,7 +192,7 @@ Each planned asset sells only down to its minimum allocation, never below it; wh
 
 Each withdrawal is planned on its own at your configured rates. The planner does not net gains and losses across the tax year, apply loss carryforwards, or account for tax brackets.
 
-Review the proposed lots, then the Estimated Portfolio: each asset's value, allocation, and deviation from target after the sale and the withdrawal. Its balance is the cash left in the account once the withdrawal leaves, and the total includes it. Taxable portfolios also show the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
+Review the proposed lots; for taxable portfolios, the table ends with the realized short- and long-term P/L and the net estimated tax, where a negative amount is potential relief. Then review the Estimated Portfolio: each asset's value, allocation, and deviation from target after the sale and the withdrawal. Its Cash row is the cash left in the account once the withdrawal leaves, and the Total includes it. A `[WS]` tag identifies loss sales with recent purchases of the same ticker. Cash availability may depend on settlement or broker restrictions. Tax estimates do not reserve cash for tax payments.
 
 The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `settings.allocation_lower_limit` to allow more. It does not return an unfinished proposal.
 
