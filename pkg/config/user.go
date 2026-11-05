@@ -17,15 +17,6 @@ type userYAML struct {
 	Tax *taxYAML `yaml:"tax"`
 }
 
-func NewUser(tax *TaxSettings) (*User, error) {
-	if tax != nil {
-		if err := tax.Validate(); err != nil {
-			return nil, err
-		}
-	}
-	return &User{Tax: tax}, nil
-}
-
 func (user *User) TaxRates(isTaxable bool) (*TaxSettings, error) {
 	if !isTaxable {
 		return nil, nil
@@ -75,5 +66,5 @@ func ParseUser(reader io.Reader) (*User, error) {
 		}
 		tax = &built
 	}
-	return NewUser(tax)
+	return &User{Tax: tax}, nil
 }
