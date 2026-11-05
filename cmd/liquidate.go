@@ -7,6 +7,7 @@ import (
 	"seesaw/internal/utils"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/liquidation"
+	"seesaw/pkg/portfolio"
 	"strings"
 
 	"github.com/shopspring/decimal"
@@ -62,8 +63,11 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snapshot, err := takeSnapshot(cmd, client, plan)
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
 	if err != nil {
+		return err
+	}
+	if err := writeSnapshot(cmd, snapshot); err != nil {
 		return err
 	}
 

@@ -3,6 +3,7 @@ package cmd
 import (
 	"log"
 	"seesaw/pkg/broker"
+	"seesaw/pkg/portfolio"
 	"seesaw/pkg/rebalancer"
 
 	"github.com/shopspring/decimal"
@@ -51,8 +52,11 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snapshot, err := takeSnapshot(cmd, client, plan)
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
 	if err != nil {
+		return err
+	}
+	if err := writeSnapshot(cmd, snapshot); err != nil {
 		return err
 	}
 

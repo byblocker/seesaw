@@ -6,7 +6,6 @@ import (
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -36,19 +35,18 @@ func showSnapshot(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, err = takeSnapshot(cmd, client, plan)
-	return err
-}
-
-func takeSnapshot(cmd *cobra.Command, client models.BrokerClient, plan *config.Plan) (portfolio.Snapshot, error) {
 	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
 	if err != nil {
-		return portfolio.Snapshot{}, err
+		return err
 	}
+	return writeSnapshot(cmd, snapshot)
+}
+
+func writeSnapshot(cmd *cobra.Command, snapshot portfolio.Snapshot) error {
 	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(snapshot)); err != nil {
-		return portfolio.Snapshot{}, fmt.Errorf("write snapshot summary: %w", err)
+		return fmt.Errorf("write snapshot summary: %w", err)
 	}
-	return snapshot, nil
+	return nil
 }
 
 // Write the orders and the portfolio they would leave after the withdrawal.
