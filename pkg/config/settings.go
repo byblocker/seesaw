@@ -12,7 +12,11 @@ type TaxSettings struct {
 	LongTermGainRate  decimal.Decimal
 }
 
-func (settings TaxSettings) Validate() error {
+// Nil rates, as for an account that is not taxable, are valid.
+func (settings *TaxSettings) Validate() error {
+	if settings == nil {
+		return nil
+	}
 	_, err := taxYAML{
 		ShortTermGainRate: &settings.ShortTermGainRate,
 		LongTermGainRate:  &settings.LongTermGainRate,

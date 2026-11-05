@@ -13,18 +13,11 @@ import (
 
 type Request struct {
 	Settings config.Settings
-	TaxRates *config.TaxSettings // Nil for non-taxable accounts
 	Force    bool
 }
 
 func (request Request) Validate() error {
-	if err := request.Settings.Validate(); err != nil {
-		return err
-	}
-	if request.TaxRates != nil {
-		return request.TaxRates.Validate()
-	}
-	return nil
+	return request.Settings.Validate()
 }
 
 func Plan(
@@ -44,7 +37,7 @@ func Plan(
 	if request.Force {
 		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
 	}
-	if request.TaxRates == nil {
+	if snapshot.TaxRates == nil {
 		log.Print("  - Skip tax-loss harvesting: account is not taxable")
 	}
 
@@ -73,7 +66,7 @@ func rebalanceAsset(
 			log.Printf("Rebalancing %s: sell all", asset.Label)
 			return sellExcess(snapshot, asset, asset.Value), nil
 		}
-		if request.TaxRates == nil {
+		if snapshot.TaxRates == nil {
 			log.Printf("SKIP rebalancing %s: outside the plan", asset.Label)
 			return nil, nil
 		}
@@ -91,7 +84,7 @@ func rebalanceAsset(
 
 	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
 	var sell portfolio.SellProposal
-	if request.TaxRates != nil {
+	if snapshot.TaxRates != nil {
 		sell = harvestAsset(snapshot, asset, request.Settings)
 	}
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)

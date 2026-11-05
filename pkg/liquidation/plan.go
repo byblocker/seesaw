@@ -14,20 +14,13 @@ import (
 type Request struct {
 	Amount   decimal.Decimal
 	Settings config.Settings
-	TaxRates *config.TaxSettings // Nil for non-taxable accounts
 }
 
 func (request Request) Validate() error {
 	if !request.Amount.IsPositive() {
 		return fmt.Errorf("withdrawal must be positive")
 	}
-	if err := request.Settings.Validate(); err != nil {
-		return err
-	}
-	if request.TaxRates != nil {
-		return request.TaxRates.Validate()
-	}
-	return nil
+	return request.Settings.Validate()
 }
 
 func PlanSales(

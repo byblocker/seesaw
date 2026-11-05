@@ -2,7 +2,6 @@ package report
 
 import (
 	"seesaw/internal/utils"
-	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
@@ -20,15 +19,15 @@ type sellSummary struct {
 }
 
 // Write the orders, and for taxable portfolios with sales, what the sales realize.
-func writeOrderTable(output *strings.Builder, sales sellSummary, buys []table.Row, rates *config.TaxSettings) {
+func writeOrderTable(output *strings.Builder, sales sellSummary, buys []table.Row, taxable bool) {
 	headers := table.Row{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
-	if rates != nil {
+	if taxable {
 		headers = append(headers, "Tax")
 	}
 	orders := newTable(headers, 3)
 	orders.AppendRows(sales.rows)
 	orders.AppendRows(buys)
-	if rates != nil && len(sales.rows) > 0 {
+	if taxable && len(sales.rows) > 0 {
 		orders.AppendFooter(table.Row{"", "", "", "", "Short-term", "", utils.FormatMoney(sales.shortTermPL)})
 		orders.AppendFooter(table.Row{"", "", "", "", "Long-term", "", utils.FormatMoney(sales.longTermPL)})
 		orders.AppendFooter(table.Row{"", "", "", "", "Total", "",
@@ -37,7 +36,8 @@ func writeOrderTable(output *strings.Builder, sales sellSummary, buys []table.Ro
 	writeTable(output, orders)
 }
 
-func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, rates *config.TaxSettings) sellSummary {
+func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot) sellSummary {
+	taxable := snapshot.TaxRates != nil
 	summary := sellSummary{rows: make([]table.Row, 0, len(sells))}
 	ticker := func(sell portfolio.SellProposal) string {
 		return snapshot.Positions[sell.PositionIdx].Ticker
@@ -55,7 +55,7 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 				summary.shortTermPL = summary.shortTermPL.Add(realizedPL)
 			}
 			action := "SELL"
-			if rates != nil && lot.Snapshot.IsWashSale {
+			if taxable && lot.Snapshot.IsWashSale {
 				action += " [WS]"
 				summary.washSale = true
 			}
@@ -68,7 +68,7 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 				utils.FormatMoney(sale.Quantity.Mul(lot.Snapshot.Bid)),
 				utils.FormatMoney(realizedPL),
 			}
-			if rates != nil {
+			if taxable {
 				saleTax := sale.Quantity.Mul(lot.Snapshot.TaxPerShare)
 				row = append(row, utils.FormatMoney(saleTax))
 				summary.tax = summary.tax.Add(saleTax)

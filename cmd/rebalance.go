@@ -39,7 +39,6 @@ func rebalance(cmd *cobra.Command, args []string) error {
 
 	request := rebalancer.Request{
 		Settings: plan.Settings,
-		TaxRates: taxRates,
 		Force:    forceRebalance,
 	}
 	// Reject a bad request before the broker login, not after.
@@ -52,7 +51,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, request.TaxRates)
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, taxRates)
 	if err != nil {
 		return err
 	}
@@ -65,5 +64,5 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return writeProposal(cmd, snapshot, sells, buys, decimal.Zero, request.TaxRates)
+	return writeProposal(cmd, snapshot, sells, buys, decimal.Zero)
 }

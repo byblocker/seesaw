@@ -51,7 +51,6 @@ func liquidate(cmd *cobra.Command, args []string) error {
 	request := liquidation.Request{
 		Amount:   amount,
 		Settings: plan.Settings,
-		TaxRates: taxRates,
 	}
 	// Reject a bad request before the broker login, not after.
 	if err := request.Validate(); err != nil {
@@ -63,7 +62,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, request.TaxRates)
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, taxRates)
 	if err != nil {
 		return err
 	}
@@ -76,7 +75,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return writeProposal(cmd, snapshot, sells, nil, request.Amount, request.TaxRates)
+	return writeProposal(cmd, snapshot, sells, nil, request.Amount)
 }
 
 var amountPattern = regexp.MustCompile(`^\$?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$`)

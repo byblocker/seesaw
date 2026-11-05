@@ -1,7 +1,6 @@
 package report
 
 import (
-	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 	"strings"
 )
@@ -10,17 +9,16 @@ func Proposal(
 	sells []portfolio.SellProposal,
 	buys []portfolio.Buy,
 	estimated portfolio.Snapshot,
-	rates *config.TaxSettings,
 ) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
-	summary := formatSells(sells, estimated, rates)
+	summary := formatSells(sells, estimated)
 	buyRows := formatBuys(buys, estimated)
 	if len(summary.rows) == 0 && len(buyRows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
-		writeOrderTable(&output, summary, buyRows, rates)
+		writeOrderTable(&output, summary, buyRows, estimated.TaxRates != nil)
 	}
 
 	output.WriteString("Estimated Portfolio\n\n")

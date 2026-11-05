@@ -5,7 +5,6 @@ import (
 	"io"
 	"seesaw/internal/report"
 	"seesaw/pkg/broker"
-	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -60,10 +59,9 @@ func writeProposal(
 	sells []portfolio.SellProposal,
 	buys []portfolio.Buy,
 	withdrawal decimal.Decimal,
-	taxRates *config.TaxSettings,
 ) error {
 	estimated := snapshot.Simulate(sells, buys, withdrawal)
-	proposal := report.Proposal(sells, buys, estimated, taxRates)
+	proposal := report.Proposal(sells, buys, estimated)
 	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
 	}
