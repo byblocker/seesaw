@@ -34,10 +34,6 @@ func Get[T any](key string) (*T, error) {
 	return &value, nil
 }
 
-func Delete(key string) error {
-	return oskeyring.Delete(service, key)
-}
-
 func Exists(key string) (bool, error) {
 	_, err := oskeyring.Get(service, key)
 	if errors.Is(err, ErrNotFound) {
