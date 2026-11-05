@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"seesaw/internal/calendar"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"time"
@@ -14,16 +15,12 @@ const (
 )
 
 func isLongTerm(timeAcquired, saleDate time.Time) bool {
-	acquiredYear, acquiredMonth, acquiredDay := timeAcquired.In(saleDate.Location()).Date()
-	soldYear, soldMonth, soldDay := saleDate.Date()
-
 	// The holding period starts the day after acquisition; the sale day counts.
-	// UTC date-only values keep time of day and DST out of the calculation.
-	holdingStart := time.Date(acquiredYear, acquiredMonth, acquiredDay+1, 0, 0, 0, 0, time.UTC)
+	holdingStart := calendar.UTCDate(timeAcquired.In(saleDate.Location())).AddDate(0, 0, 1)
 
 	// Shift the inclusive sale date back one year instead of advancing the start.
 	// This preserves the boundary when either year includes February 29.
-	saleOneYearEarlier := time.Date(soldYear-1, soldMonth, soldDay, 0, 0, 0, 0, time.UTC)
+	saleOneYearEarlier := calendar.UTCDate(saleDate).AddDate(-1, 0, 0)
 	return !saleOneYearEarlier.Before(holdingStart)
 }
 

@@ -25,12 +25,13 @@ func EndOfDay(date time.Time, timezone string) (time.Time, error) {
 }
 
 func DaysBetween(from, to time.Time) int {
-	fromDay := utcDate(from.In(to.Location()))
-	toDay := utcDate(to)
+	fromDay := UTCDate(from.In(to.Location()))
+	toDay := UTCDate(to)
 	return int(toDay.Sub(fromDay).Hours() / 24)
 }
 
-func utcDate(moment time.Time) time.Time {
+// The moment's calendar date as midnight UTC, so date math ignores time of day and DST.
+func UTCDate(moment time.Time) time.Time {
 	year, month, day := moment.Date()
 	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
