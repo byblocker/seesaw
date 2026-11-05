@@ -80,7 +80,8 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, ra
 	return summary
 }
 
-func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot, rates *config.TaxSettings) []table.Row {
+// Buy rows end at the cost, leaving the acquisition date, P/L, and tax blank.
+func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot) []table.Row {
 	rows := make([]table.Row, 0, len(buys))
 	ticker := func(buy portfolio.Buy) string {
 		return snapshot.Positions[buy.PositionIdx].Ticker
@@ -89,19 +90,14 @@ func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot, rates *config
 		return strings.Compare(ticker(left), ticker(right))
 	})
 	for _, buy := range buys {
-		row := table.Row{
+		rows = append(rows, table.Row{
 			ticker(buy),
 			"BUY",
-			"—",
+			"",
 			buy.Quantity.String(),
 			utils.FormatPrice(buy.Price),
 			utils.FormatMoney(buy.EstimatedCost.Neg()),
-			"—",
-		}
-		if rates != nil {
-			row = append(row, "—")
-		}
-		rows = append(rows, row)
+		})
 	}
 
 	return rows

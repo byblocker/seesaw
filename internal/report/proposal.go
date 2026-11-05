@@ -16,7 +16,7 @@ func Proposal(
 	output.WriteString("\nSuggested Orders\n\n")
 
 	summary := formatSells(sells, estimated, rates)
-	buyRows := formatBuys(buys, estimated, rates)
+	buyRows := formatBuys(buys, estimated)
 	if len(summary.rows) == 0 && len(buyRows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
