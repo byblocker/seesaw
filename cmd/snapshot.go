@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var snapshotPortfolio = &cobra.Command{
+var snapshotCmd = &cobra.Command{
 	Use:     "snapshot <portfolio>",
 	Short:   "Show the account's holdings against its portfolio plan",
 	Example: "  seesaw snapshot growth",
@@ -21,7 +21,7 @@ var snapshotPortfolio = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(snapshotPortfolio)
+	rootCmd.AddCommand(snapshotCmd)
 }
 
 func showSnapshot(cmd *cobra.Command, args []string) error {

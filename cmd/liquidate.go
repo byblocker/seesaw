@@ -17,7 +17,7 @@ import (
 
 var liquidationAmount string
 
-var liquidatePortfolio = &cobra.Command{
+var liquidateCmd = &cobra.Command{
 	Use:     "liquidate <portfolio>",
 	Short:   "Plan whole-share sales to fund a withdrawal",
 	Example: "  seesaw liquidate growth --amount 1000\n  seesaw liquidate growth -a '$1,000.50'",
@@ -26,9 +26,9 @@ var liquidatePortfolio = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(liquidatePortfolio)
-	liquidatePortfolio.Flags().StringVarP(&liquidationAmount, "amount", "a", "", "withdrawal amount in account currency")
-	if err := liquidatePortfolio.MarkFlagRequired("amount"); err != nil {
+	rootCmd.AddCommand(liquidateCmd)
+	liquidateCmd.Flags().StringVarP(&liquidationAmount, "amount", "a", "", "withdrawal amount in account currency")
+	if err := liquidateCmd.MarkFlagRequired("amount"); err != nil {
 		panic(err)
 	}
 }

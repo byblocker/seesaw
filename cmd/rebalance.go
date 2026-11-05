@@ -14,7 +14,7 @@ import (
 
 var forceRebalance bool
 
-var rebalancePortfolio = &cobra.Command{
+var rebalanceCmd = &cobra.Command{
 	Use:     "rebalance <portfolio>",
 	Short:   "Rebalance portfolio according to portfolio plan",
 	Example: "  seesaw rebalance growth\n  seesaw rebalance retirement --force",
@@ -23,8 +23,8 @@ var rebalancePortfolio = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(rebalancePortfolio)
-	rebalancePortfolio.Flags().BoolVarP(&forceRebalance, "force", "f", false, "sell overweight assets and holdings outside the plan to fund underweight assets")
+	rootCmd.AddCommand(rebalanceCmd)
+	rebalanceCmd.Flags().BoolVarP(&forceRebalance, "force", "f", false, "sell overweight assets and holdings outside the plan to fund underweight assets")
 }
 
 func rebalance(cmd *cobra.Command, args []string) error {
