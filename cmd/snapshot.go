@@ -29,13 +29,17 @@ func showSnapshot(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	taxRates, err := loadTaxRates(plan)
+	if err != nil {
+		return err
+	}
 
 	client, err := broker.Connect(cmd.Context(), plan.Broker)
 	if err != nil {
 		return err
 	}
 
-	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, taxRates)
 	if err != nil {
 		return err
 	}

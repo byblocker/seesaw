@@ -24,21 +24,23 @@ func isLongTerm(timeAcquired, saleDate time.Time) bool {
 	return !saleOneYearEarlier.Before(holdingStart)
 }
 
+// Tax on selling one share of the lot. Zero without rates, as for an account that is not taxable.
+func (lot LotSnapshot) taxPerShare(rates *config.TaxSettings) decimal.Decimal {
+	if rates == nil || lot.IsWashSale {
+		return decimal.Zero
+	}
+	rate := rates.ShortTermGainRate
+	if lot.LongTerm {
+		rate = rates.LongTermGainRate
+	}
+	return lot.GainPerShare.Mul(rate)
+}
+
 // Tax on selling one share of each lot, by lot row. All zero without rates, as for an account that is not taxable.
 func TaxPerShare(lots []Lot, rates *config.TaxSettings) []decimal.Decimal {
 	taxPerShare := make([]decimal.Decimal, len(lots))
-	if rates == nil {
-		return taxPerShare
-	}
 	for lotIdx, lot := range lots {
-		if lot.Snapshot.IsWashSale {
-			continue
-		}
-		rate := rates.ShortTermGainRate
-		if lot.Snapshot.LongTerm {
-			rate = rates.LongTermGainRate
-		}
-		taxPerShare[lotIdx] = lot.Snapshot.GainPerShare.Mul(rate)
+		taxPerShare[lotIdx] = lot.Snapshot.taxPerShare(rates)
 	}
 	return taxPerShare
 }

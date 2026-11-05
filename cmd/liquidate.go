@@ -63,7 +63,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan)
+	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, request.TaxRates)
 	if err != nil {
 		return err
 	}
