@@ -44,11 +44,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Printf("Requested liquidation of %s for %s", plan.AccountLabel(), utils.FormatMoney(amount))
-	user, err := loadUser()
-	if err != nil {
-		return err
-	}
-	taxRates, err := user.TaxRates(plan.IsTaxable)
+	taxRates, err := loadTaxRates(plan)
 	if err != nil {
 		return err
 	}

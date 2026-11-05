@@ -34,11 +34,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 	log.Printf("Requested rebalance of %s with %s portfolio", plan.AccountLabel(), planName)
-	user, err := loadUser()
-	if err != nil {
-		return err
-	}
-	taxRates, err := user.TaxRates(plan.IsTaxable)
+	taxRates, err := loadTaxRates(plan)
 	if err != nil {
 		return err
 	}
