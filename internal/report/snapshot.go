@@ -16,12 +16,3 @@ func Snapshot(snapshot portfolio.Snapshot) string {
 	writePortfolio(&output, snapshot)
 	return output.String()
 }
-
-// Write the asset table, then any summary groups.
-func writePortfolio(output *strings.Builder, snapshot portfolio.Snapshot, summaries ...[][2]string) {
-	writeAssets(output, snapshot)
-	if len(summaries) > 0 {
-		writeSummaries(output, summaries...)
-		output.WriteByte('\n')
-	}
-}

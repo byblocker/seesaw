@@ -1,7 +1,6 @@
 package report
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/v6/table"
@@ -41,24 +40,4 @@ func newTable(headers table.Row, textColumns int) table.Writer {
 func writeTable(output *strings.Builder, writer table.Writer) {
 	output.WriteString(writer.Render())
 	output.WriteString("\n\n")
-}
-
-// Align every group's labels and amounts together, separating groups with a blank line.
-func writeSummaries(output *strings.Builder, groups ...[][2]string) {
-	var labelWidth, amountWidth int
-	for _, summaries := range groups {
-		for _, summary := range summaries {
-			labelWidth = max(labelWidth, len(summary[0]))
-			amountWidth = max(amountWidth, len(summary[1]))
-		}
-	}
-
-	for i, summaries := range groups {
-		if i > 0 {
-			output.WriteByte('\n')
-		}
-		for _, summary := range summaries {
-			fmt.Fprintf(output, "%-*s %*s\n", labelWidth, summary[0], amountWidth, summary[1])
-		}
-	}
 }

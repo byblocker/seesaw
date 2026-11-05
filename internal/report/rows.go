@@ -16,24 +16,29 @@ type sellSummary struct {
 	rows                    []table.Row
 	shortTermPL, longTermPL decimal.Decimal
 	tax                     decimal.Decimal
-	washSale, showTax       bool
+	washSale                bool
 }
 
-func writeOrderTable(output *strings.Builder, rows []table.Row, rates *config.TaxSettings) {
+// Write the orders, and for taxable portfolios with sales, what the sales realize.
+func writeOrderTable(output *strings.Builder, sales sellSummary, buys []table.Row, rates *config.TaxSettings) {
 	headers := table.Row{"Ticker", "Action", "Acquired", "Shares", "Price", "Cost", "P/L"}
 	if rates != nil {
 		headers = append(headers, "Tax")
 	}
 	orders := newTable(headers, 3)
-	orders.AppendRows(rows)
+	orders.AppendRows(sales.rows)
+	orders.AppendRows(buys)
+	if rates != nil && len(sales.rows) > 0 {
+		orders.AppendFooter(table.Row{"", "", "", "", "Short-term", "", utils.FormatMoney(sales.shortTermPL)})
+		orders.AppendFooter(table.Row{"", "", "", "", "Long-term", "", utils.FormatMoney(sales.longTermPL)})
+		orders.AppendFooter(table.Row{"", "", "", "", "Total", "",
+			utils.FormatMoney(sales.shortTermPL.Add(sales.longTermPL)), utils.FormatMoney(sales.tax)})
+	}
 	writeTable(output, orders)
 }
 
 func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot, rates *config.TaxSettings) sellSummary {
-	summary := sellSummary{
-		rows:    make([]table.Row, 0, len(sells)),
-		showTax: rates != nil && len(sells) > 0,
-	}
+	summary := sellSummary{rows: make([]table.Row, 0, len(sells))}
 	taxPerShare := portfolio.TaxPerShare(snapshot.Lots, rates)
 	ticker := func(sell portfolio.SellProposal) string {
 		return snapshot.Positions[sell.PositionIdx].Ticker
@@ -102,7 +107,7 @@ func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot, rates *config
 	return rows
 }
 
-func writeAssets(output *strings.Builder, snapshot portfolio.Snapshot) {
+func writePortfolio(output *strings.Builder, snapshot portfolio.Snapshot) {
 	assets := newTable(table.Row{"Asset", "Value", "Current", "Target", "Deviation"}, 1)
 	for _, asset := range snapshot.Assets {
 		assets.AppendRow(formatAsset(asset))
@@ -110,20 +115,6 @@ func writeAssets(output *strings.Builder, snapshot portfolio.Snapshot) {
 	assets.AppendRow(table.Row{"Cash", utils.FormatMoney(snapshot.Balances.CashBalance)})
 	assets.AppendFooter(table.Row{"Total", utils.FormatMoney(snapshot.TotalValue)})
 	writeTable(output, assets)
-}
-
-// Show the account after the orders, and for taxable portfolios, what the sales realize.
-func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot, summary sellSummary) {
-	output.WriteString("Estimated Portfolio\n\n")
-	if summary.showTax {
-		writePortfolio(output, estimated, [][2]string{
-			{"Short-term P/L:", utils.FormatMoney(summary.shortTermPL)},
-			{"Long-term P/L:", utils.FormatMoney(summary.longTermPL)},
-			{"Estimated tax:", utils.FormatMoney(summary.tax)},
-		})
-	} else {
-		writePortfolio(output, estimated)
-	}
 }
 
 func formatAsset(asset portfolio.Asset) table.Row {

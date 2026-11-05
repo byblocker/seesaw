@@ -3,7 +3,6 @@ package report
 import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
-	"slices"
 	"strings"
 )
 
@@ -17,17 +16,18 @@ func Proposal(
 	output.WriteString("\nSuggested Orders\n\n")
 
 	summary := formatSells(sells, estimated, rates)
-	rows := slices.Concat(summary.rows, formatBuys(buys, estimated, rates))
-	if len(rows) == 0 {
+	buyRows := formatBuys(buys, estimated, rates)
+	if len(summary.rows) == 0 && len(buyRows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
-		writeOrderTable(&output, rows, rates)
+		writeOrderTable(&output, summary, buyRows, rates)
 	}
 
-	writeEstimatedPortfolio(&output, estimated, summary)
+	output.WriteString("Estimated Portfolio\n\n")
+	writePortfolio(&output, estimated)
 
 	if summary.washSale {
-		output.WriteString("\n[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")
+		output.WriteString("[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")
 	}
 	return output.String()
 }
