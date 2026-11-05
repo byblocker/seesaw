@@ -8,8 +8,8 @@ import (
 	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-// A borderless table with a rule under its header, its first textColumns columns
-// aligned left and the rest aligned right.
+// A borderless table with rules under its header and above any footer, its first
+// textColumns columns aligned left and the rest aligned right.
 func newTable(headers table.Row, textColumns int) table.Writer {
 	style := table.StyleLight
 	style.Box.PaddingLeft = ""
@@ -17,7 +17,8 @@ func newTable(headers table.Row, textColumns int) table.Writer {
 	style.Box.MiddleVertical = "  "
 	style.Box.MiddleSeparator = "──"
 	style.Format.Header = text.FormatDefault
-	style.Options = table.Options{SeparateColumns: true, SeparateHeader: true}
+	style.Format.Footer = text.FormatDefault
+	style.Options = table.Options{SeparateColumns: true, SeparateHeader: true, SeparateFooter: true}
 
 	writer := table.NewWriter()
 	writer.SetStyle(style)
@@ -30,6 +31,7 @@ func newTable(headers table.Row, textColumns int) table.Writer {
 			Number:      number,
 			Align:       text.AlignRight,
 			AlignHeader: text.AlignRight,
+			AlignFooter: text.AlignRight,
 		})
 	}
 	writer.SetColumnConfigs(columns)

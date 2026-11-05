@@ -102,12 +102,14 @@ func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot, rates *config
 	return rows
 }
 
-func writeAssets(output *strings.Builder, assets []portfolio.Asset) {
-	assetTable := newTable(table.Row{"Asset", "Value", "Current", "Target", "Deviation"}, 1)
-	for _, asset := range assets {
-		assetTable.AppendRow(formatAsset(asset))
+func writeAssets(output *strings.Builder, snapshot portfolio.Snapshot) {
+	assets := newTable(table.Row{"Asset", "Value", "Current", "Target", "Deviation"}, 1)
+	for _, asset := range snapshot.Assets {
+		assets.AppendRow(formatAsset(asset))
 	}
-	writeTable(output, assetTable)
+	assets.AppendRow(table.Row{"Cash", utils.FormatMoney(snapshot.Balances.CashBalance)})
+	assets.AppendFooter(table.Row{"Total", utils.FormatMoney(snapshot.TotalValue)})
+	writeTable(output, assets)
 }
 
 // Show the account after the orders, and for taxable portfolios, what the sales realize.
