@@ -102,9 +102,9 @@ func isHarvestable(lot portfolio.Lot, minPctLossToHarvest decimal.Decimal) bool 
 	return lot.Snapshot.GainPct.IsNegative() && lot.Snapshot.GainPct.LessThanOrEqual(minPctLossToHarvest)
 }
 
-func logLot(lot portfolio.Lot, harvest bool) {
+func logLot(lot portfolio.Lot, harvestable bool) {
 	action := "IGNORE"
-	if harvest {
+	if harvestable {
 		action = "HARVEST"
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
@@ -127,7 +127,7 @@ func sellExcess(
 		return taxPerDollar[leftLotIdx].Cmp(taxPerDollar[rightLotIdx])
 	})
 
-	var sold []portfolio.LotSale
+	var sales []portfolio.LotSale
 	remaining := excess
 	for _, lotIdx := range lotIdxs {
 		lot := snapshot.Lots[lotIdx]
@@ -137,11 +137,11 @@ func sellExcess(
 		if !quantity.IsPositive() {
 			continue
 		}
-		sold = append(sold, portfolio.LotSale{LotIdx: lotIdx, Quantity: quantity})
+		sales = append(sales, portfolio.LotSale{LotIdx: lotIdx, Quantity: quantity})
 		remaining = remaining.Sub(quantity.Mul(bid))
 	}
 
-	proposals := portfolio.GroupSales(snapshot, sold)
+	proposals := portfolio.GroupSales(snapshot, sales)
 	for _, proposal := range proposals {
 		logProceeds(snapshot, proposal)
 	}

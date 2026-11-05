@@ -30,7 +30,7 @@ func (request Request) Validate() error {
 func Plan(
 	snapshot portfolio.Snapshot,
 	request Request,
-	broker models.BrokerSettings,
+	brokerSettings models.BrokerSettings,
 ) ([]portfolio.SellProposal, []portfolio.Buy, error) {
 	if err := request.Validate(); err != nil {
 		return nil, nil, err
@@ -39,7 +39,7 @@ func Plan(
 		return nil, nil, fmt.Errorf("empty or negative portfolio")
 	}
 
-	request.Settings.Log(snapshot.TotalValue, broker.AllowFractionalShares)
+	request.Settings.Log(snapshot.TotalValue, brokerSettings.AllowFractionalShares)
 	maxValueDeviation := snapshot.TotalValue.Mul(request.Settings.AllocationUpperLimit)
 	if request.Force {
 		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
@@ -51,14 +51,14 @@ func Plan(
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	taxPerDollar := portfolio.TaxPerDollar(snapshot.Lots, request.TaxRates)
 	var sells []portfolio.SellProposal
-	var requests []buyRequest
+	var buyRequests []buyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetRequests := rebalanceAsset(snapshot, asset, request, taxPerDollar, maxValueDeviation)
+		assetSells, assetBuyRequests := rebalanceAsset(snapshot, asset, request, taxPerDollar, maxValueDeviation)
 		sells = append(sells, assetSells...)
-		requests = append(requests, assetRequests...)
+		buyRequests = append(buyRequests, assetBuyRequests...)
 	}
 
-	buys := sizeBuys(snapshot, request.Settings, broker, sells, requests, maxValueDeviation)
+	buys := sizeBuys(snapshot, request.Settings, brokerSettings, sells, buyRequests, maxValueDeviation)
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
 	return sells, buys, nil
 }
@@ -110,7 +110,7 @@ func rebalanceAsset(
 		return sellExcess(snapshot, asset, asset.ValueDrift, taxPerDollar), nil
 	}
 
-	buy, ok := selectBuy(snapshot, asset, sell, shortfall)
+	toBuy, ok := selectBuy(snapshot, asset, sell, shortfall)
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
@@ -121,11 +121,11 @@ func rebalanceAsset(
 	if !sell.IsEmpty() {
 		logProceeds(snapshot, sell)
 	}
-	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(buy.Amount), snapshot.Positions[buy.PositionIdx].Ticker)
+	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(toBuy.Amount), snapshot.Positions[toBuy.PositionIdx].Ticker)
 	if sell.IsEmpty() {
-		return nil, []buyRequest{buy}
+		return nil, []buyRequest{toBuy}
 	}
-	return []portfolio.SellProposal{sell}, []buyRequest{buy}
+	return []portfolio.SellProposal{sell}, []buyRequest{toBuy}
 }
 
 // Unless forced, we should not liquidate unplanned positions while rebalancing,

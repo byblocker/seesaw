@@ -28,9 +28,9 @@ func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfoli
 func sizeBuys(
 	snapshot portfolio.Snapshot,
 	settings config.Settings,
-	broker models.BrokerSettings,
+	brokerSettings models.BrokerSettings,
 	sells []portfolio.SellProposal,
-	requests []buyRequest,
+	buyRequests []buyRequest,
 	maxValueDeviation decimal.Decimal,
 ) []portfolio.Buy {
 	balance := snapshot.Balances.BuyingPower
@@ -40,7 +40,7 @@ func sizeBuys(
 
 	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
 	var buys []portfolio.Buy
-	for _, request := range requests {
+	for _, request := range buyRequests {
 		if !balance.IsPositive() {
 			log.Print("SKIP remaining buy requests: no buying power left")
 			break
@@ -53,7 +53,7 @@ func sizeBuys(
 			balance,
 			maxValueDeviation,
 			settings.MinFractionalShareToRound,
-			broker.AllowFractionalShares,
+			brokerSettings.AllowFractionalShares,
 		)
 		if buy.Quantity.IsZero() {
 			log.Printf("CANNOT buy %s: not enough for one share", ticker)
@@ -71,54 +71,54 @@ func sizeBuys(
 
 func proposeBuy(
 	snapshot portfolio.Snapshot,
-	req buyRequest,
+	request buyRequest,
 	balance,
 	maxValueDeviation,
 	minFractionalShareToRound decimal.Decimal,
 	allowFractionalShares bool,
 ) portfolio.Buy {
-	position := snapshot.Positions[req.PositionIdx]
+	position := snapshot.Positions[request.PositionIdx]
 	ask := position.Quote.Ask
 	buy := func(quantity decimal.Decimal) portfolio.Buy {
 		return portfolio.Buy{
-			PositionIdx:   req.PositionIdx,
+			PositionIdx:   request.PositionIdx,
 			Price:         ask,
 			Quantity:      quantity,
 			EstimatedCost: quantity.Mul(ask),
 		}
 	}
 
-	valueToCover := decimal.Min(req.Amount, balance)
-	exact, _ := valueToCover.QuoRem(ask, utils.DivisionDecimalPlaces)
+	valueToCover := decimal.Min(request.Amount, balance)
+	exactShares, _ := valueToCover.QuoRem(ask, utils.DivisionDecimalPlaces)
 	if allowFractionalShares {
-		return buy(exact)
+		return buy(exactShares)
 	}
 
-	whole := exact.Floor()
-	fractional := exact.Sub(whole)
-	if fractional.IsZero() {
-		return buy(whole)
+	wholeShares := exactShares.Floor()
+	fraction := exactShares.Sub(wholeShares)
+	if fraction.IsZero() {
+		return buy(wholeShares)
 	}
 
 	// Truncate so the shown count never rounds up to the whole share it falls short of.
-	cannotRound := fmt.Sprintf("CANNOT round up %s from %s share(s)", position.Ticker, exact.Truncate(2))
-	if fractional.LessThan(minFractionalShareToRound) {
+	cannotRound := fmt.Sprintf("CANNOT round up %s from %s share(s)", position.Ticker, exactShares.Truncate(2))
+	if fraction.LessThan(minFractionalShareToRound) {
 		log.Printf("%s: below rounding threshold", cannotRound)
-		return buy(whole)
+		return buy(wholeShares)
 	}
 
-	rounded := whole.Add(decimal.NewFromInt(1))
-	cost := rounded.Mul(ask)
-	if cost.GreaterThan(balance) {
+	roundedShares := wholeShares.Add(decimal.NewFromInt(1))
+	roundedCost := roundedShares.Mul(ask)
+	if roundedCost.GreaterThan(balance) {
 		log.Printf("%s: not enough funds", cannotRound)
-		return buy(whole)
+		return buy(wholeShares)
 	}
-	maxAllowedCost := req.Amount.Add(maxValueDeviation)
-	if cost.GreaterThan(maxAllowedCost) {
+	maxAllowedCost := request.Amount.Add(maxValueDeviation)
+	if roundedCost.GreaterThan(maxAllowedCost) {
 		log.Printf("%s: exceeds risk threshold", cannotRound)
-		return buy(whole)
+		return buy(wholeShares)
 	}
 
-	log.Printf("CAN round up %s from %s to %s share(s)", position.Ticker, exact.Truncate(2), rounded)
-	return buy(rounded)
+	log.Printf("CAN round up %s from %s to %s share(s)", position.Ticker, exactShares.Truncate(2), roundedShares)
+	return buy(roundedShares)
 }
