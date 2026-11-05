@@ -41,18 +41,18 @@ func (client *Client) fetchTransactions(
 	accounts []Account,
 	start, end time.Time,
 ) ([]transactionRow, error) {
-	byAccount, err := async.Map(ctx, accounts, func(ctx context.Context, account Account) ([]transactionRow, error) {
-		history, err := client.fetchTransactionsFor(ctx, account, start, end)
+	rowsByAccount, err := async.Map(ctx, accounts, func(ctx context.Context, account Account) ([]transactionRow, error) {
+		rows, err := client.fetchTransactionsFor(ctx, account, start, end)
 		if err != nil {
 			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
 		}
-		return history, nil
+		return rows, nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return slices.Concat(byAccount...), nil
+	return slices.Concat(rowsByAccount...), nil
 }
 
 func (client *Client) fetchTransactionsFor(
@@ -67,7 +67,7 @@ func (client *Client) fetchTransactionsFor(
 		return nil, err
 	}
 
-	endpoint := fmt.Sprintf(
+	pageURL := fmt.Sprintf(
 		"%s/accounts/%s/transactions",
 		client.apiBaseURL,
 		url.PathEscape(account.key),
@@ -76,25 +76,25 @@ func (client *Client) fetchTransactionsFor(
 		"startDate": {start.Format(dateFormat)},
 		"endDate":   {end.Format(dateFormat)},
 	}
-	endpoint += "?" + query.Encode()
-	firstPage, err := url.Parse(endpoint)
+	pageURL += "?" + query.Encode()
+	firstPageURL, err := url.Parse(pageURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse transactions endpoint: %w", err)
 	}
 
-	var result []transactionRow
+	var rows []transactionRow
 	visitedPages := collections.NewSet[string]()
 
 	for {
-		if visitedPages.Contains(endpoint) {
+		if visitedPages.Contains(pageURL) {
 			return nil, fmt.Errorf("transaction pagination repeated a page")
 		}
-		visitedPages.Add(endpoint)
+		visitedPages.Add(pageURL)
 
 		response, err := utils.FetchJSON[transactionResponse](
 			ctx,
 			client.httpClient,
-			endpoint,
+			pageURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("fetch transactions: %w", err)
@@ -102,38 +102,38 @@ func (client *Client) fetchTransactionsFor(
 
 		for _, tx := range response.Page.Transactions {
 			if models.TransactionType(tx.Type).IsSupported() {
-				result = append(result, tx)
+				rows = append(rows, tx)
 			}
 		}
 
-		endpoint = response.Page.NextPage
-		if endpoint == "" {
+		pageURL = response.Page.NextPage
+		if pageURL == "" {
 			break
 		}
 		// The client signs every request, so only follow pages of this endpoint.
-		nextPage, err := url.Parse(endpoint)
-		if err != nil || nextPage.Scheme != firstPage.Scheme || nextPage.Host != firstPage.Host || nextPage.Path != firstPage.Path {
+		nextPageURL, err := url.Parse(pageURL)
+		if err != nil || nextPageURL.Scheme != firstPageURL.Scheme || nextPageURL.Host != firstPageURL.Host || nextPageURL.Path != firstPageURL.Path {
 			return nil, fmt.Errorf("transaction next page is outside the transactions endpoint")
 		}
 	}
 
-	return result, nil
+	return rows, nil
 }
 
 // Validate and convert the transactions for the tickers, skipping the rest.
 func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transaction, error) {
-	tickerSet := collections.NewSet(tickers...)
-	var result []models.Transaction
+	relevantTickers := collections.NewSet(tickers...)
+	var transactions []models.Transaction
 	for _, tx := range rows {
 		tx.Brokerage.Ticker = strings.TrimSpace(tx.Brokerage.Ticker)
-		if !tickerSet.Contains(tx.Brokerage.Ticker) {
+		if !relevantTickers.Contains(tx.Brokerage.Ticker) {
 			continue
 		}
 		if err := utils.ValidateFields(tx, "transaction."); err != nil {
 			return nil, fmt.Errorf("%s transaction for %s in account %s: %w", tx.Type, tx.Brokerage.Ticker, tx.AccountID, err)
 		}
 
-		result = append(result, models.Transaction{
+		transactions = append(transactions, models.Transaction{
 			Ticker:   tx.Brokerage.Ticker,
 			Type:     models.TransactionType(tx.Type),
 			Date:     time.UnixMilli(tx.Date),
@@ -141,5 +141,5 @@ func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transa
 			Price:    tx.Brokerage.Price,
 		})
 	}
-	return result, nil
+	return transactions, nil
 }
