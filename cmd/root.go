@@ -52,8 +52,7 @@ func loadPlan(name string) (*config.Plan, error) {
 		return nil, fmt.Errorf("portfolio name must not be empty")
 	}
 
-	planPath := filepath.Join(portfolioDir, name+".yaml")
-	plan, err := config.LoadPlan(planPath)
+	plan, err := config.LoadPlan(planPath(name))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, missingPlanError(name)
 	}
@@ -81,10 +80,13 @@ func missingPlanError(name string) error {
 }
 
 func noPlansError(name string) error {
-	planPath := filepath.Join(portfolioDir, name+".yaml")
 	return fmt.Errorf("no portfolio plans in %s. To create one:\n"+
 		"  1. Run: seesaw init %s\n"+
-		"  2. Edit %s and %s", portfolioDir, name, planPath, userConfigPath)
+		"  2. Edit %s and %s", portfolioDir, name, planPath(name), userConfigPath)
+}
+
+func planPath(name string) string {
+	return filepath.Join(portfolioDir, name+".yaml")
 }
 
 func planNames() []string {

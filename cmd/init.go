@@ -32,9 +32,9 @@ func initFiles(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("portfolio name must not be empty")
 	}
 
-	planPath := filepath.Join(portfolioDir, name+".yaml")
-	if _, err := os.Stat(planPath); err == nil {
-		return fmt.Errorf("portfolio plan %s already exists", planPath)
+	path := planPath(name)
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("portfolio plan %s already exists", path)
 	}
 
 	out := cmd.OutOrStdout()
@@ -49,10 +49,10 @@ func initFiles(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(out, "Kept existing %s\n", userConfigPath)
 	}
 
-	if _, err := copyExample("portfolio.yaml", planPath); err != nil {
+	if _, err := copyExample("portfolio.yaml", path); err != nil {
 		return err
 	}
-	fmt.Fprintf(out, "Created %s\n", planPath)
+	fmt.Fprintf(out, "Created %s\n", path)
 	return nil
 }
 
