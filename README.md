@@ -100,7 +100,7 @@ tax:
 
 These rates apply to every portfolio. They are used only for taxable portfolios, so you can leave out the `tax` section, leaving the file empty, if none of yours are taxable; _seesaw_ stops before connecting to the broker if a taxable portfolio has no rates.
 
-`rebalance` and `liquidate` load `data/user.yaml` before connecting to the broker.
+`snapshot`, `rebalance`, and `liquidate` load `data/user.yaml` before connecting to the broker.
 
 Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
@@ -230,7 +230,7 @@ tax := config.TaxSettings{
 user, err := config.NewUser(&tax) // nil tax: no taxable portfolios
 ```
 
-`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil.
+`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil. Pass them to `portfolio.TakeSnapshot`, which checks them before fetching the account; the planners and the report read them from the snapshot.
 
 Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `rebalancer.Plan` and `liquidation.PlanSales` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
 
