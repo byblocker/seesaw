@@ -52,9 +52,8 @@ func loadPlan(name string) (*config.Plan, error) {
 		return nil, fmt.Errorf("portfolio name must not be empty")
 	}
 
-	fileName := name + ".yaml"
-	pathToPlan := filepath.Join(portfolioDir, fileName)
-	plan, err := config.LoadPlan(pathToPlan)
+	planPath := filepath.Join(portfolioDir, name+".yaml")
+	plan, err := config.LoadPlan(planPath)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, missingPlanError(name)
 	}
