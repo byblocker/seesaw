@@ -31,7 +31,7 @@ func (client *Client) Portfolio(
 	ctx context.Context,
 	accountID string,
 	daysBack int,
-	tickers []string,
+	plannedTickers []string,
 ) (models.Portfolio, error) {
 	if daysBack <= 0 {
 		return models.Portfolio{}, fmt.Errorf("transaction lookback must be positive")
@@ -44,7 +44,7 @@ func (client *Client) Portfolio(
 		return models.Portfolio{}, err
 	}
 
-	selected, found := collections.Find(
+	selectedAccount, found := collections.Find(
 		slices.Values(accounts),
 		func(account Account) bool {
 			return account.ID() == accountID
@@ -54,60 +54,60 @@ func (client *Client) Portfolio(
 		return models.Portfolio{}, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
 
-	end := time.Now()
-	start := end.AddDate(0, 0, -daysBack)
+	txEnd := time.Now()
+	txStart := txEnd.AddDate(0, 0, -daysBack)
 	log.Printf(
 		"Checking transactions from %s to %s",
-		start.Format(time.DateOnly),
-		end.Format(time.DateOnly),
+		txStart.Format(time.DateOnly),
+		txEnd.Format(time.DateOnly),
 	)
 
 	// One timer covers every request below, since concurrent timers would interleave their lines.
 	var portfolio models.Portfolio
-	var allTickers []string
+	var portfolioTickers []string
 	var txRows []transactionRow
 	stop := utils.StartTimer("Fetching holdings, tax lots, balances, transactions, and quotes")
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	// Only the tax lots and quotes wait on the holdings list.
 	group.Go(func() error {
-		byTicker, err := client.listPositions(groupCtx, selected)
+		positionsByTicker, err := client.listPositions(groupCtx, selectedAccount)
 		if err != nil {
 			return err
 		}
 
 		// Include any held tickers along with the planned tickers
-		allTickers = collections.SetFrom(
-			slices.Values(tickers),
-			maps.Keys(byTicker),
+		portfolioTickers = collections.SetFrom(
+			slices.Values(plannedTickers),
+			maps.Keys(positionsByTicker),
 		).Slice()
 
 		// One request per ticker returns faster than one request listing every ticker.
 		group.Go(func() (err error) {
-			portfolio.Quotes, err = async.Map(groupCtx, allTickers, client.fetchQuote)
+			portfolio.Quotes, err = async.Map(groupCtx, portfolioTickers, client.fetchQuote)
 			return err
 		})
 
-		byPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(byTicker)), func(ctx context.Context, pos positionResponse) ([]models.TaxLot, error) {
-			return client.fetchPosition(ctx, selected.key, pos)
+		lotsByPosition, err := async.Map(groupCtx, slices.Collect(maps.Values(positionsByTicker)), func(ctx context.Context, position positionResponse) ([]models.TaxLot, error) {
+			return client.fetchPosition(ctx, selectedAccount.key, position)
 		})
-		portfolio.Lots = slices.Concat(byPosition...)
+		portfolio.Lots = slices.Concat(lotsByPosition...)
 		return err
 	})
 
 	group.Go(func() (err error) {
-		portfolio.Balances, err = client.Balances(groupCtx, selected)
+		portfolio.Balances, err = client.Balances(groupCtx, selectedAccount)
 		return err
 	})
 
 	group.Go(func() (err error) {
-		txRows, err = client.fetchTransactions(groupCtx, accounts, start, end)
+		txRows, err = client.fetchTransactions(groupCtx, accounts, txStart, txEnd)
 		return err
 	})
 
 	err = group.Wait()
 	if err == nil {
-		portfolio.Transactions, err = parseTransactions(txRows, allTickers)
+		portfolio.Transactions, err = parseTransactions(txRows, portfolioTickers)
 	}
 	stop(err)
 	if err != nil {
