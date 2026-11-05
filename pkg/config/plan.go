@@ -55,22 +55,6 @@ func (asset AssetPlan) Tickers() iter.Seq[string] {
 	}
 }
 
-func NewAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Decimal) (AssetPlan, error) {
-	return newAssetPlan(primaryTicker, altTicker, targetAllocation, "")
-}
-
-func newAssetPlan(primaryTicker, altTicker string, targetAllocation decimal.Decimal, fieldPrefix string) (AssetPlan, error) {
-	asset := AssetPlan{
-		PrimaryTicker:    strings.TrimSpace(primaryTicker),
-		AltTicker:        strings.TrimSpace(altTicker),
-		TargetAllocation: targetAllocation,
-	}
-	if err := utils.ValidateFields(asset, fieldPrefix); err != nil {
-		return AssetPlan{}, err
-	}
-	return asset, nil
-}
-
 func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets []AssetPlan) (*Plan, error) {
 	broker, accountId = strings.TrimSpace(broker), strings.TrimSpace(accountId)
 	if broker == "" {
@@ -82,8 +66,12 @@ func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets
 	if err := settings.Validate(); err != nil {
 		return nil, err
 	}
-	for i, asset := range assets {
-		if err := utils.ValidateFields(asset, fmt.Sprintf("assets[%d].", i)); err != nil {
+	assets = slices.Clone(assets)
+	for i := range assets {
+		asset := &assets[i]
+		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
+		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
+		if err := utils.ValidateFields(*asset, fmt.Sprintf("assets[%d].", i)); err != nil {
 			return nil, err
 		}
 	}
@@ -96,7 +84,7 @@ func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets
 		AccountId: accountId,
 		IsTaxable: isTaxable,
 		Settings:  settings,
-		Assets:    slices.Clone(assets),
+		Assets:    assets,
 	}, nil
 }
 
@@ -137,16 +125,7 @@ func ParsePlan(reader io.Reader) (*Plan, error) {
 		return nil, err
 	}
 
-	assets := make([]AssetPlan, 0, len(decoded.Assets))
-	for i, asset := range decoded.Assets {
-		built, err := newAssetPlan(asset.PrimaryTicker, asset.AltTicker, asset.TargetAllocation, fmt.Sprintf("assets[%d].", i))
-		if err != nil {
-			return nil, err
-		}
-		assets = append(assets, built)
-	}
-
-	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, settings, assets)
+	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, settings, decoded.Assets)
 }
 
 // Tickers must be unique across assets, and target allocations must sum to 1.
