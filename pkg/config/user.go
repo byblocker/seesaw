@@ -43,16 +43,16 @@ func LoadUser(path string) (*User, error) {
 	}
 	defer file.Close()
 
-	config, err := ParseUser(file)
+	user, err := ParseUser(file)
 	if err != nil {
 		return nil, fmt.Errorf("loading user config %s: %w", path, err)
 	}
-	return config, nil
+	return user, nil
 }
 
-func ParseUser(file io.Reader) (*User, error) {
+func ParseUser(reader io.Reader) (*User, error) {
 	var decoded userYAML
-	decoder := yaml.NewDecoder(file)
+	decoder := yaml.NewDecoder(reader)
 	decoder.KnownFields(true)
 	// An empty file is a config with no tax rates.
 	if err := decoder.Decode(&decoded); err != nil && err != io.EOF {

@@ -115,11 +115,11 @@ func LoadPlan(path string) (*Plan, error) {
 	return plan, nil
 }
 
-func ParsePlan(file io.Reader) (*Plan, error) {
-	data, err := io.ReadAll(file)
+func ParsePlan(reader io.Reader) (*Plan, error) {
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"failed to read portfolio plan at %w", err,
+			"failed to read portfolio plan: %w", err,
 		)
 	}
 
@@ -128,7 +128,7 @@ func ParsePlan(file io.Reader) (*Plan, error) {
 	decoder.KnownFields(true)
 	if err := decoder.Decode(&decoded); err != nil {
 		return nil, fmt.Errorf(
-			"failed to parse portfolio plan at %w", err,
+			"failed to parse portfolio plan: %w", err,
 		)
 	}
 	var extraDocument any
