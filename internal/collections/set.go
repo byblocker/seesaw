@@ -35,10 +35,6 @@ func (s Set[T]) Contains(value T) bool {
 	return exists
 }
 
-func (s Set[T]) Remove(value T) {
-	delete(s, value)
-}
-
 func (s Set[T]) Slice() []T {
 	return slices.Collect(maps.Keys(s))
 }
