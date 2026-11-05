@@ -3,61 +3,42 @@ package report
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
+
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 )
 
-func writeTable(output *strings.Builder, headers []string, rows [][]string, textColumns int) string {
-	widths, divider := measureTable(headers, rows)
+// A borderless table with a rule under its header, its first textColumns columns
+// aligned left and the rest aligned right.
+func newTable(headers table.Row, textColumns int) table.Writer {
+	style := table.StyleLight
+	style.Box.PaddingLeft = ""
+	style.Box.PaddingRight = ""
+	style.Box.MiddleVertical = "  "
+	style.Box.MiddleSeparator = "──"
+	style.Format.Header = text.FormatDefault
+	style.Options = table.Options{SeparateColumns: true, SeparateHeader: true}
 
-	writeTableRow(output, headers, widths, textColumns)
-	output.WriteString(divider)
-	output.WriteByte('\n')
+	writer := table.NewWriter()
+	writer.SetStyle(style)
+	writer.SuppressTrailingSpaces()
+	writer.AppendHeader(headers)
 
-	for index, row := range rows {
-		if index > 0 {
-			output.WriteByte('\n')
-		}
-		writeTableRow(output, row, widths, textColumns)
+	columns := make([]table.ColumnConfig, 0, len(headers)-textColumns)
+	for number := textColumns + 1; number <= len(headers); number++ {
+		columns = append(columns, table.ColumnConfig{
+			Number:      number,
+			Align:       text.AlignRight,
+			AlignHeader: text.AlignRight,
+		})
 	}
+	writer.SetColumnConfigs(columns)
+	return writer
+}
 
-	output.WriteString(divider)
+func writeTable(output *strings.Builder, writer table.Writer) {
+	output.WriteString(writer.Render())
 	output.WriteString("\n\n")
-	return divider
-}
-
-func measureTable(headers []string, rows [][]string) ([]int, string) {
-	widths := make([]int, len(headers))
-	for column, header := range headers {
-		widths[column] = utf8.RuneCountInString(header)
-	}
-
-	for _, row := range rows {
-		for column, cell := range row {
-			widths[column] = max(widths[column], utf8.RuneCountInString(cell))
-		}
-	}
-
-	tableWidth := (len(headers) - 1) * 2
-	for _, width := range widths {
-		tableWidth += width
-	}
-
-	return widths, strings.Repeat("_", tableWidth)
-}
-
-func writeTableRow(output *strings.Builder, row []string, widths []int, textColumns int) {
-	for column, cell := range row {
-		if column > 0 {
-			output.WriteString("  ")
-		}
-
-		width := widths[column]
-		if column < textColumns {
-			width = -width
-		}
-		fmt.Fprintf(output, "%*s", width, cell)
-	}
-	output.WriteByte('\n')
 }
 
 // Align every group's labels and amounts together, separating groups with a blank line.

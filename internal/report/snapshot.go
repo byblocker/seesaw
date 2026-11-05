@@ -19,11 +19,10 @@ func Snapshot(snapshot portfolio.Snapshot) string {
 
 // Write the asset table, then the balance and total value followed by any other summary groups.
 func writePortfolio(output *strings.Builder, snapshot portfolio.Snapshot, summaries ...[][2]string) {
-	divider := ""
 	if len(snapshot.Assets) == 0 {
 		output.WriteString("No assets.\n\n")
 	} else {
-		divider = writeAssets(output, snapshot.Assets)
+		writeAssets(output, snapshot.Assets)
 	}
 
 	balances := [][2]string{
@@ -31,9 +30,5 @@ func writePortfolio(output *strings.Builder, snapshot portfolio.Snapshot, summar
 		{"Total:", utils.FormatMoney(snapshot.TotalValue)},
 	}
 	writeSummaries(output, append([][][2]string{balances}, summaries...)...)
-	if divider != "" {
-		output.WriteString(divider)
-		output.WriteByte('\n')
-	}
 	output.WriteByte('\n')
 }
