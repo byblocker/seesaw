@@ -39,7 +39,7 @@ func AskForSecret(prompt string) (string, error) {
 	return strings.TrimSpace(string(secret)), nil
 }
 
-func OpenUrl(url string) error {
+func OpenURL(url string) error {
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {

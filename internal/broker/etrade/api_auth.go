@@ -138,7 +138,7 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 	if _, err := utils.AskForInput(fmt.Sprintf("Sign in to %s. Press ENTER to open the sign-in page in your browser. ", Name)); err != nil {
 		return nil, fmt.Errorf("failed to wait for ENTER: %w", err)
 	}
-	if err := utils.OpenUrl(authURL); err != nil {
+	if err := utils.OpenURL(authURL); err != nil {
 		fmt.Fprintf(os.Stderr, "%v; open this link instead:\n%s\n", err, authURL)
 	}
 
