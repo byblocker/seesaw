@@ -110,23 +110,15 @@ func writeAssets(output *strings.Builder, assets []portfolio.Asset) string {
 // Show the account after the orders, and for taxable portfolios, what the sales realize.
 func writeEstimatedPortfolio(output *strings.Builder, estimated portfolio.Snapshot, summary sellSummary) {
 	output.WriteString("Estimated Portfolio\n\n")
-	divider := writeAssets(output, estimated.Assets)
-
-	balances := [][2]string{
-		{"Balance:", utils.FormatMoney(estimated.Balances.CashBalance)},
-		{"Total:", utils.FormatMoney(estimated.TotalValue)},
-	}
 	if summary.showTax {
-		writeSummaries(output, balances, [][2]string{
+		writePortfolio(output, estimated, [][2]string{
 			{"Short-term P/L:", utils.FormatMoney(summary.shortTermPL)},
 			{"Long-term P/L:", utils.FormatMoney(summary.longTermPL)},
 			{"Estimated tax:", utils.FormatMoney(summary.tax)},
 		})
 	} else {
-		writeSummaries(output, balances)
+		writePortfolio(output, estimated)
 	}
-	output.WriteString(divider)
-	output.WriteString("\n\n")
 }
 
 func formatAsset(asset portfolio.Asset) []string {
