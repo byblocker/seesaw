@@ -30,10 +30,8 @@ func selectLots(
 		}
 		sharesToSell := min(lot.WholeShares(), sharesAtLeast(stillNeeded, bid))
 
-		if snapshot.Assets[assetIdx].Plan != nil {
-			valueLeftAboveMin := valueAboveMin[assetIdx].Sub(proceedsByAsset[assetIdx])
-			sharesToSell = min(sharesToSell, portfolio.SharesAtMost(valueLeftAboveMin, bid))
-		}
+		valueLeftAboveMin := valueAboveMin[assetIdx].Sub(proceedsByAsset[assetIdx])
+		sharesToSell = min(sharesToSell, portfolio.SharesAtMost(valueLeftAboveMin, bid))
 
 		if sharesToSell <= 0 {
 			continue
