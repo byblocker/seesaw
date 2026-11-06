@@ -16,6 +16,13 @@ func PlanSales(
 	settings config.Settings,
 	amount decimal.Decimal,
 ) (portfolio.Proposal, error) {
+	if !amount.IsPositive() {
+		return portfolio.Proposal{}, fmt.Errorf("withdrawal must be positive")
+	}
+	if err := settings.Validate(); err != nil {
+		return portfolio.Proposal{}, err
+	}
+
 	// Use existing cash first, and sell only for the rest of the withdrawal.
 	amountNeeded := decimal.Max(decimal.Zero, amount.Sub(snapshot.Balances.CashBalance))
 	if amountNeeded.IsZero() {

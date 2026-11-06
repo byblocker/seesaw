@@ -15,6 +15,9 @@ func Plan(
 	settings config.Settings,
 	force bool,
 ) (portfolio.Proposal, error) {
+	if err := settings.Validate(); err != nil {
+		return portfolio.Proposal{}, err
+	}
 	if !snapshot.TotalValue.IsPositive() {
 		return portfolio.Proposal{}, fmt.Errorf("empty or negative portfolio")
 	}

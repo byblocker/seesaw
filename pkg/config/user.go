@@ -30,6 +30,18 @@ type taxYAML struct {
 	LongTermGainRate  *decimal.Decimal `yaml:"long_term_gain_rate" validate:"required,gte=0,lte=1"`
 }
 
+// Nil rates, as for an account that is not taxable, are valid.
+func (settings *TaxSettings) Validate() error {
+	if settings == nil {
+		return nil
+	}
+	_, err := taxYAML{
+		ShortTermGainRate: &settings.ShortTermGainRate,
+		LongTermGainRate:  &settings.LongTermGainRate,
+	}.build()
+	return err
+}
+
 func (raw taxYAML) build() (TaxSettings, error) {
 	if err := validate.Fields(raw, "tax."); err != nil {
 		return TaxSettings{}, err
