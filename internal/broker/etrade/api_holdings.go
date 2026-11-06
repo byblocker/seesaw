@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 	"strconv"
 	"strings"
@@ -58,7 +59,7 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 	positionsByTicker := map[string]positionResponse{}
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
-		response, err := utils.FetchJSON[portfolioResponse](
+		response, err := broker.FetchJSON[portfolioResponse](
 			ctx, client.httpClient, endpoint+"?"+query.Encode(),
 		)
 		if err != nil {
@@ -127,7 +128,7 @@ func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err er
 
 func addPosition(positionsByTicker map[string]positionResponse, position positionResponse) error {
 	position.Ticker = strings.TrimSpace(position.Ticker)
-	if err := utils.ValidateFields(position, "position."); err != nil {
+	if err := validate.Fields(position, "position."); err != nil {
 		return err
 	}
 	if _, exists := positionsByTicker[position.Ticker]; exists {
@@ -143,7 +144,7 @@ func (client *Client) fetchLots(
 	position positionResponse,
 ) ([]models.TaxLot, error) {
 	endpoint := client.endpointFor(account, "portfolio/"+strconv.FormatInt(position.Id, 10))
-	response, err := utils.FetchJSON[getPositionLotResponse](
+	response, err := broker.FetchJSON[getPositionLotResponse](
 		ctx,
 		client.httpClient,
 		endpoint,
@@ -159,7 +160,7 @@ func (client *Client) fetchLots(
 
 	lots := make([]models.TaxLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
-		if err := utils.ValidateFields(lot, "lot."); err != nil {
+		if err := validate.Fields(lot, "lot."); err != nil {
 			return nil, fmt.Errorf("lots for position %d (%s): %w", position.Id, position.Ticker, err)
 		}
 		lots = append(lots, models.TaxLot{

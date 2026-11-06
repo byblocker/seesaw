@@ -1,4 +1,4 @@
-package utils
+package format
 
 import (
 	"strings"
@@ -6,22 +6,22 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func FormatMoney(amount decimal.Decimal) string {
-	return formatDollars(amount, amount.Abs().StringFixed(2))
+func Money(amount decimal.Decimal) string {
+	return dollars(amount, amount.Abs().StringFixed(2))
 }
 
-func FormatPercent(ratio decimal.Decimal) string {
+func Percent(ratio decimal.Decimal) string {
 	return ratio.Shift(2).StringFixed(2) + "%"
 }
 
-func FormatPrice(amount decimal.Decimal) string {
+func Price(amount decimal.Decimal) string {
 	if amount.Equal(amount.Round(2)) {
-		return FormatMoney(amount)
+		return Money(amount)
 	}
-	return formatDollars(amount, amount.Abs().String())
+	return dollars(amount, amount.Abs().String())
 }
 
-func formatDollars(amount decimal.Decimal, digits string) string {
+func dollars(amount decimal.Decimal, digits string) string {
 	whole, fraction, _ := strings.Cut(digits, ".")
 	prefix := "$"
 	if amount.IsNegative() {

@@ -1,4 +1,4 @@
-package utils
+package broker
 
 import (
 	"context"
@@ -14,14 +14,14 @@ import (
 )
 
 const Timeout = 30 * time.Second
-const RetryCount = 2
-const ResponseBodyLimit = 10 * 1024 * 1024
+const retryCount = 2
+const responseBodyLimit = 10 * 1024 * 1024
 
 func NewHTTPClient(client *http.Client) *resty.Client {
 	return resty.NewWithClient(client).
 		SetTimeout(Timeout).
-		SetRetryCount(RetryCount).
-		SetResponseBodyLimit(ResponseBodyLimit).
+		SetRetryCount(retryCount).
+		SetResponseBodyLimit(responseBodyLimit).
 		OnBeforeRequest(logRequestAttempt).
 		SetJSONUnmarshaler(func(body []byte, response any) error {
 			if len(body) == 0 {

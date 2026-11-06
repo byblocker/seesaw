@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"seesaw/internal/validate"
 
+	"github.com/shopspring/decimal"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,6 +17,39 @@ type User struct {
 
 type userYAML struct {
 	Tax *taxYAML `yaml:"tax"`
+}
+
+type TaxSettings struct {
+	ShortTermGainRate decimal.Decimal
+	LongTermGainRate  decimal.Decimal
+}
+
+// Tax rates as written in YAML, before they are checked. Pointers tell a missing key from an explicit zero.
+type taxYAML struct {
+	ShortTermGainRate *decimal.Decimal `yaml:"short_term_gain_rate" validate:"required,gte=0,lte=1"`
+	LongTermGainRate  *decimal.Decimal `yaml:"long_term_gain_rate" validate:"required,gte=0,lte=1"`
+}
+
+// Nil rates, as for an account that is not taxable, are valid.
+func (settings *TaxSettings) Validate() error {
+	if settings == nil {
+		return nil
+	}
+	_, err := taxYAML{
+		ShortTermGainRate: &settings.ShortTermGainRate,
+		LongTermGainRate:  &settings.LongTermGainRate,
+	}.build()
+	return err
+}
+
+func (raw taxYAML) build() (TaxSettings, error) {
+	if err := validate.Fields(raw, "tax."); err != nil {
+		return TaxSettings{}, err
+	}
+	return TaxSettings{
+		ShortTermGainRate: *raw.ShortTermGainRate,
+		LongTermGainRate:  *raw.LongTermGainRate,
+	}, nil
 }
 
 func (user *User) TaxRates(isTaxable bool) (*TaxSettings, error) {

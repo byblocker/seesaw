@@ -1,20 +1,17 @@
 package report
 
 import (
+	"fmt"
 	"seesaw/pkg/portfolio"
 	"strings"
 )
 
-func Proposal(
-	sells []portfolio.SellProposal,
-	buys []portfolio.Buy,
-	estimated portfolio.Snapshot,
-) string {
+func Proposal(proposal portfolio.Proposal, estimated portfolio.Snapshot) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
-	summary := formatSells(sells, estimated)
-	buyRows := formatBuys(buys, estimated)
+	summary := formatSells(proposal.Sells, estimated)
+	buyRows := formatBuys(proposal.Buys, estimated)
 	if len(summary.rows) == 0 && len(buyRows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {
@@ -25,7 +22,8 @@ func Proposal(
 	writePortfolio(&output, estimated)
 
 	if summary.washSale {
-		output.WriteString("[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")
+		fmt.Fprintf(&output, "[WS] Wash sale: a purchase of this ticker in the last %d days disallows the loss, so it counts no tax relief.\n",
+			portfolio.WashSaleWindowDays)
 	}
 	return output.String()
 }

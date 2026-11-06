@@ -2,7 +2,7 @@ package rebalancer
 
 import (
 	"log"
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 	"slices"
@@ -89,7 +89,7 @@ func harvestPosition(
 		return candidate
 	}
 
-	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, utils.FormatMoney(candidate.RealizedPL.Neg()))
+	log.Printf("CAN harvest %d lot(s) of %s for %s loss", len(candidate.Lots), ticker, format.Money(candidate.RealizedPL.Neg()))
 	for _, lotIdx := range position.LotIdxs {
 		if lot := snapshot.Lots[lotIdx]; lot.Snapshot.GainPct.IsNegative() {
 			logLot(lot, isHarvestable(lot, minPctLoss))
@@ -108,10 +108,10 @@ func logLot(lot portfolio.Lot, harvestable bool) {
 		action = "HARVEST"
 	}
 	log.Printf("  - %s %s share(s) bought %s with %s loss",
-		action, lot.Quantity, lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(lot.Snapshot.GainPct.Neg()))
+		action, lot.Quantity, lot.TimeAcquired.Format(time.DateOnly), format.Percent(lot.Snapshot.GainPct.Neg()))
 }
 
-// Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
+// Sell whole shares of an asset worth at most excess, in sale order.
 func sellExcess(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
@@ -121,11 +121,7 @@ func sellExcess(
 	for _, positionIdx := range asset.PositionIdxs {
 		lotIdxs = append(lotIdxs, snapshot.Positions[positionIdx].LotIdxs...)
 	}
-	// Ties keep plan order, then lot ID order, so plans repeat exactly.
-	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
-		left, right := snapshot.Lots[leftLotIdx].Snapshot, snapshot.Lots[rightLotIdx].Snapshot
-		return left.TaxPerDollar.Cmp(right.TaxPerDollar)
-	})
+	snapshot.SortLotsForSale(lotIdxs)
 
 	var sales []portfolio.LotSale
 	remaining := excess
@@ -149,5 +145,5 @@ func sellExcess(
 }
 
 func logProceeds(snapshot portfolio.Snapshot, sell portfolio.SellProposal) {
-	log.Printf("Estimated %s proceeds from selling %s", utils.FormatMoney(sell.Proceeds), snapshot.Positions[sell.PositionIdx].Ticker)
+	log.Printf("Estimated %s proceeds from selling %s", format.Money(sell.Proceeds), snapshot.Positions[sell.PositionIdx].Ticker)
 }

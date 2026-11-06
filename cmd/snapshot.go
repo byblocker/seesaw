@@ -1,13 +1,19 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"log"
+	"seesaw/internal/format"
 	"seesaw/internal/report"
-	"seesaw/pkg/broker"
+	"seesaw/pkg/config"
+	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"seesaw/pkg/registry"
+	"seesaw/pkg/secrets/keyring"
+	"strings"
 
-	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )
 
@@ -16,53 +22,67 @@ var snapshotCmd = &cobra.Command{
 	Short:   "Show the account's holdings against its portfolio plan",
 	Example: "  seesaw snapshot growth",
 	Args:    requirePlanName,
-	RunE:    showSnapshot,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		_, _, err := snapshotAccount(cmd, args[0])
+		return err
+	},
 }
 
 func init() {
 	rootCmd.AddCommand(snapshotCmd)
 }
 
-func showSnapshot(cmd *cobra.Command, args []string) error {
-	plan, err := loadPlan(args[0])
+// Snapshot the named plan's account and write it.
+func snapshotAccount(cmd *cobra.Command, planName string) (*config.Plan, portfolio.Snapshot, error) {
+	plan, err := loadPlan(planName)
 	if err != nil {
-		return err
+		return nil, portfolio.Snapshot{}, err
 	}
+	log.Printf("Running %s for %s #%s with %s portfolio",
+		cmd.Name(), strings.ToUpper(plan.Broker), format.AccountSuffix(plan.AccountId), planName)
 	taxRates, err := loadTaxRates(plan)
 	if err != nil {
-		return err
+		return nil, portfolio.Snapshot{}, err
 	}
 
-	client, err := broker.Connect(cmd.Context(), plan.Broker)
+	selectedBroker, err := registry.FindBroker(plan.Broker, keyring.Store{})
 	if err != nil {
-		return err
+		return nil, portfolio.Snapshot{}, err
+	}
+	client, err := selectedBroker.Connect(cmd.Context())
+	if errors.Is(err, models.ErrBrokerNotConfigured) {
+		return nil, portfolio.Snapshot{}, fmt.Errorf("%w; run seesaw connect --broker %s", err, plan.Broker)
+	}
+	if err != nil {
+		return nil, portfolio.Snapshot{}, err
 	}
 
 	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, taxRates)
 	if err != nil {
+		return nil, portfolio.Snapshot{}, err
+	}
+	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(snapshot)); err != nil {
+		return nil, portfolio.Snapshot{}, fmt.Errorf("write snapshot summary: %w", err)
+	}
+	return plan, snapshot, nil
+}
+
+// Snapshot the named plan's account, then write the proposed orders and the portfolio they would leave.
+func proposeFor(
+	cmd *cobra.Command,
+	planName string,
+	propose func(plan *config.Plan, snapshot portfolio.Snapshot) (portfolio.Proposal, error),
+) error {
+	plan, snapshot, err := snapshotAccount(cmd, planName)
+	if err != nil {
 		return err
 	}
-	return writeSnapshot(cmd, snapshot)
-}
-
-func writeSnapshot(cmd *cobra.Command, snapshot portfolio.Snapshot) error {
-	if _, err := io.WriteString(cmd.OutOrStdout(), report.Snapshot(snapshot)); err != nil {
-		return fmt.Errorf("write snapshot summary: %w", err)
+	proposal, err := propose(plan, snapshot)
+	if err != nil {
+		return err
 	}
-	return nil
-}
-
-// Write the orders and the portfolio they would leave after the withdrawal.
-func writeProposal(
-	cmd *cobra.Command,
-	snapshot portfolio.Snapshot,
-	sells []portfolio.SellProposal,
-	buys []portfolio.Buy,
-	withdrawal decimal.Decimal,
-) error {
-	estimated := snapshot.Simulate(sells, buys, withdrawal)
-	proposal := report.Proposal(sells, buys, estimated)
-	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
+	text := report.Proposal(proposal, snapshot.Simulate(proposal))
+	if _, err := io.WriteString(cmd.OutOrStdout(), text); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
 	}
 	return nil

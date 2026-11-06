@@ -1,11 +1,9 @@
 package cmd
 
 import (
-	"context"
-	"errors"
 	"fmt"
-	"seesaw/internal/broker"
-	"strings"
+	"seesaw/pkg/registry"
+	"seesaw/pkg/secrets/keyring"
 
 	"github.com/spf13/cobra"
 )
@@ -30,27 +28,25 @@ func init() {
 	rootCmd.AddCommand(connectCmd)
 }
 
-// Selects and configures a Broker before an authenticated BrokerClient exists.
 func connectBroker(cmd *cobra.Command, args []string) error {
-	selectedBroker, err := broker.For(brokerName)
+	selectedBroker, err := registry.FindBroker(brokerName, keyring.Store{})
 	if err != nil {
 		return err
 	}
 
-	ctx := cmd.Context()
-
-	if err := selectedBroker.Setup(ctx); err != nil {
-		if errors.Is(err, context.Canceled) {
-			fmt.Fprintln(cmd.ErrOrStderr(), "Connection setup canceled; configuration unchanged.")
-			return nil
-		}
+	saved, err := selectedBroker.Setup(cmd.Context())
+	if err != nil {
 		return err
 	}
+	if !saved {
+		fmt.Fprintln(cmd.ErrOrStderr(), "Connection setup canceled; configuration unchanged.")
+		return nil
+	}
 
-	if _, err := selectedBroker.Connect(ctx); err != nil {
+	if _, err := selectedBroker.Connect(cmd.Context()); err != nil {
 		return fmt.Errorf("configuration saved, but authentication failed: %w\n"+
 			"To retry sign-in, run: seesaw snapshot <portfolio>\n"+
-			"To replace the configuration, run: seesaw connect --broker %s", err, strings.ToUpper(strings.TrimSpace(brokerName)))
+			"To replace the configuration, run: seesaw connect --broker %s", err, brokerName)
 	}
 
 	fmt.Fprintln(cmd.ErrOrStderr(), "Broker connected.")

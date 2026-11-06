@@ -3,9 +3,8 @@ package rebalancer
 import (
 	"fmt"
 	"log"
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -16,19 +15,9 @@ type buyRequest struct {
 	Amount      decimal.Decimal
 }
 
-func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfolio.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
-	soldPositionIdx := -1
-	if !sell.IsEmpty() {
-		soldPositionIdx = sell.PositionIdx
-	}
-	positionIdx, ok := replacement(snapshot, asset, soldPositionIdx)
-	return buyRequest{PositionIdx: positionIdx, Amount: shortfall}, ok
-}
-
 func sizeBuys(
 	snapshot portfolio.Snapshot,
 	settings config.Settings,
-	brokerSettings models.BrokerSettings,
 	sells []portfolio.SellProposal,
 	buyRequests []buyRequest,
 	maxValueDeviation decimal.Decimal,
@@ -38,7 +27,7 @@ func sizeBuys(
 		balance = balance.Add(sell.Proceeds)
 	}
 
-	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
+	log.Printf("Sizing buy requests with %s available . . .", format.Money(balance))
 	var buys []portfolio.Buy
 	for _, request := range buyRequests {
 		if !balance.IsPositive() {
@@ -47,14 +36,7 @@ func sizeBuys(
 		}
 
 		ticker := snapshot.Positions[request.PositionIdx].Ticker
-		buy := proposeBuy(
-			snapshot,
-			request,
-			balance,
-			maxValueDeviation,
-			settings.MinFractionalShareToRound,
-			brokerSettings.AllowFractionalShares,
-		)
+		buy := proposeBuy(snapshot, settings, request, balance, maxValueDeviation)
 		if buy.Quantity.IsZero() {
 			log.Printf("CANNOT buy %s: not enough for one share", ticker)
 			continue
@@ -63,19 +45,18 @@ func sizeBuys(
 		buys = append(buys, buy)
 		balance = balance.Sub(buy.EstimatedCost)
 		log.Printf("BUY %s share(s) of %s at %s (~%s total)",
-			buy.Quantity.String(), ticker, utils.FormatPrice(buy.Price), utils.FormatMoney(buy.EstimatedCost))
-		log.Printf("Remaining balance: %s", utils.FormatMoney(balance))
+			buy.Quantity.String(), ticker, format.Price(buy.Price), format.Money(buy.EstimatedCost))
+		log.Printf("Remaining balance: %s", format.Money(balance))
 	}
 	return buys
 }
 
 func proposeBuy(
 	snapshot portfolio.Snapshot,
+	settings config.Settings,
 	request buyRequest,
 	balance,
-	maxValueDeviation,
-	minFractionalShareToRound decimal.Decimal,
-	allowFractionalShares bool,
+	maxValueDeviation decimal.Decimal,
 ) portfolio.Buy {
 	position := snapshot.Positions[request.PositionIdx]
 	ask := position.Quote.Ask
@@ -89,8 +70,8 @@ func proposeBuy(
 	}
 
 	valueToCover := decimal.Min(request.Amount, balance)
-	exactShares, _ := valueToCover.QuoRem(ask, utils.DivisionDecimalPlaces)
-	if allowFractionalShares {
+	exactShares, _ := valueToCover.QuoRem(ask, portfolio.DivisionDecimalPlaces)
+	if snapshot.Broker.AllowFractionalShares {
 		return buy(exactShares)
 	}
 
@@ -102,7 +83,7 @@ func proposeBuy(
 
 	// Truncate so the shown count never rounds up to the whole share it falls short of.
 	cannotRound := fmt.Sprintf("CANNOT round up %s from %s share(s)", position.Ticker, exactShares.Truncate(2))
-	if fraction.LessThan(minFractionalShareToRound) {
+	if fraction.LessThan(settings.MinFractionalShareToRound) {
 		log.Printf("%s: below rounding threshold", cannotRound)
 		return buy(wholeShares)
 	}

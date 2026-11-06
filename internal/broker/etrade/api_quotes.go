@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 	"strings"
 
@@ -28,15 +29,10 @@ type quoteResponse struct {
 }
 
 func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quote, error) {
-	ticker = strings.TrimSpace(ticker)
-	if ticker == "" {
-		return models.Quote{}, fmt.Errorf("invalid ticker: %s", ticker)
-	}
-
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
 
-	response, err := utils.FetchJSON[quoteResponse](
+	response, err := broker.FetchJSON[quoteResponse](
 		ctx,
 		client.httpClient,
 		endpoint,
@@ -47,7 +43,7 @@ func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quo
 
 	for _, quote := range response.QuoteResponse.QuoteData {
 		if strings.EqualFold(quote.Product.Symbol, ticker) {
-			if err := utils.ValidateFields(quote.All, ""); err != nil {
+			if err := validate.Fields(quote.All, ""); err != nil {
 				return models.Quote{}, fmt.Errorf("quote %s: %w", ticker, err)
 			}
 

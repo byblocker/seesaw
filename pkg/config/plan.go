@@ -3,10 +3,8 @@ package config
 import (
 	"fmt"
 	"io"
-	"iter"
 	"os"
-	"seesaw/internal/collections"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 	"slices"
 	"strings"
 
@@ -30,12 +28,12 @@ type planYAML struct {
 	Assets    []AssetPlan  `yaml:"assets"`
 }
 
-func (plan *Plan) AccountLabel() string {
-	return fmt.Sprintf("%s #%s", strings.ToUpper(plan.Broker), utils.AccountSuffix(plan.AccountId))
-}
-
-func (plan *Plan) Tickers() iter.Seq[string] {
-	return collections.FlatMap(slices.Values(plan.Assets), AssetPlan.Tickers)
+func (plan *Plan) Tickers() []string {
+	var tickers []string
+	for _, asset := range plan.Assets {
+		tickers = append(tickers, asset.Tickers()...)
+	}
+	return tickers
 }
 
 type AssetPlan struct {
@@ -44,15 +42,11 @@ type AssetPlan struct {
 	TargetAllocation decimal.Decimal `yaml:"target_allocation" validate:"gt=0,lte=1"`
 }
 
-func (asset AssetPlan) Tickers() iter.Seq[string] {
-	return func(yield func(string) bool) {
-		yieldTicker := func(ticker string) bool {
-			return ticker == "" || yield(ticker)
-		}
-		if !yieldTicker(asset.PrimaryTicker) || !yieldTicker(asset.AltTicker) {
-			return
-		}
+func (asset AssetPlan) Tickers() []string {
+	if asset.AltTicker == "" {
+		return []string{asset.PrimaryTicker}
 	}
+	return []string{asset.PrimaryTicker, asset.AltTicker}
 }
 
 func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets []AssetPlan) (*Plan, error) {
@@ -71,7 +65,7 @@ func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets
 		asset := &assets[i]
 		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
 		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
-		if err := utils.ValidateFields(*asset, fmt.Sprintf("assets[%d].", i)); err != nil {
+		if err := validate.Fields(*asset, fmt.Sprintf("assets[%d].", i)); err != nil {
 			return nil, err
 		}
 	}
@@ -124,7 +118,6 @@ func ParsePlan(reader io.Reader) (*Plan, error) {
 	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, settings, decoded.Assets)
 }
 
-// Reject any YAML document after the one the decoder already read.
 func requireSingleDocument(decoder *yaml.Decoder, description string) error {
 	var extraDocument any
 	err := decoder.Decode(&extraDocument)
@@ -140,14 +133,14 @@ func requireSingleDocument(decoder *yaml.Decoder, description string) error {
 // Tickers must be unique across assets, and target allocations must sum to 1.
 func validateAllocations(assets []AssetPlan) error {
 	totalAllocation := decimal.Zero
-	seenTickers := collections.NewSet[string]()
+	seenTickers := map[string]bool{}
 	for _, asset := range assets {
-		for ticker := range asset.Tickers() {
-			if seenTickers.Contains(ticker) {
+		for _, ticker := range asset.Tickers() {
+			if seenTickers[ticker] {
 				return fmt.Errorf("duplicate ticker %q", ticker)
 			}
 
-			seenTickers.Add(ticker)
+			seenTickers[ticker] = true
 		}
 
 		totalAllocation = totalAllocation.Add(asset.TargetAllocation)

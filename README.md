@@ -13,9 +13,9 @@ _seesaw_ displays portfolio allocations and suggested orders in tables. It does 
 go mod download
 ```
 
-4. Secrets and OAuth token caching relies upon your OS keyring. Verify access: [go-keyring platform support and requirements](https://github.com/zalando/go-keyring#readme).
+3. Secrets and OAuth token caching relies upon your OS keyring. Verify access: [go-keyring platform support and requirements](https://github.com/zalando/go-keyring#readme).
 
-5. Broker authorization requires an internet connection and the ability to open a browser from your terminal. To check browser access, run the command for your OS:
+4. Broker authorization requires an internet connection and the ability to open a browser from your terminal. To check browser access, run the command for your OS:
 
 ```sh
 # macOS
@@ -28,7 +28,7 @@ xdg-open https://example.com
 Start-Process https://example.com
 ```
 
-6. Connect your broker using its setup guide:
+5. Connect your broker using its setup guide:
 - [ETRADE setup](docs/brokers/etrade.md)
 
 ## Creating your portfolio plan
@@ -77,9 +77,9 @@ All fields below are required except `assets[].alternate_ticker`. None have defa
 | `settings.allocation_lower_limit` | How far `liquidate` may sell an asset below its target, measured against the portfolio after the withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
-| `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `[0, 1]` |
+| `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `(0, 1]` |
 
-_seesaw_ rejects unknown fields and multiple documents
+_seesaw_ rejects unknown fields and multiple documents.
 
 **WARNING:** _seesaw_ does not ensure ticker pairs are suitable for wash-sale avoidance. Please review this yourself.
 
@@ -102,9 +102,9 @@ These rates apply to every portfolio. They are used only for taxable portfolios,
 
 `snapshot`, `rebalance`, and `liquidate` load `data/user.yaml` before connecting to the broker.
 
-Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
+Each proposed sale will show its estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
-Use `config.ParseUser(reader)` from `seesaw/pkg/config` to parse and validate. It rejects unknown fields and additional YAML documents.
+_seesaw_ rejects unknown fields and multiple documents.
 
 ## Snapshot
 
@@ -128,7 +128,7 @@ go run . rebalance < name of your portfolio >
 
 2. Review the account snapshot: asset values at the bid, current and target allocations, cash balance, and portfolio total.
 
-3. Review the suggested orders. For example, with a starting cash balance of $1,000:
+3. Review the suggested orders. For example, with $1,000 of buying power:
 
 ```text
 Suggested Orders
@@ -153,7 +153,7 @@ Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`,
 `rebalance` fetches a snapshot of your account and then . . .
 1. Assigns positions to `Assets` according to the provided portfolio plan;
 2. Identifies lots with tax loss and simulates sales, if any, in taxable portfolios only;
-3. Sizes purchases using available cash balance and proceeds from suggested sells
+3. Sizes purchases using available buying power and proceeds from suggested sells
 
 By default, _seesaw_ only harvests tax losses from holdings outside the plan, and it does not sell overweight assets to reduce their allocation. Use `--force` to sell both.
 
@@ -200,39 +200,34 @@ Like `rebalance`, this command only displays suggestions; it does not submit ord
 
 ## Library Usage
 
-Use `broker.Connect(ctx, name)` from with a saved configuration in your OS keyring, or see specific usage for a given broker:
-- [ETRADE guide](docs/brokers/etrade.md#library-use)
-
-### Plans and user settings
-
-Load the YAML files with `config.LoadPlan(path)` and `config.LoadUser(path)` from `seesaw/pkg/config`, or parse any reader with `config.ParsePlan` and `config.ParseUser`.
-
-To build them in code, use the plan constructors and fill in the settings structs. The constructors and `Validate()` apply the same rules as the files and return the same error messages:
+The commands are one way to run _seesaw_; the packages under `seesaw/pkg` let another host, such as a scheduled job, run the same steps:
 
 ```go
-d := decimal.RequireFromString
+ctx := context.Background()
 
-// Check each err before continuing.
-settings := config.Settings{
-	MinFractionalShareToRound: d("0.7"),
-	MinPctLossToHarvest:       d("-0.005"),
-	AllocationUpperLimit:      d("0.02"),
-	AllocationLowerLimit:      d("0.02"),
-}
-stocks, err := config.NewAssetPlan("VTI", "ITOT", d("0.6"))
-bonds, err := config.NewAssetPlan("BND", "", d("0.4"))
-plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, settings, []config.AssetPlan{stocks, bonds})
+plan, err := config.ParsePlan(planReader) // or config.LoadPlan(path)
+user, err := config.ParseUser(userReader) // or config.LoadUser(path)
+rates, err := user.TaxRates(plan.IsTaxable)
 
-tax := config.TaxSettings{
-	ShortTermGainRate: d("0.35"),
-	LongTermGainRate:  d("0.20"),
-}
-user, err := config.NewUser(&tax) // nil tax: no taxable portfolios
+selected, err := registry.FindBroker(plan.Broker, store)
+client, err := selected.Connect(ctx)
+snapshot, err := portfolio.TakeSnapshot(ctx, client, plan, rates)
+
+proposal, err := rebalancer.Plan(snapshot, plan.Settings, false) // or liquidation.PlanSales(snapshot, plan.Settings, amount)
+estimated := snapshot.Simulate(proposal)
 ```
 
-`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil. Pass them to `portfolio.TakeSnapshot`, which checks them before fetching the account; the planners and the report read them from the snapshot.
+Check each `err` before continuing. The planners return a `portfolio.Proposal` of sells, buys, and the withdrawal, and `Simulate` returns the portfolio after it; render them however your host needs. Progress goes to the standard `log` package.
 
-Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `rebalancer.Plan` and `liquidation.PlanSales` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
+### Secrets
+
+Brokers keep their credentials and tokens in a `secrets.Store` from `seesaw/pkg/secrets`: anything that can `Get` and `Set` bytes by key, returning `secrets.ErrNotFound` for a missing key. The commands use `keyring.Store{}` from `seesaw/pkg/secrets/keyring`; another host can back it with its own secret manager. `Connect` returns `models.ErrBrokerNotConfigured` when the store holds no credentials.
+
+ETRADE signs in through a browser and expires tokens at midnight Eastern, so a host that cannot prompt can only reuse a token signed in that day and saved to its store.
+
+### Building plans in code
+
+`config.NewPlan(broker, accountId, isTaxable, settings, assets)` applies the same rules as a plan file: it trims tickers, rejects duplicates, and requires targets that sum to `1.0`. Set every `config.Settings` field; a field left out is zero, which is valid for each of them. `portfolio.TakeSnapshot` checks the tax rates, and the planners check their settings and amount, so values built in code get the same errors as the files. `ParsePlan` and `ParseUser` reject unknown fields and multiple documents.
 
 ## Development Choices
 

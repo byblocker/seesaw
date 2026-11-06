@@ -6,7 +6,7 @@
 
 1. Obtain an API key and secret: [ETRADE getting started and requesting keys](https://developer.etrade.com/getting-started).
 
-4. Run from the repository root in an interactive terminal:
+2. Run from the repository root in an interactive terminal:
 
 ```sh
 go run . connect --broker ETRADE
@@ -24,7 +24,7 @@ Use `broker: ETRADE` and your ETRADE account number as `accountId` in your portf
 
 ## Replacing configuration
 
-Re-run `connect` to replace credentials or change the endpoint. If a configuration currently exits, _seesaw_ will ask before overwriting it. Changing credentials requires a new OAuth sign-in.
+Re-run `connect` to replace credentials or change the endpoint. If a configuration currently exists, _seesaw_ will ask before overwriting it. Changing credentials requires a new OAuth sign-in.
 
 If authentication fails after saving, run `seesaw snapshot <portfolio>` to retry sign-in with the saved configuration, or re-run `connect` to replace it.
 
@@ -37,10 +37,6 @@ When _seesaw_ first authenticates for the day, _seesaw_ will open the browser to
 ## Limitations
 
 - ETRADE purchases use whole shares; the client settings reports `AllowFractionalShares: false`. ETRADE is actively supporting fractional shares but only for specific tickers.
-- Transaction history covers active accounts accessible through your ETRADE credentials. _seesaw_ cannot account for activity at other brokerages or in closed or inactive ETRADE accounts.
+- Transaction history covers active brokerage accounts accessible through your ETRADE credentials. _seesaw_ cannot account for activity at other brokerages or in closed, inactive, or non-brokerage ETRADE accounts.
 - Portfolio requests follow the broker's pagination metadata to retrieve all holdings. Missing continuation metadata or repeated positions cause an error instead of returning an incomplete portfolio.
 - Responses missing fields _seesaw_ relies on, such as account keys, lot prices and quantities, acquisition dates, balances, or positive bid and ask prices, cause an error naming the field.
-
-## Library usage
-
-Supply a `broker.ETradeConfig` and connect via `broker.ConnectETrade(ctx, config)` from `seesaw/pkg/broker` to receive a `*broker.ETradeClient`, which implements `models.BrokerClient`. Populate the configuration from your own environment loader or secrets manager, as needed. _seesaw_ still uses OS keyring for OAuth token caching.

@@ -7,8 +7,7 @@ import (
 	"maps"
 	"net/url"
 	"seesaw/internal/async"
-	"seesaw/internal/collections"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -38,10 +37,6 @@ func (client *Client) Portfolio(
 	daysBack int,
 	plannedTickers []string,
 ) (models.Portfolio, error) {
-	if daysBack <= 0 {
-		return models.Portfolio{}, fmt.Errorf("transaction lookback must be positive")
-	}
-
 	// We grab all accounts since different accounts may include transactions
 	// that could be relevant for tax-loss harvesting and wash-sale avoidance.
 	accounts, err := client.fetchAccounts(ctx)
@@ -49,15 +44,13 @@ func (client *Client) Portfolio(
 		return models.Portfolio{}, err
 	}
 
-	selectedAccount, found := collections.Find(
-		slices.Values(accounts),
-		func(account Account) bool {
-			return account.ID() == accountID
-		},
-	)
-	if !found {
+	accountIdx := slices.IndexFunc(accounts, func(account Account) bool {
+		return account.id == accountID
+	})
+	if accountIdx < 0 {
 		return models.Portfolio{}, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
+	selectedAccount := accounts[accountIdx]
 
 	txEnd := time.Now()
 	txStart := txEnd.AddDate(0, 0, -daysBack)
@@ -71,7 +64,7 @@ func (client *Client) Portfolio(
 	var portfolio models.Portfolio
 	var portfolioTickers []string
 	var txRows []transactionRow
-	stop := utils.StartTimer("Fetching holdings, tax lots, balances, transactions, and quotes")
+	stop := broker.StartTimer("Fetching holdings, tax lots, balances, transactions, and quotes")
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	// Only the tax lots and quotes wait on the holdings list.
@@ -81,11 +74,8 @@ func (client *Client) Portfolio(
 			return err
 		}
 
-		// Include any held tickers along with the planned tickers
-		portfolioTickers = collections.SetFrom(
-			slices.Values(plannedTickers),
-			maps.Keys(positionsByTicker),
-		).Slice()
+		heldTickers := slices.Collect(maps.Keys(positionsByTicker))
+		portfolioTickers = slices.Compact(slices.Sorted(slices.Values(slices.Concat(plannedTickers, heldTickers))))
 
 		// One request per ticker returns faster than one request listing every ticker.
 		group.Go(func() (err error) {

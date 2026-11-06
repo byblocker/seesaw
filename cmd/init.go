@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -18,7 +17,7 @@ var initCmd = &cobra.Command{
 	Use:     "init <portfolio>",
 	Short:   "Create the user config and a portfolio plan from the examples",
 	Example: "  seesaw init growth",
-	Args:    cobra.ExactArgs(1),
+	Args:    planNameArg,
 	RunE:    initFiles,
 }
 
@@ -27,32 +26,27 @@ func init() {
 }
 
 func initFiles(cmd *cobra.Command, args []string) error {
-	name := args[0]
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("portfolio name must not be empty")
+	path := planPath(args[0])
+	created, err := copyExample("portfolio.yaml", path)
+	if err != nil {
+		return err
 	}
-
-	path := planPath(name)
-	if _, err := os.Stat(path); err == nil {
+	if !created {
 		return fmt.Errorf("portfolio plan %s already exists", path)
 	}
 
 	out := cmd.OutOrStdout()
-	created, err := copyExample("user.yaml", userConfigPath)
+	fmt.Fprintf(out, "Created %s\n", path)
+
+	created, err = copyExample("user.yaml", userConfigPath)
 	if err != nil {
 		return err
 	}
-
 	if created {
 		fmt.Fprintf(out, "Created %s\n", userConfigPath)
 	} else {
 		fmt.Fprintf(out, "Kept existing %s\n", userConfigPath)
 	}
-
-	if _, err := copyExample("portfolio.yaml", path); err != nil {
-		return err
-	}
-	fmt.Fprintf(out, "Created %s\n", path)
 	return nil
 }
 

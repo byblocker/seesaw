@@ -2,37 +2,38 @@ package etrade
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
-	"seesaw/internal/keyring"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
 	"seesaw/pkg/models"
+	"seesaw/pkg/secrets"
 	"strings"
 )
 
 const Name = "ETRADE"
 
-const etradeConfigKey = "etrade_config"
+const etradeCredentialsKey = "etrade_config"
 
 const productionAPIBaseURL = "https://api.etrade.com/v1"
 
-type Config struct {
+type Credentials struct {
 	APIBaseURL string
 	APIKey     string
 	APISecret  string
 }
 
-func (config Config) Validate() error {
-	if strings.TrimSpace(config.APIKey) == "" {
+func (credentials Credentials) Validate() error {
+	if strings.TrimSpace(credentials.APIKey) == "" {
 		return fmt.Errorf("ETrade APIKey must not be empty")
 	}
 
-	if strings.TrimSpace(config.APISecret) == "" {
+	if strings.TrimSpace(credentials.APISecret) == "" {
 		return fmt.Errorf("ETrade APISecret must not be empty")
 	}
 
-	baseURL, err := url.Parse(config.APIBaseURL)
+	baseURL, err := url.Parse(credentials.APIBaseURL)
 	if err != nil || baseURL.Hostname() == "" || (baseURL.Scheme != "https" && baseURL.Scheme != "http") {
 		return fmt.Errorf("ETrade APIBaseURL must be an absolute HTTP or HTTPS URL")
 	}
@@ -43,102 +44,105 @@ func (config Config) Validate() error {
 	return nil
 }
 
-func NewClient(ctx context.Context, config Config) (*Client, error) {
-	if err := config.Validate(); err != nil {
-		return nil, err
+type Broker struct {
+	Secrets secrets.Store // Holds the credentials and access token
+}
+
+// Prompt for and save the credentials. Saved is false when the user keeps the existing one.
+func (etradeBroker Broker) Setup(ctx context.Context) (saved bool, err error) {
+	exists, err := secrets.Exists(ctx, etradeBroker.Secrets, etradeCredentialsKey)
+	if err != nil {
+		return false, fmt.Errorf("could not check saved ETrade configuration: %w", err)
+	}
+	if exists {
+		answer, err := broker.AskForInput("ETrade configuration already exists. Overwrite it? [y/N]: ")
+		if err != nil {
+			return false, err
+		}
+		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
+			return false, nil
+		}
 	}
 
-	baseURL := strings.TrimRight(config.APIBaseURL, "/")
-	httpClient, err := authenticate(ctx, config.APIKey, config.APISecret, baseURL)
+	credentials, err := promptForCredentials()
+	if err != nil {
+		return false, err
+	}
+
+	if err := credentials.Validate(); err != nil {
+		return false, err
+	}
+
+	if err := saveSecret(ctx, etradeBroker.Secrets, etradeCredentialsKey, credentials); err != nil {
+		return false, fmt.Errorf("could not save ETrade configuration: %w", err)
+	}
+	return true, nil
+}
+
+func (etradeBroker Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
+	data, err := etradeBroker.Secrets.Get(ctx, etradeCredentialsKey)
+	if errors.Is(err, secrets.ErrNotFound) {
+		return nil, models.ErrBrokerNotConfigured
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not load ETrade configuration: %w", err)
+	}
+
+	credentials, err := decodeSecret[Credentials](etradeCredentialsKey, data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
+	}
+	credentials.APIBaseURL = strings.TrimRight(credentials.APIBaseURL, "/")
+	if err := credentials.Validate(); err != nil {
+		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
+	}
+
+	httpClient, err := authenticate(ctx, etradeBroker.Secrets, credentials)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to %s: %w", Name, err)
 	}
-
-	return &Client{httpClient: httpClient, apiBaseURL: baseURL}, nil
+	return &Client{httpClient: httpClient, apiBaseURL: credentials.APIBaseURL}, nil
 }
 
-type Broker struct{}
-
-func (Broker) Setup(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	exists, err := keyring.Exists(etradeConfigKey)
+func promptForCredentials() (Credentials, error) {
+	baseURL, err := broker.AskForInput(fmt.Sprintf("ETrade API base URL [%s]: ", productionAPIBaseURL))
 	if err != nil {
-		return fmt.Errorf("could not check saved ETrade configuration; check OS keyring access: %w", err)
-	}
-	if exists {
-		answer, err := utils.AskForInput("ETrade configuration already exists. Overwrite it? [y/N]: ")
-		if err != nil {
-			return err
-		}
-		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
-			return context.Canceled
-		}
-	}
-
-	config, err := promptForConfig()
-	if err != nil {
-		return err
-	}
-
-	if err := config.Validate(); err != nil {
-		return err
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
-	if err := keyring.Set(etradeConfigKey, config); err != nil {
-		return fmt.Errorf("could not save ETrade configuration; check OS keyring access: %w", err)
-	}
-	return nil
-}
-
-func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	config, err := keyring.Get[Config](etradeConfigKey)
-	if errors.Is(err, keyring.ErrNotFound) {
-		return nil, fmt.Errorf("%w: run seesaw connect --broker ETRADE", models.ErrBrokerNotConfigured)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("could not load ETrade configuration; check OS keyring access or run seesaw connect --broker ETRADE: %w", err)
-	}
-
-	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid saved ETrade configuration; run seesaw connect --broker ETRADE: %w", err)
-	}
-
-	return NewClient(ctx, *config)
-}
-
-func promptForConfig() (Config, error) {
-	baseURL, err := utils.AskForInput(fmt.Sprintf("ETrade API base URL [%s]: ", productionAPIBaseURL))
-	if err != nil {
-		return Config{}, err
+		return Credentials{}, err
 	}
 
 	if baseURL == "" {
 		baseURL = productionAPIBaseURL
 	}
 
-	apiKey, err := utils.AskForSecret("ETrade API key: ")
+	apiKey, err := broker.AskForSecret("ETrade API key: ")
 	if err != nil {
-		return Config{}, err
+		return Credentials{}, err
 	}
 
-	apiSecret, err := utils.AskForSecret("ETrade API secret: ")
+	apiSecret, err := broker.AskForSecret("ETrade API secret: ")
 	if err != nil {
-		return Config{}, err
+		return Credentials{}, err
 	}
 
-	return Config{
-		APIBaseURL: strings.TrimRight(baseURL, "/"),
+	return Credentials{
+		APIBaseURL: baseURL,
 		APIKey:     apiKey,
 		APISecret:  apiSecret,
 	}, nil
+}
+
+func decodeSecret[T any](key string, data []byte) (T, error) {
+	var value T
+	if err := json.Unmarshal(data, &value); err != nil {
+		return value, fmt.Errorf("failed to decode %s: %w", key, err)
+	}
+	return value, nil
+}
+
+func saveSecret(ctx context.Context, store secrets.Store, key string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("failed to encode %s: %w", key, err)
+	}
+	return store.Set(ctx, key, data)
 }

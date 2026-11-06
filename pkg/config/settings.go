@@ -1,45 +1,10 @@
 package config
 
 import (
-	"log"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 
 	"github.com/shopspring/decimal"
 )
-
-type TaxSettings struct {
-	ShortTermGainRate decimal.Decimal
-	LongTermGainRate  decimal.Decimal
-}
-
-// Nil rates, as for an account that is not taxable, are valid.
-func (settings *TaxSettings) Validate() error {
-	if settings == nil {
-		return nil
-	}
-	_, err := taxYAML{
-		ShortTermGainRate: &settings.ShortTermGainRate,
-		LongTermGainRate:  &settings.LongTermGainRate,
-	}.build()
-	return err
-}
-
-// Settings as written in YAML or held in a struct, before they are checked.
-// Pointers tell a missing key from an explicit zero, and the tags hold every rule.
-type taxYAML struct {
-	ShortTermGainRate *decimal.Decimal `yaml:"short_term_gain_rate" validate:"required,gte=0,lte=1"`
-	LongTermGainRate  *decimal.Decimal `yaml:"long_term_gain_rate" validate:"required,gte=0,lte=1"`
-}
-
-func (raw taxYAML) build() (TaxSettings, error) {
-	if err := utils.ValidateFields(raw, "tax."); err != nil {
-		return TaxSettings{}, err
-	}
-	return TaxSettings{
-		ShortTermGainRate: *raw.ShortTermGainRate,
-		LongTermGainRate:  *raw.LongTermGainRate,
-	}, nil
-}
 
 type Settings struct {
 	// Minimum remainder to round a whole-share purchase up.
@@ -62,18 +27,8 @@ func (settings Settings) Validate() error {
 	return err
 }
 
-func (settings Settings) Log(totalValue decimal.Decimal, allowFractionalShares bool) {
-	log.Print("Rebalance settings:")
-	log.Printf("  - Harvest losses of %s or more", utils.FormatPercent(settings.MinPctLossToHarvest.Neg()))
-	if allowFractionalShares {
-		log.Print("  - Buy fractional shares")
-		return
-	}
-	maxOvershoot := totalValue.Mul(settings.AllocationUpperLimit)
-	log.Printf("  - Round up from %s share", settings.MinFractionalShareToRound)
-	log.Printf("  - Allow at most %s above target (~%s)", utils.FormatPercent(settings.AllocationUpperLimit), utils.FormatMoney(maxOvershoot))
-}
-
+// Settings as written in YAML or held in a struct, before they are checked.
+// Pointers tell a missing key from an explicit zero, and the tags hold every rule.
 type settingsYAML struct {
 	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round" validate:"required,gte=0,lte=1"`
 	MinPctLossToHarvest       *decimal.Decimal `yaml:"min_pct_loss_to_harvest" validate:"required,gte=-1,lte=0"`
@@ -82,7 +37,7 @@ type settingsYAML struct {
 }
 
 func (raw settingsYAML) build() (Settings, error) {
-	if err := utils.ValidateFields(raw, "settings."); err != nil {
+	if err := validate.Fields(raw, "settings."); err != nil {
 		return Settings{}, err
 	}
 	return Settings{

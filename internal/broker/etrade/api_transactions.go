@@ -5,26 +5,28 @@ import (
 	"fmt"
 	"net/url"
 	"seesaw/internal/async"
-	"seesaw/internal/collections"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 const dateFormat = "01022006"
+
+// ETrade's transactionType values for the trades the snapshot tracks; others are skipped.
+var transactionTypes = map[string]models.TransactionType{
+	"Bought": models.TxBuy,
+	"Sold":   models.TxSell,
+}
 
 type transactionRow struct {
 	AccountID string `json:"accountId"`
 	Type      string `json:"transactionType"`
 	Date      int64  `json:"transactionDate" validate:"gt=0"`
 	Brokerage struct {
-		Ticker   string          `json:"displaySymbol"`
-		Quantity decimal.Decimal `json:"quantity"`
-		Price    decimal.Decimal `json:"price"`
+		Ticker string `json:"displaySymbol"`
 	} `json:"brokerage"`
 }
 
@@ -44,7 +46,7 @@ func (client *Client) fetchTransactions(
 	rowsByAccount, err := async.Map(ctx, accounts, func(ctx context.Context, account Account) ([]transactionRow, error) {
 		rows, err := client.fetchTransactionsFor(ctx, account, start, end)
 		if err != nil {
-			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
+			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.id, err)
 		}
 		return rows, nil
 	})
@@ -60,10 +62,6 @@ func (client *Client) fetchTransactionsFor(
 	account Account,
 	start, end time.Time,
 ) ([]transactionRow, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	pageURL := client.endpointFor(account, "transactions")
 	query := url.Values{
 		"startDate": {start.Format(dateFormat)},
@@ -76,15 +74,15 @@ func (client *Client) fetchTransactionsFor(
 	}
 
 	var rows []transactionRow
-	visitedPages := collections.NewSet[string]()
+	visitedPages := map[string]bool{}
 
 	for {
-		if visitedPages.Contains(pageURL) {
+		if visitedPages[pageURL] {
 			return nil, fmt.Errorf("transaction pagination repeated a page")
 		}
-		visitedPages.Add(pageURL)
+		visitedPages[pageURL] = true
 
-		response, err := utils.FetchJSON[transactionResponse](
+		response, err := broker.FetchJSON[transactionResponse](
 			ctx,
 			client.httpClient,
 			pageURL,
@@ -94,7 +92,7 @@ func (client *Client) fetchTransactionsFor(
 		}
 
 		for _, tx := range response.Page.Transactions {
-			if models.TransactionType(tx.Type).IsSupported() {
+			if _, tracked := transactionTypes[tx.Type]; tracked {
 				rows = append(rows, tx)
 			}
 		}
@@ -115,23 +113,20 @@ func (client *Client) fetchTransactionsFor(
 
 // Validate and convert the transactions for the tickers, skipping the rest.
 func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transaction, error) {
-	relevantTickers := collections.NewSet(tickers...)
 	var transactions []models.Transaction
 	for _, tx := range rows {
 		tx.Brokerage.Ticker = strings.TrimSpace(tx.Brokerage.Ticker)
-		if !relevantTickers.Contains(tx.Brokerage.Ticker) {
+		if !slices.Contains(tickers, tx.Brokerage.Ticker) {
 			continue
 		}
-		if err := utils.ValidateFields(tx, "transaction."); err != nil {
+		if err := validate.Fields(tx, "transaction."); err != nil {
 			return nil, fmt.Errorf("%s transaction for %s in account %s: %w", tx.Type, tx.Brokerage.Ticker, tx.AccountID, err)
 		}
 
 		transactions = append(transactions, models.Transaction{
-			Ticker:   tx.Brokerage.Ticker,
-			Type:     models.TransactionType(tx.Type),
-			Date:     time.UnixMilli(tx.Date),
-			Quantity: tx.Brokerage.Quantity,
-			Price:    tx.Brokerage.Price,
+			Ticker: tx.Brokerage.Ticker,
+			Type:   transactionTypes[tx.Type],
+			Date:   time.UnixMilli(tx.Date),
 		})
 	}
 	return transactions, nil

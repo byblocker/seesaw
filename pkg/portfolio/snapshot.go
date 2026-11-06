@@ -4,8 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"seesaw/internal/calendar"
-	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
@@ -15,6 +13,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const DivisionDecimalPlaces int32 = 19
+
 type Snapshot struct {
 	AccountId  string
 	CreatedAt  time.Time
@@ -23,7 +23,9 @@ type Snapshot struct {
 	Positions  []Position
 	Lots       []Lot
 	TotalValue decimal.Decimal
-	TaxRates   *config.TaxSettings // Nil for non-taxable accounts
+
+	TaxRates *config.TaxSettings // Nil for non-taxable accounts
+	Broker   models.BrokerSettings
 }
 
 type Asset struct {
@@ -60,7 +62,7 @@ type LotSnapshot struct {
 	GainPerShare decimal.Decimal
 	GainPct      decimal.Decimal // Fraction of the price paid
 	LongTerm     bool
-	IsWashSale   bool
+	IsWashSale   bool            // A taxable loss that a recent purchase disallows
 	TaxPerShare  decimal.Decimal // Zero for non-taxable accounts and wash sales
 	// Truncating the quotient never reorders lots, so sorting by it matches the exact ratio up to ties below its precision.
 	TaxPerDollar decimal.Decimal
@@ -79,7 +81,7 @@ func TakeSnapshot(
 		ctx,
 		plan.AccountId,
 		transactionHistoryDays,
-		slices.Collect(plan.Tickers()),
+		plan.Tickers(),
 	)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("failed to retrieve portfolio: %w", err)
@@ -104,6 +106,7 @@ func TakeSnapshot(
 		Lots:       lots,
 		TotalValue: totalValue,
 		TaxRates:   taxRates,
+		Broker:     client.Settings(),
 	}, nil
 }
 
@@ -123,7 +126,7 @@ func newAssets(plans []config.AssetPlan, taxLots []models.TaxLot) ([]Asset, []Po
 	}
 
 	for i := range plans {
-		tickers := slices.Collect(plans[i].Tickers())
+		tickers := plans[i].Tickers()
 		addAsset(&plans[i], strings.Join(tickers, " / "), tickers)
 	}
 
@@ -161,7 +164,7 @@ func setQuotes(positions []Position, positionIdxByTicker map[string]int, quotes 
 func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, transactions []models.Transaction, createdAt time.Time) {
 	for _, tx := range transactions {
 		positionIdx, ok := positionIdxByTicker[tx.Ticker]
-		if !ok || calendar.DaysBetween(tx.Date, createdAt) > washSaleWindowDays {
+		if !ok || daysBetween(tx.Date, createdAt) > WashSaleWindowDays {
 			continue
 		}
 		switch tx.Type {
@@ -211,7 +214,7 @@ func newLotSnapshot(lot models.TaxLot, position Position, createdAt time.Time, t
 	gainPerShare := bid.Sub(lot.PricePaid)
 	gainPct := decimal.Zero
 	if lot.PricePaid.IsPositive() {
-		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, utils.DivisionDecimalPlaces)
+		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, DivisionDecimalPlaces)
 	}
 
 	snapshot := LotSnapshot{
@@ -219,10 +222,10 @@ func newLotSnapshot(lot models.TaxLot, position Position, createdAt time.Time, t
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),
-		IsWashSale:   position.RecentlyBought && gainPerShare.IsNegative(),
+		IsWashSale:   taxRates != nil && position.RecentlyBought && gainPerShare.IsNegative(),
 	}
 	snapshot.TaxPerShare = snapshot.taxPerShare(taxRates)
-	snapshot.TaxPerDollar, _ = snapshot.TaxPerShare.QuoRem(bid, utils.DivisionDecimalPlaces)
+	snapshot.TaxPerDollar, _ = snapshot.TaxPerShare.QuoRem(bid, DivisionDecimalPlaces)
 	return snapshot
 }
 
@@ -249,7 +252,7 @@ func allocate(assets []Asset, cash decimal.Decimal) decimal.Decimal {
 		asset := &assets[assetIdx]
 		asset.Allocation = decimal.Zero
 		if !totalValue.IsZero() {
-			asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
+			asset.Allocation, _ = asset.Value.QuoRem(totalValue, DivisionDecimalPlaces)
 		}
 
 		if asset.Plan != nil {
@@ -261,17 +264,17 @@ func allocate(assets []Asset, cash decimal.Decimal) decimal.Decimal {
 	return totalValue
 }
 
-// The snapshot after the orders and the withdrawal. Its positions and lots are the snapshot's own, unchanged.
-func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal decimal.Decimal) Snapshot {
+// The snapshot after the proposal. Its positions and lots are the snapshot's own, unchanged.
+func (snapshot Snapshot) Simulate(proposal Proposal) Snapshot {
 	simulated := snapshot
 	simulated.Assets = slices.Clone(snapshot.Assets)
-	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
-	for _, sell := range sells {
+	cash := snapshot.Balances.CashBalance.Sub(proposal.Withdrawal)
+	for _, sell := range proposal.Sells {
 		asset := &simulated.Assets[snapshot.Positions[sell.PositionIdx].AssetIdx]
 		asset.Value = asset.Value.Sub(sell.Proceeds)
 		cash = cash.Add(sell.Proceeds)
 	}
-	for _, buy := range buys {
+	for _, buy := range proposal.Buys {
 		asset := &simulated.Assets[snapshot.Positions[buy.PositionIdx].AssetIdx]
 		asset.Value = asset.Value.Add(buy.EstimatedCost)
 		cash = cash.Sub(buy.EstimatedCost)

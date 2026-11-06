@@ -3,7 +3,8 @@ package etrade
 import (
 	"context"
 	"fmt"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
+	"seesaw/internal/validate"
 )
 
 const (
@@ -15,8 +16,6 @@ type Account struct {
 	id  string
 	key string
 }
-
-func (account Account) ID() string { return account.id }
 
 type accountResponse struct {
 	Id     string `json:"accountId" validate:"min=4"`
@@ -34,13 +33,9 @@ type listAccountsAPIResponse struct {
 }
 
 func (client *Client) fetchAccounts(ctx context.Context) ([]Account, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
-	stop := utils.StartTimer("Fetching brokerage accounts")
-	response, err := utils.FetchJSON[listAccountsAPIResponse](
+	stop := broker.StartTimer("Fetching brokerage accounts")
+	response, err := broker.FetchJSON[listAccountsAPIResponse](
 		ctx, client.httpClient, endpoint,
 	)
 	stop(err)
@@ -53,7 +48,7 @@ func (client *Client) fetchAccounts(ctx context.Context) ([]Account, error) {
 		if account.Type != brokerageAccountType || account.Status != activeAccountStatus {
 			continue
 		}
-		if err := utils.ValidateFields(account, "account."); err != nil {
+		if err := validate.Fields(account, "account."); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, Account{id: account.Id, key: account.Key})

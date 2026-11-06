@@ -1,7 +1,6 @@
 package liquidation
 
 import (
-	"seesaw/internal/utils"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -34,7 +33,7 @@ func valueAboveMinAllowed(
 	for assetIdx, asset := range snapshot.Assets {
 		minAllocAllowed := decimal.Zero
 		if asset.Plan != nil {
-			minAllocAllowed = utils.ClampNonNegative(asset.Plan.TargetAllocation.Sub(maxDeviation))
+			minAllocAllowed = decimal.Max(decimal.Zero, asset.Plan.TargetAllocation.Sub(maxDeviation))
 		}
 		valueAboveMin[assetIdx] = asset.Value.Sub(totalValueAfterSale.Mul(minAllocAllowed))
 	}

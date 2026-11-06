@@ -1,4 +1,4 @@
-package utils
+package validate
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-var validate = newValidator()
+var structValidator = newValidator()
 
 func newValidator() *validator.Validate {
 	v := validator.New(validator.WithRequiredStructEnabled())
@@ -22,7 +22,6 @@ func newValidator() *validator.Validate {
 		return strings.Split(field.Tag.Get("json"), ",")[0]
 	})
 
-	// Compare decimals as floats
 	v.RegisterCustomTypeFunc(func(field reflect.Value) any {
 		value, _ := field.Interface().(decimal.Decimal).Float64()
 		return value
@@ -31,8 +30,8 @@ func newValidator() *validator.Validate {
 	return v
 }
 
-func ValidateFields(value any, prefix string) error {
-	err := validate.Struct(value)
+func Fields(value any, prefix string) error {
+	err := structValidator.Struct(value)
 	var fieldErrors validator.ValidationErrors
 	if !errors.As(err, &fieldErrors) {
 		return err
