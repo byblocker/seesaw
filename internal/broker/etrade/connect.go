@@ -92,7 +92,7 @@ func (etradeBroker Broker) Connect(ctx context.Context) (models.BrokerClient, er
 		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
 	}
 
-	httpClient, err := authenticate(ctx, etradeBroker.Secrets, config.APIKey, config.APISecret, config.APIBaseURL)
+	httpClient, err := authenticate(ctx, etradeBroker.Secrets, config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to %s: %w", Name, err)
 	}
