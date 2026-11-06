@@ -9,6 +9,8 @@ import (
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
+	"seesaw/pkg/registry"
+	"seesaw/pkg/secrets/keyring"
 
 	"github.com/spf13/cobra"
 )
@@ -40,7 +42,7 @@ func snapshotAccount(cmd *cobra.Command, planName string) (*config.Plan, portfol
 		return nil, portfolio.Snapshot{}, err
 	}
 
-	selectedBroker, err := findBroker(plan.Broker)
+	selectedBroker, err := registry.FindBroker(plan.Broker, keyring.Store{})
 	if err != nil {
 		return nil, portfolio.Snapshot{}, err
 	}

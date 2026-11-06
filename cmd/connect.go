@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"seesaw/pkg/registry"
+	"seesaw/pkg/secrets/keyring"
 
 	"github.com/spf13/cobra"
 )
@@ -28,7 +30,7 @@ func init() {
 
 // Selects and configures a Broker before an authenticated BrokerClient exists.
 func connectBroker(cmd *cobra.Command, args []string) error {
-	selectedBroker, err := findBroker(brokerName)
+	selectedBroker, err := registry.FindBroker(brokerName, keyring.Store{})
 	if err != nil {
 		return err
 	}
