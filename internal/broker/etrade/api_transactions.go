@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"seesaw/internal/async"
+	"seesaw/internal/broker"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
@@ -81,7 +82,7 @@ func (client *Client) fetchTransactionsFor(
 		}
 		visitedPages[pageURL] = true
 
-		response, err := utils.FetchJSON[transactionResponse](
+		response, err := broker.FetchJSON[transactionResponse](
 			ctx,
 			client.httpClient,
 			pageURL,

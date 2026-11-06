@@ -10,9 +10,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"seesaw/internal/broker"
 	"seesaw/internal/calendar"
 	"seesaw/internal/keyring"
-	"seesaw/internal/utils"
 	"time"
 
 	"github.com/dghubble/oauth1"
@@ -46,7 +46,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
 		CallbackURL:    "oob",
-		HTTPClient:     &http.Client{Timeout: utils.Timeout},
+		HTTPClient:     &http.Client{Timeout: broker.Timeout},
 		Endpoint: oauth1.Endpoint{
 			RequestTokenURL: etradeRequestTokenURL,
 			AuthorizeURL:    etradeAuthorizeURL,
@@ -61,7 +61,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	}
 	configurationHash := sha256.Sum256(configuration)
 	clear(configuration)
-	stop := utils.StartTimer("Connecting to %s", Name)
+	stop := broker.StartTimer("Connecting to %s", Name)
 	client, err := refreshETradeClient(ctx, oauth, configurationHash)
 	stop(err)
 	if err != nil {
@@ -107,7 +107,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		return nil, fmt.Errorf("saved token expired")
 	}
 
-	client := utils.NewHTTPClient(oauth.Client(ctx, session.Token))
+	client := broker.NewHTTPClient(oauth.Client(ctx, session.Token))
 
 	if time.Since(session.LastRefreshed) > etradeMaxAccessTokenAge {
 		// No need to rotate the secret, ETrade just needs a keep-alive.
@@ -135,19 +135,19 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		"token": {requestToken},
 	}.Encode())
 
-	if _, err := utils.AskForInput(fmt.Sprintf("Sign in to %s. Press ENTER to open the sign-in page in your browser. ", Name)); err != nil {
+	if _, err := broker.AskForInput(fmt.Sprintf("Sign in to %s. Press ENTER to open the sign-in page in your browser. ", Name)); err != nil {
 		return nil, fmt.Errorf("failed to wait for ENTER: %w", err)
 	}
-	if err := utils.OpenURL(authURL); err != nil {
+	if err := broker.OpenURL(authURL); err != nil {
 		fmt.Fprintf(os.Stderr, "%v; open this link instead:\n%s\n", err, authURL)
 	}
 
-	verificationCode, err := utils.AskForInput("Enter verification code: ")
+	verificationCode, err := broker.AskForInput("Enter verification code: ")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read verification code: %w", err)
 	}
 
-	stop := utils.StartTimer("Creating %s access token", Name)
+	stop := broker.StartTimer("Creating %s access token", Name)
 	accessToken, accessSecret, err := oauth.AccessToken(requestToken, requestSecret, verificationCode)
 	stop(err)
 	if err != nil {
@@ -159,5 +159,5 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 		return nil, fmt.Errorf("failed to save new access token: %w", err)
 	}
 
-	return utils.NewHTTPClient(oauth.Client(ctx, token)), nil
+	return broker.NewHTTPClient(oauth.Client(ctx, token)), nil
 }

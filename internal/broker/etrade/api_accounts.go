@@ -3,6 +3,7 @@ package etrade
 import (
 	"context"
 	"fmt"
+	"seesaw/internal/broker"
 	"seesaw/internal/utils"
 )
 
@@ -35,8 +36,8 @@ type listAccountsAPIResponse struct {
 
 func (client *Client) fetchAccounts(ctx context.Context) ([]Account, error) {
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
-	stop := utils.StartTimer("Fetching brokerage accounts")
-	response, err := utils.FetchJSON[listAccountsAPIResponse](
+	stop := broker.StartTimer("Fetching brokerage accounts")
+	response, err := broker.FetchJSON[listAccountsAPIResponse](
 		ctx, client.httpClient, endpoint,
 	)
 	stop(err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strconv"
@@ -58,7 +59,7 @@ func (client *Client) listPositions(ctx context.Context, account Account) (map[s
 	positionsByTicker := map[string]positionResponse{}
 	currentPage, pagesFetched, totalPages := 0, 0, 0
 	for {
-		response, err := utils.FetchJSON[portfolioResponse](
+		response, err := broker.FetchJSON[portfolioResponse](
 			ctx, client.httpClient, endpoint+"?"+query.Encode(),
 		)
 		if err != nil {
@@ -143,7 +144,7 @@ func (client *Client) fetchLots(
 	position positionResponse,
 ) ([]models.TaxLot, error) {
 	endpoint := client.endpointFor(account, "portfolio/"+strconv.FormatInt(position.Id, 10))
-	response, err := utils.FetchJSON[getPositionLotResponse](
+	response, err := broker.FetchJSON[getPositionLotResponse](
 		ctx,
 		client.httpClient,
 		endpoint,

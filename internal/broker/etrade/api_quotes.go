@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
@@ -31,7 +32,7 @@ func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quo
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
 
-	response, err := utils.FetchJSON[quoteResponse](
+	response, err := broker.FetchJSON[quoteResponse](
 		ctx,
 		client.httpClient,
 		endpoint,

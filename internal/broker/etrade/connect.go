@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/keyring"
-	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"strings"
 )
@@ -52,7 +52,7 @@ func (Broker) Setup() (saved bool, err error) {
 		return false, fmt.Errorf("could not check saved ETrade configuration; check OS keyring access: %w", err)
 	}
 	if exists {
-		answer, err := utils.AskForInput("ETrade configuration already exists. Overwrite it? [y/N]: ")
+		answer, err := broker.AskForInput("ETrade configuration already exists. Overwrite it? [y/N]: ")
 		if err != nil {
 			return false, err
 		}
@@ -97,7 +97,7 @@ func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
 }
 
 func promptForConfig() (Config, error) {
-	baseURL, err := utils.AskForInput(fmt.Sprintf("ETrade API base URL [%s]: ", productionAPIBaseURL))
+	baseURL, err := broker.AskForInput(fmt.Sprintf("ETrade API base URL [%s]: ", productionAPIBaseURL))
 	if err != nil {
 		return Config{}, err
 	}
@@ -106,12 +106,12 @@ func promptForConfig() (Config, error) {
 		baseURL = productionAPIBaseURL
 	}
 
-	apiKey, err := utils.AskForSecret("ETrade API key: ")
+	apiKey, err := broker.AskForSecret("ETrade API key: ")
 	if err != nil {
 		return Config{}, err
 	}
 
-	apiSecret, err := utils.AskForSecret("ETrade API secret: ")
+	apiSecret, err := broker.AskForSecret("ETrade API secret: ")
 	if err != nil {
 		return Config{}, err
 	}

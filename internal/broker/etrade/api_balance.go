@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"seesaw/internal/broker"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 
@@ -26,7 +27,7 @@ func (client *Client) fetchBalances(ctx context.Context, account Account) (model
 		"realTimeNAV": {"true"},
 	}
 
-	response, err := utils.FetchJSON[balanceResponse](ctx, client.httpClient, endpoint+"?"+query.Encode())
+	response, err := broker.FetchJSON[balanceResponse](ctx, client.httpClient, endpoint+"?"+query.Encode())
 	if err != nil {
 		return models.Balances{}, fmt.Errorf("fetch account balances: %w", err)
 	}

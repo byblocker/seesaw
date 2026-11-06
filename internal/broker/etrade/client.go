@@ -7,7 +7,7 @@ import (
 	"maps"
 	"net/url"
 	"seesaw/internal/async"
-	"seesaw/internal/utils"
+	"seesaw/internal/broker"
 	"seesaw/pkg/models"
 	"slices"
 	"time"
@@ -64,7 +64,7 @@ func (client *Client) Portfolio(
 	var portfolio models.Portfolio
 	var portfolioTickers []string
 	var txRows []transactionRow
-	stop := utils.StartTimer("Fetching holdings, tax lots, balances, transactions, and quotes")
+	stop := broker.StartTimer("Fetching holdings, tax lots, balances, transactions, and quotes")
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	// Only the tax lots and quotes wait on the holdings list.
