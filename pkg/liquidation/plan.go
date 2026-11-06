@@ -17,7 +17,7 @@ func PlanSales(
 	amount decimal.Decimal,
 ) (portfolio.Proposal, error) {
 	// Use existing cash first, and sell only for the rest of the withdrawal.
-	amountNeeded := utils.ClampNonNegative(amount.Sub(snapshot.Balances.CashBalance))
+	amountNeeded := decimal.Max(decimal.Zero, amount.Sub(snapshot.Balances.CashBalance))
 	if amountNeeded.IsZero() {
 		log.Print("Liquidation planning complete: 0 sell(s)")
 		return portfolio.Proposal{Withdrawal: amount}, nil

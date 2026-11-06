@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"seesaw/internal/calendar"
-	"seesaw/internal/utils"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
@@ -14,6 +13,8 @@ import (
 
 	"github.com/shopspring/decimal"
 )
+
+const DivisionDecimalPlaces int32 = 19
 
 type Snapshot struct {
 	AccountId  string
@@ -211,7 +212,7 @@ func newLotSnapshot(lot models.TaxLot, position Position, createdAt time.Time, t
 	gainPerShare := bid.Sub(lot.PricePaid)
 	gainPct := decimal.Zero
 	if lot.PricePaid.IsPositive() {
-		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, utils.DivisionDecimalPlaces)
+		gainPct, _ = gainPerShare.QuoRem(lot.PricePaid, DivisionDecimalPlaces)
 	}
 
 	snapshot := LotSnapshot{
@@ -222,7 +223,7 @@ func newLotSnapshot(lot models.TaxLot, position Position, createdAt time.Time, t
 		IsWashSale:   taxRates != nil && position.RecentlyBought && gainPerShare.IsNegative(),
 	}
 	snapshot.TaxPerShare = snapshot.taxPerShare(taxRates)
-	snapshot.TaxPerDollar, _ = snapshot.TaxPerShare.QuoRem(bid, utils.DivisionDecimalPlaces)
+	snapshot.TaxPerDollar, _ = snapshot.TaxPerShare.QuoRem(bid, DivisionDecimalPlaces)
 	return snapshot
 }
 
@@ -249,7 +250,7 @@ func allocate(assets []Asset, cash decimal.Decimal) decimal.Decimal {
 		asset := &assets[assetIdx]
 		asset.Allocation = decimal.Zero
 		if !totalValue.IsZero() {
-			asset.Allocation, _ = asset.Value.QuoRem(totalValue, utils.DivisionDecimalPlaces)
+			asset.Allocation, _ = asset.Value.QuoRem(totalValue, DivisionDecimalPlaces)
 		}
 
 		if asset.Plan != nil {

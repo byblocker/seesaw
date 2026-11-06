@@ -78,7 +78,7 @@ func proposeBuy(
 	}
 
 	valueToCover := decimal.Min(request.Amount, balance)
-	exactShares, _ := valueToCover.QuoRem(ask, utils.DivisionDecimalPlaces)
+	exactShares, _ := valueToCover.QuoRem(ask, portfolio.DivisionDecimalPlaces)
 	if allowFractionalShares {
 		return buy(exactShares)
 	}
