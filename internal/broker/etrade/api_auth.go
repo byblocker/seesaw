@@ -75,11 +75,7 @@ func authenticate(ctx context.Context, store secrets.Store, credentials Credenti
 
 		client, err = auth.authorize(ctx)
 	}
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
+	return client, err
 }
 
 func (auth signIn) saveToken(ctx context.Context, token *oauth1.Token, refreshedAt time.Time) error {

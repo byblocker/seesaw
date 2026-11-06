@@ -56,10 +56,6 @@ func selectLots(
 
 // Whole shares at price that raise at least amount.
 func sharesAtLeast(amount, price decimal.Decimal) int64 {
-	if !amount.IsPositive() {
-		return 0
-	}
-
 	shares, remainder := amount.QuoRem(price, 0)
 	if remainder.IsPositive() {
 		return shares.IntPart() + 1
