@@ -33,7 +33,7 @@ func connectBroker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	saved, err := selectedBroker.Setup()
+	saved, err := selectedBroker.Setup(cmd.Context())
 	if err != nil {
 		return err
 	}

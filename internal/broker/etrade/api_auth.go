@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"os"
 	"seesaw/internal/broker"
-	"seesaw/internal/keyring"
+	"seesaw/pkg/secrets"
 	"time"
 
 	"github.com/dghubble/oauth1"
@@ -40,7 +40,7 @@ type oauthSession struct {
 	ExpiresAt         time.Time     `json:"expires_at"`
 }
 
-func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Client, error) {
+func authenticate(ctx context.Context, store secrets.Store, key, secret, baseURL string) (*resty.Client, error) {
 	oauth := &oauth1.Config{
 		ConsumerKey:    key,
 		ConsumerSecret: secret,
@@ -61,12 +61,12 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	configurationHash := sha256.Sum256(configuration)
 	clear(configuration)
 	stop := broker.StartTimer("Connecting to %s", Name)
-	client, err := refreshETradeClient(ctx, oauth, configurationHash)
+	client, err := refreshETradeClient(ctx, store, oauth, configurationHash)
 	stop(err)
 	if err != nil {
 		log.Printf("CANNOT renew %s client: %v", Name, err)
 
-		client, err = authNewETradeClient(ctx, oauth, configurationHash)
+		client, err = authNewETradeClient(ctx, store, oauth, configurationHash)
 	}
 	if err != nil {
 		return nil, err
@@ -75,13 +75,13 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 	return client, nil
 }
 
-func saveOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHash [32]byte) error {
+func saveOAuthToken(ctx context.Context, store secrets.Store, token *oauth1.Token, refreshedAt time.Time, configurationHash [32]byte) error {
 	expiresAt, err := endOfDay(refreshedAt)
 	if err != nil {
 		return err
 	}
 
-	return keyring.Set(accessTokenKey, oauthSession{
+	return saveSecret(ctx, store, accessTokenKey, oauthSession{
 		ConfigurationHash: configurationHash,
 		Token:             token,
 		LastRefreshed:     refreshedAt,
@@ -98,9 +98,9 @@ func endOfDay(moment time.Time) (time.Time, error) {
 	return time.Date(year, month, day, 23, 59, 59, 0, location), nil
 }
 
-func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
-	session, err := keyring.Get[oauthSession](accessTokenKey)
-	if errors.Is(err, keyring.ErrNotFound) {
+func refreshETradeClient(ctx context.Context, store secrets.Store, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
+	session, err := loadSecret[oauthSession](ctx, store, accessTokenKey)
+	if errors.Is(err, secrets.ErrNotFound) {
 		return nil, fmt.Errorf("no saved token")
 	}
 	if err != nil {
@@ -124,7 +124,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 			return nil, fmt.Errorf("failed to renew token: %w", err)
 		}
 
-		if err := saveOAuthToken(session.Token, time.Now(), configurationHash); err != nil {
+		if err := saveOAuthToken(ctx, store, session.Token, time.Now(), configurationHash); err != nil {
 			return nil, err
 		}
 	}
@@ -132,7 +132,7 @@ func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 	return client, nil
 }
 
-func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
+func authNewETradeClient(ctx context.Context, store secrets.Store, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {
 	requestToken, requestSecret, err := oauth.RequestToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to obtain request token: %w", err)
@@ -163,7 +163,7 @@ func authNewETradeClient(ctx context.Context, oauth *oauth1.Config, configuratio
 	}
 
 	token := oauth1.NewToken(accessToken, accessSecret)
-	if err := saveOAuthToken(token, time.Now(), configurationHash); err != nil {
+	if err := saveOAuthToken(ctx, store, token, time.Now(), configurationHash); err != nil {
 		return nil, fmt.Errorf("failed to save new access token: %w", err)
 	}
 
