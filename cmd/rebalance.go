@@ -49,10 +49,10 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sells, buys, err := rebalancer.Plan(snapshot, plan.Settings, forceRebalance, client.Settings())
+	proposal, err := rebalancer.Plan(snapshot, plan.Settings, forceRebalance, client.Settings())
 	if err != nil {
 		return err
 	}
 
-	return writeProposal(cmd, snapshot, portfolio.Proposal{Sells: sells, Buys: buys})
+	return writeProposal(cmd, snapshot, proposal)
 }

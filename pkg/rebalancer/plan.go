@@ -16,9 +16,9 @@ func Plan(
 	settings config.Settings,
 	force bool,
 	brokerSettings models.BrokerSettings,
-) ([]portfolio.SellProposal, []portfolio.Buy, error) {
+) (portfolio.Proposal, error) {
 	if !snapshot.TotalValue.IsPositive() {
-		return nil, nil, fmt.Errorf("empty or negative portfolio")
+		return portfolio.Proposal{}, fmt.Errorf("empty or negative portfolio")
 	}
 
 	settings.Log(snapshot.TotalValue, brokerSettings.AllowFractionalShares)
@@ -41,7 +41,7 @@ func Plan(
 
 	buys := sizeBuys(snapshot, settings, brokerSettings, sells, buyRequests, maxValueDeviation)
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
-	return sells, buys, nil
+	return portfolio.Proposal{Sells: sells, Buys: buys}, nil
 }
 
 func rebalanceAsset(
