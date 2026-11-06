@@ -46,7 +46,7 @@ func (client *Client) fetchTransactions(
 	rowsByAccount, err := async.Map(ctx, accounts, func(ctx context.Context, account Account) ([]transactionRow, error) {
 		rows, err := client.fetchTransactionsFor(ctx, account, start, end)
 		if err != nil {
-			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.ID(), err)
+			return nil, fmt.Errorf("could not get transactions for account %s: %w", account.id, err)
 		}
 		return rows, nil
 	})

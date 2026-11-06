@@ -17,8 +17,6 @@ type Account struct {
 	key string
 }
 
-func (account Account) ID() string { return account.id }
-
 type accountResponse struct {
 	Id     string `json:"accountId" validate:"min=4"`
 	Key    string `json:"accountIdKey" validate:"required"`

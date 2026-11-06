@@ -45,7 +45,7 @@ func (client *Client) Portfolio(
 	}
 
 	accountIdx := slices.IndexFunc(accounts, func(account Account) bool {
-		return account.ID() == accountID
+		return account.id == accountID
 	})
 	if accountIdx < 0 {
 		return models.Portfolio{}, fmt.Errorf("could not find active brokerage account %s", accountID)
