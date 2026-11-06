@@ -14,26 +14,26 @@ import (
 
 const Name = "ETRADE"
 
-const etradeConfigKey = "etrade_config"
+const etradeCredentialsKey = "etrade_config"
 
 const productionAPIBaseURL = "https://api.etrade.com/v1"
 
-type Config struct {
+type Credentials struct {
 	APIBaseURL string
 	APIKey     string
 	APISecret  string
 }
 
-func (config Config) Validate() error {
-	if strings.TrimSpace(config.APIKey) == "" {
+func (credentials Credentials) Validate() error {
+	if strings.TrimSpace(credentials.APIKey) == "" {
 		return fmt.Errorf("ETrade APIKey must not be empty")
 	}
 
-	if strings.TrimSpace(config.APISecret) == "" {
+	if strings.TrimSpace(credentials.APISecret) == "" {
 		return fmt.Errorf("ETrade APISecret must not be empty")
 	}
 
-	baseURL, err := url.Parse(config.APIBaseURL)
+	baseURL, err := url.Parse(credentials.APIBaseURL)
 	if err != nil || baseURL.Hostname() == "" || (baseURL.Scheme != "https" && baseURL.Scheme != "http") {
 		return fmt.Errorf("ETrade APIBaseURL must be an absolute HTTP or HTTPS URL")
 	}
@@ -45,12 +45,12 @@ func (config Config) Validate() error {
 }
 
 type Broker struct {
-	Secrets secrets.Store // Holds the configuration and access token
+	Secrets secrets.Store // Holds the credentials and access token
 }
 
 // Prompt for and save the configuration. Saved is false when the user keeps the existing one.
 func (etradeBroker Broker) Setup(ctx context.Context) (saved bool, err error) {
-	exists, err := secrets.Exists(ctx, etradeBroker.Secrets, etradeConfigKey)
+	exists, err := secrets.Exists(ctx, etradeBroker.Secrets, etradeCredentialsKey)
 	if err != nil {
 		return false, fmt.Errorf("could not check saved ETrade configuration: %w", err)
 	}
@@ -64,23 +64,23 @@ func (etradeBroker Broker) Setup(ctx context.Context) (saved bool, err error) {
 		}
 	}
 
-	config, err := promptForConfig()
+	credentials, err := promptForCredentials()
 	if err != nil {
 		return false, err
 	}
 
-	if err := config.Validate(); err != nil {
+	if err := credentials.Validate(); err != nil {
 		return false, err
 	}
 
-	if err := saveSecret(ctx, etradeBroker.Secrets, etradeConfigKey, config); err != nil {
+	if err := saveSecret(ctx, etradeBroker.Secrets, etradeCredentialsKey, credentials); err != nil {
 		return false, fmt.Errorf("could not save ETrade configuration: %w", err)
 	}
 	return true, nil
 }
 
 func (etradeBroker Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
-	config, err := loadSecret[Config](ctx, etradeBroker.Secrets, etradeConfigKey)
+	credentials, err := loadSecret[Credentials](ctx, etradeBroker.Secrets, etradeCredentialsKey)
 	if errors.Is(err, secrets.ErrNotFound) {
 		return nil, models.ErrBrokerNotConfigured
 	}
@@ -88,21 +88,21 @@ func (etradeBroker Broker) Connect(ctx context.Context) (models.BrokerClient, er
 		return nil, fmt.Errorf("%w: could not load ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
 	}
 
-	if err := config.Validate(); err != nil {
+	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
 	}
 
-	httpClient, err := authenticate(ctx, etradeBroker.Secrets, config)
+	httpClient, err := authenticate(ctx, etradeBroker.Secrets, credentials)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to %s: %w", Name, err)
 	}
-	return &Client{httpClient: httpClient, apiBaseURL: config.APIBaseURL}, nil
+	return &Client{httpClient: httpClient, apiBaseURL: credentials.APIBaseURL}, nil
 }
 
-func promptForConfig() (Config, error) {
+func promptForCredentials() (Credentials, error) {
 	baseURL, err := broker.AskForInput(fmt.Sprintf("ETrade API base URL [%s]: ", productionAPIBaseURL))
 	if err != nil {
-		return Config{}, err
+		return Credentials{}, err
 	}
 
 	if baseURL == "" {
@@ -111,15 +111,15 @@ func promptForConfig() (Config, error) {
 
 	apiKey, err := broker.AskForSecret("ETrade API key: ")
 	if err != nil {
-		return Config{}, err
+		return Credentials{}, err
 	}
 
 	apiSecret, err := broker.AskForSecret("ETrade API secret: ")
 	if err != nil {
-		return Config{}, err
+		return Credentials{}, err
 	}
 
-	return Config{
+	return Credentials{
 		APIBaseURL: strings.TrimRight(baseURL, "/"),
 		APIKey:     apiKey,
 		APISecret:  apiSecret,

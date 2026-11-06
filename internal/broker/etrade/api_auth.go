@@ -34,22 +34,22 @@ const (
 )
 
 type oauthSession struct {
-	ConfigurationHash [32]byte      `json:"configuration_hash"`
-	Token             *oauth1.Token `json:"token"`
-	LastRefreshed     time.Time     `json:"last_used"`
-	ExpiresAt         time.Time     `json:"expires_at"`
+	CredentialsHash [32]byte      `json:"configuration_hash"`
+	Token           *oauth1.Token `json:"token"`
+	LastRefreshed   time.Time     `json:"last_used"`
+	ExpiresAt       time.Time     `json:"expires_at"`
 }
 
 type signIn struct {
-	store             secrets.Store
-	oauth             *oauth1.Config
-	configurationHash [32]byte
+	store           secrets.Store
+	oauth           *oauth1.Config
+	credentialsHash [32]byte
 }
 
-func authenticate(ctx context.Context, store secrets.Store, config Config) (*resty.Client, error) {
+func authenticate(ctx context.Context, store secrets.Store, credentials Credentials) (*resty.Client, error) {
 	oauth := &oauth1.Config{
-		ConsumerKey:    config.APIKey,
-		ConsumerSecret: config.APISecret,
+		ConsumerKey:    credentials.APIKey,
+		ConsumerSecret: credentials.APISecret,
 		CallbackURL:    "oob",
 		HTTPClient:     &http.Client{Timeout: broker.Timeout},
 		Endpoint: oauth1.Endpoint{
@@ -60,12 +60,12 @@ func authenticate(ctx context.Context, store secrets.Store, config Config) (*res
 	}
 
 	// Bind tokens to the credentials and endpoint.
-	configuration, err := json.Marshal([3]string{config.APIKey, config.APISecret, config.APIBaseURL})
+	encoded, err := json.Marshal([3]string{credentials.APIKey, credentials.APISecret, credentials.APIBaseURL})
 	if err != nil {
 		return nil, fmt.Errorf("could not identify ETrade configuration: %w", err)
 	}
-	auth := signIn{store: store, oauth: oauth, configurationHash: sha256.Sum256(configuration)}
-	clear(configuration)
+	auth := signIn{store: store, oauth: oauth, credentialsHash: sha256.Sum256(encoded)}
+	clear(encoded)
 
 	stop := broker.StartTimer("Connecting to %s", Name)
 	client, err := auth.refresh(ctx)
@@ -89,10 +89,10 @@ func (auth signIn) saveToken(ctx context.Context, token *oauth1.Token, refreshed
 	}
 
 	return saveSecret(ctx, auth.store, accessTokenKey, oauthSession{
-		ConfigurationHash: auth.configurationHash,
-		Token:             token,
-		LastRefreshed:     refreshedAt,
-		ExpiresAt:         expiresAt,
+		CredentialsHash: auth.credentialsHash,
+		Token:           token,
+		LastRefreshed:   refreshedAt,
+		ExpiresAt:       expiresAt,
 	})
 }
 
@@ -114,7 +114,7 @@ func (auth signIn) refresh(ctx context.Context) (*resty.Client, error) {
 		return nil, err
 	}
 
-	if saved.ConfigurationHash != auth.configurationHash || saved.Token == nil || saved.Token.Token == "" || saved.Token.TokenSecret == "" {
+	if saved.CredentialsHash != auth.credentialsHash || saved.Token == nil || saved.Token.Token == "" || saved.Token.TokenSecret == "" {
 		return nil, fmt.Errorf("saved token does not match ETrade configuration or is incomplete")
 	}
 
