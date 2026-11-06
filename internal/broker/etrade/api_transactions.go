@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"seesaw/internal/async"
-	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
@@ -72,13 +71,13 @@ func (client *Client) fetchTransactionsFor(
 	}
 
 	var rows []transactionRow
-	visitedPages := collections.NewSet[string]()
+	visitedPages := map[string]bool{}
 
 	for {
-		if visitedPages.Contains(pageURL) {
+		if visitedPages[pageURL] {
 			return nil, fmt.Errorf("transaction pagination repeated a page")
 		}
-		visitedPages.Add(pageURL)
+		visitedPages[pageURL] = true
 
 		response, err := utils.FetchJSON[transactionResponse](
 			ctx,
@@ -111,11 +110,10 @@ func (client *Client) fetchTransactionsFor(
 
 // Validate and convert the transactions for the tickers, skipping the rest.
 func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transaction, error) {
-	relevantTickers := collections.NewSet(tickers...)
 	var transactions []models.Transaction
 	for _, tx := range rows {
 		tx.Brokerage.Ticker = strings.TrimSpace(tx.Brokerage.Ticker)
-		if !relevantTickers.Contains(tx.Brokerage.Ticker) {
+		if !slices.Contains(tickers, tx.Brokerage.Ticker) {
 			continue
 		}
 		if err := utils.ValidateFields(tx, "transaction."); err != nil {

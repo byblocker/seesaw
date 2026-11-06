@@ -7,7 +7,6 @@ import (
 	"maps"
 	"net/url"
 	"seesaw/internal/async"
-	"seesaw/internal/collections"
 	"seesaw/internal/utils"
 	"seesaw/pkg/models"
 	"slices"
@@ -49,15 +48,13 @@ func (client *Client) Portfolio(
 		return models.Portfolio{}, err
 	}
 
-	selectedAccount, found := collections.Find(
-		slices.Values(accounts),
-		func(account Account) bool {
-			return account.ID() == accountID
-		},
-	)
-	if !found {
+	accountIdx := slices.IndexFunc(accounts, func(account Account) bool {
+		return account.ID() == accountID
+	})
+	if accountIdx < 0 {
 		return models.Portfolio{}, fmt.Errorf("could not find active brokerage account %s", accountID)
 	}
+	selectedAccount := accounts[accountIdx]
 
 	txEnd := time.Now()
 	txStart := txEnd.AddDate(0, 0, -daysBack)
@@ -82,10 +79,8 @@ func (client *Client) Portfolio(
 		}
 
 		// Include any held tickers along with the planned tickers
-		portfolioTickers = collections.SetFrom(
-			slices.Values(plannedTickers),
-			maps.Keys(positionsByTicker),
-		).Slice()
+		heldTickers := slices.Collect(maps.Keys(positionsByTicker))
+		portfolioTickers = slices.Compact(slices.Sorted(slices.Values(slices.Concat(plannedTickers, heldTickers))))
 
 		// One request per ticker returns faster than one request listing every ticker.
 		group.Go(func() (err error) {

@@ -79,7 +79,7 @@ func TakeSnapshot(
 		ctx,
 		plan.AccountId,
 		transactionHistoryDays,
-		slices.Collect(plan.Tickers()),
+		plan.Tickers(),
 	)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("failed to retrieve portfolio: %w", err)
@@ -123,7 +123,7 @@ func newAssets(plans []config.AssetPlan, taxLots []models.TaxLot) ([]Asset, []Po
 	}
 
 	for i := range plans {
-		tickers := slices.Collect(plans[i].Tickers())
+		tickers := plans[i].Tickers()
 		addAsset(&plans[i], strings.Join(tickers, " / "), tickers)
 	}
 
