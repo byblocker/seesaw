@@ -86,5 +86,12 @@ func parseAmount(text string) (decimal.Decimal, error) {
 		return decimal.Zero, fmt.Errorf("--amount must be a number, such as 1000 or '$1,000.50'; got %q", text)
 	}
 	cleaned := strings.ReplaceAll(strings.TrimPrefix(trimmed, "$"), ",", "")
-	return decimal.NewFromString(cleaned)
+	amount, err := decimal.NewFromString(cleaned)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	if !amount.IsPositive() {
+		return decimal.Zero, fmt.Errorf("withdrawal must be positive")
+	}
+	return amount, nil
 }

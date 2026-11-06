@@ -17,9 +17,6 @@ type Request struct {
 }
 
 func (request Request) Validate() error {
-	if !request.Amount.IsPositive() {
-		return fmt.Errorf("withdrawal must be positive")
-	}
 	return request.Settings.Validate()
 }
 
