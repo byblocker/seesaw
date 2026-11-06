@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 
@@ -23,7 +23,7 @@ func PlanSales(
 		return portfolio.Proposal{Withdrawal: amount}, nil
 	}
 
-	log.Printf("Selecting liquidation sales for at least %s", utils.FormatMoney(amountNeeded))
+	log.Printf("Selecting liquidation sales for at least %s", format.Money(amountNeeded))
 	lotIdxs := sellableLots(snapshot)
 
 	sellableValue := decimal.Zero

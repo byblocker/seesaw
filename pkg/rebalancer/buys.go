@@ -3,7 +3,7 @@ package rebalancer
 import (
 	"fmt"
 	"log"
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 
@@ -27,7 +27,7 @@ func sizeBuys(
 		balance = balance.Add(sell.Proceeds)
 	}
 
-	log.Printf("Sizing buy requests with %s available . . .", utils.FormatMoney(balance))
+	log.Printf("Sizing buy requests with %s available . . .", format.Money(balance))
 	var buys []portfolio.Buy
 	for _, request := range buyRequests {
 		if !balance.IsPositive() {
@@ -52,8 +52,8 @@ func sizeBuys(
 		buys = append(buys, buy)
 		balance = balance.Sub(buy.EstimatedCost)
 		log.Printf("BUY %s share(s) of %s at %s (~%s total)",
-			buy.Quantity.String(), ticker, utils.FormatPrice(buy.Price), utils.FormatMoney(buy.EstimatedCost))
-		log.Printf("Remaining balance: %s", utils.FormatMoney(balance))
+			buy.Quantity.String(), ticker, format.Price(buy.Price), format.Money(buy.EstimatedCost))
+		log.Printf("Remaining balance: %s", format.Money(balance))
 	}
 	return buys
 }

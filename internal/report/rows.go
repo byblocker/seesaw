@@ -1,7 +1,7 @@
 package report
 
 import (
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
@@ -29,10 +29,10 @@ func writeOrderTable(output *strings.Builder, sales sellSummary, buys []table.Ro
 	orders.AppendRows(sales.rows)
 	orders.AppendRows(buys)
 	if taxable && len(sales.rows) > 0 {
-		orders.AppendFooter(table.Row{"", "", "", "", "Short-term", "", utils.FormatMoney(sales.shortTermPL)})
-		orders.AppendFooter(table.Row{"", "", "", "", "Long-term", "", utils.FormatMoney(sales.longTermPL)})
+		orders.AppendFooter(table.Row{"", "", "", "", "Short-term", "", format.Money(sales.shortTermPL)})
+		orders.AppendFooter(table.Row{"", "", "", "", "Long-term", "", format.Money(sales.longTermPL)})
 		orders.AppendFooter(table.Row{"", "", "", "", "Total", "",
-			utils.FormatMoney(sales.shortTermPL.Add(sales.longTermPL)), utils.FormatMoney(sales.tax)})
+			format.Money(sales.shortTermPL.Add(sales.longTermPL)), format.Money(sales.tax)})
 	}
 	writeTable(output, orders)
 }
@@ -65,13 +65,13 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot) se
 				action,
 				lot.TimeAcquired.Format(time.DateOnly),
 				sale.Quantity.String(),
-				utils.FormatPrice(lot.Snapshot.Bid),
-				utils.FormatMoney(sale.Quantity.Mul(lot.Snapshot.Bid)),
-				utils.FormatMoney(realizedPL),
+				format.Price(lot.Snapshot.Bid),
+				format.Money(sale.Quantity.Mul(lot.Snapshot.Bid)),
+				format.Money(realizedPL),
 			}
 			if taxable {
 				saleTax := sale.Quantity.Mul(lot.Snapshot.TaxPerShare)
-				row = append(row, utils.FormatMoney(saleTax))
+				row = append(row, format.Money(saleTax))
 				summary.tax = summary.tax.Add(saleTax)
 			}
 			summary.rows = append(summary.rows, row)
@@ -95,8 +95,8 @@ func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot) []table.Row {
 			string(models.TxBuy),
 			"",
 			buy.Quantity.String(),
-			utils.FormatPrice(buy.Price),
-			utils.FormatMoney(buy.EstimatedCost.Neg()),
+			format.Price(buy.Price),
+			format.Money(buy.EstimatedCost.Neg()),
 		})
 	}
 
@@ -108,23 +108,23 @@ func writePortfolio(output *strings.Builder, snapshot portfolio.Snapshot) {
 	for _, asset := range snapshot.Assets {
 		assets.AppendRow(formatAsset(asset))
 	}
-	assets.AppendRow(table.Row{"Cash", utils.FormatMoney(snapshot.Balances.CashBalance)})
-	assets.AppendFooter(table.Row{"Total", utils.FormatMoney(snapshot.TotalValue)})
+	assets.AppendRow(table.Row{"Cash", format.Money(snapshot.Balances.CashBalance)})
+	assets.AppendFooter(table.Row{"Total", format.Money(snapshot.TotalValue)})
 	writeTable(output, assets)
 }
 
 func formatAsset(asset portfolio.Asset) table.Row {
 	target, deviation := "—", "—"
 	if asset.Plan != nil {
-		target = utils.FormatPercent(asset.Plan.TargetAllocation)
+		target = format.Percent(asset.Plan.TargetAllocation)
 		deviation = formatDeviation(asset.AllocDrift)
 	}
-	return table.Row{asset.Label, utils.FormatMoney(asset.Value), utils.FormatPercent(asset.Allocation), target, deviation}
+	return table.Row{asset.Label, format.Money(asset.Value), format.Percent(asset.Allocation), target, deviation}
 }
 
 func formatDeviation(drift decimal.Decimal) string {
 	if drift.IsPositive() {
-		return "+" + utils.FormatPercent(drift)
+		return "+" + format.Percent(drift)
 	}
-	return utils.FormatPercent(drift)
+	return format.Percent(drift)
 }

@@ -3,7 +3,7 @@ package rebalancer
 import (
 	"fmt"
 	"log"
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/config"
 	"seesaw/pkg/portfolio"
 
@@ -38,15 +38,15 @@ func Plan(
 
 func logSettings(snapshot portfolio.Snapshot, settings config.Settings, force bool, maxValueDeviation decimal.Decimal) {
 	log.Print("Rebalance settings:")
-	log.Printf("  - Harvest losses of %s or more", utils.FormatPercent(settings.MinPctLossToHarvest.Neg()))
+	log.Printf("  - Harvest losses of %s or more", format.Percent(settings.MinPctLossToHarvest.Neg()))
 	if snapshot.Broker.AllowFractionalShares {
 		log.Print("  - Buy fractional shares")
 	} else {
 		log.Printf("  - Round up from %s share", settings.MinFractionalShareToRound)
-		log.Printf("  - Allow at most %s above target (~%s)", utils.FormatPercent(settings.AllocationUpperLimit), utils.FormatMoney(maxValueDeviation))
+		log.Printf("  - Allow at most %s above target (~%s)", format.Percent(settings.AllocationUpperLimit), format.Money(maxValueDeviation))
 	}
 	if force {
-		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
+		log.Printf("  - Sell assets more than %s above target down to target", format.Money(maxValueDeviation))
 	}
 	if snapshot.TaxRates == nil {
 		log.Print("  - Skip tax-loss harvesting: account is not taxable")
@@ -74,7 +74,7 @@ func rebalanceAsset(
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
-		asset.Label, utils.FormatPercent(asset.Allocation), utils.FormatPercent(asset.Plan.TargetAllocation))
+		asset.Label, format.Percent(asset.Allocation), format.Percent(asset.Plan.TargetAllocation))
 	for _, positionIdx := range asset.PositionIdxs {
 		if position := snapshot.Positions[positionIdx]; position.RecentlySold {
 			log.Printf("CANNOT buy %s: sold within wash-sale window", position.Ticker)
@@ -94,7 +94,7 @@ func rebalanceAsset(
 			return nil, nil
 		}
 		if asset.ValueDrift.LessThanOrEqual(maxValueDeviation) {
-			log.Printf("SKIP selling %s: within %s of target", asset.Label, utils.FormatMoney(maxValueDeviation))
+			log.Printf("SKIP selling %s: within %s of target", asset.Label, format.Money(maxValueDeviation))
 			return nil, nil
 		}
 		return sellExcess(snapshot, asset, asset.ValueDrift), nil
@@ -115,7 +115,7 @@ func rebalanceAsset(
 	if !sell.IsEmpty() {
 		logProceeds(snapshot, sell)
 	}
-	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(shortfall), snapshot.Positions[buyPositionIdx].Ticker)
+	log.Printf("Requesting to buy %s of %s . . .", format.Money(shortfall), snapshot.Positions[buyPositionIdx].Ticker)
 	toBuy := []buyRequest{{PositionIdx: buyPositionIdx, Amount: shortfall}}
 	if sell.IsEmpty() {
 		return nil, toBuy

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"seesaw/internal/utils"
+	"seesaw/internal/format"
 	"seesaw/pkg/config"
 	"seesaw/pkg/liquidation"
 	"seesaw/pkg/portfolio"
@@ -26,7 +26,7 @@ var liquidateCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		log.Printf("Requested withdrawal of %s", utils.FormatMoney(amount))
+		log.Printf("Requested withdrawal of %s", format.Money(amount))
 
 		return proposeFor(cmd, args[0], func(plan *config.Plan, snapshot portfolio.Snapshot) (portfolio.Proposal, error) {
 			return liquidation.PlanSales(snapshot, plan.Settings, amount)
