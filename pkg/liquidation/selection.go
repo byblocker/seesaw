@@ -3,6 +3,7 @@ package liquidation
 import (
 	"fmt"
 
+	"seesaw/internal/format"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -46,8 +47,8 @@ func selectLots(
 
 	if proceeds.LessThan(amountNeeded) {
 		return nil, fmt.Errorf(
-			"sales within allocation minimums raise at most $%s of the $%s needed; increase settings.allocation_lower_limit",
-			proceeds.StringFixed(2), amountNeeded.StringFixed(2),
+			"sales within allocation minimums raise at most %s of the %s needed; increase settings.allocation_lower_limit",
+			format.Money(proceeds), format.Money(amountNeeded),
 		)
 	}
 

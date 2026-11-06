@@ -40,8 +40,8 @@ func PlanSales(
 	}
 	if sellableValue.LessThan(amountNeeded) {
 		return portfolio.Proposal{}, fmt.Errorf(
-			"whole-share holdings can raise at most $%s of the $%s needed",
-			sellableValue.StringFixed(2), amountNeeded.StringFixed(2),
+			"whole-share holdings can raise at most %s of the %s needed",
+			format.Money(sellableValue), format.Money(amountNeeded),
 		)
 	}
 
