@@ -2,6 +2,7 @@ package report
 
 import (
 	"seesaw/internal/utils"
+	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"slices"
 	"strings"
@@ -54,7 +55,7 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot) se
 			} else {
 				summary.shortTermPL = summary.shortTermPL.Add(realizedPL)
 			}
-			action := "SELL"
+			action := string(models.TxSell)
 			if taxable && lot.Snapshot.IsWashSale {
 				action += " [WS]"
 				summary.washSale = true
@@ -91,7 +92,7 @@ func formatBuys(buys []portfolio.Buy, snapshot portfolio.Snapshot) []table.Row {
 	for _, buy := range buys {
 		rows = append(rows, table.Row{
 			ticker(buy),
-			"BUY",
+			string(models.TxBuy),
 			"",
 			buy.Quantity.String(),
 			utils.FormatPrice(buy.Price),

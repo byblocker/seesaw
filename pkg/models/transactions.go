@@ -11,6 +11,6 @@ type Transaction struct {
 type TransactionType string
 
 const (
-	TxBuy  TransactionType = "buy"
-	TxSell TransactionType = "sell"
+	TxBuy  TransactionType = "BUY"
+	TxSell TransactionType = "SELL"
 )
