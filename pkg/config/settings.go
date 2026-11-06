@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"seesaw/internal/utils"
 
 	"github.com/shopspring/decimal"
@@ -48,18 +47,6 @@ func (settings Settings) Validate() error {
 		AllocationLowerLimit:      &settings.AllocationLowerLimit,
 	}.build()
 	return err
-}
-
-func (settings Settings) Log(totalValue decimal.Decimal, allowFractionalShares bool) {
-	log.Print("Rebalance settings:")
-	log.Printf("  - Harvest losses of %s or more", utils.FormatPercent(settings.MinPctLossToHarvest.Neg()))
-	if allowFractionalShares {
-		log.Print("  - Buy fractional shares")
-		return
-	}
-	maxOvershoot := totalValue.Mul(settings.AllocationUpperLimit)
-	log.Printf("  - Round up from %s share", settings.MinFractionalShareToRound)
-	log.Printf("  - Allow at most %s above target (~%s)", utils.FormatPercent(settings.AllocationUpperLimit), utils.FormatMoney(maxOvershoot))
 }
 
 type settingsYAML struct {

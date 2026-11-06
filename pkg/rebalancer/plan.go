@@ -19,14 +19,8 @@ func Plan(
 		return portfolio.Proposal{}, fmt.Errorf("empty or negative portfolio")
 	}
 
-	settings.Log(snapshot.TotalValue, snapshot.Broker.AllowFractionalShares)
 	maxValueDeviation := snapshot.TotalValue.Mul(settings.AllocationUpperLimit)
-	if force {
-		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
-	}
-	if snapshot.TaxRates == nil {
-		log.Print("  - Skip tax-loss harvesting: account is not taxable")
-	}
+	logSettings(snapshot, settings, force, maxValueDeviation)
 
 	log.Printf("Evaluating %d asset(s) for tax-loss harvesting", len(snapshot.Assets))
 	var sells []portfolio.SellProposal
@@ -40,6 +34,23 @@ func Plan(
 	buys := sizeBuys(snapshot, settings, sells, buyRequests, maxValueDeviation)
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
 	return portfolio.Proposal{Sells: sells, Buys: buys}, nil
+}
+
+func logSettings(snapshot portfolio.Snapshot, settings config.Settings, force bool, maxValueDeviation decimal.Decimal) {
+	log.Print("Rebalance settings:")
+	log.Printf("  - Harvest losses of %s or more", utils.FormatPercent(settings.MinPctLossToHarvest.Neg()))
+	if snapshot.Broker.AllowFractionalShares {
+		log.Print("  - Buy fractional shares")
+	} else {
+		log.Printf("  - Round up from %s share", settings.MinFractionalShareToRound)
+		log.Printf("  - Allow at most %s above target (~%s)", utils.FormatPercent(settings.AllocationUpperLimit), utils.FormatMoney(maxValueDeviation))
+	}
+	if force {
+		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
+	}
+	if snapshot.TaxRates == nil {
+		log.Print("  - Skip tax-loss harvesting: account is not taxable")
+	}
 }
 
 func rebalanceAsset(
