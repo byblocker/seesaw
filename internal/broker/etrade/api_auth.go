@@ -106,10 +106,14 @@ func endOfDay(moment time.Time) (time.Time, error) {
 }
 
 func (auth signIn) refresh(ctx context.Context) (*resty.Client, error) {
-	saved, err := loadSecret[oauthSession](ctx, auth.store, accessTokenKey)
+	data, err := auth.store.Get(ctx, accessTokenKey)
 	if errors.Is(err, secrets.ErrNotFound) {
 		return nil, fmt.Errorf("no saved token")
 	}
+	if err != nil {
+		return nil, err
+	}
+	saved, err := decodeSecret[oauthSession](accessTokenKey, data)
 	if err != nil {
 		return nil, err
 	}

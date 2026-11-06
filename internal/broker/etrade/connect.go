@@ -80,14 +80,18 @@ func (etradeBroker Broker) Setup(ctx context.Context) (saved bool, err error) {
 }
 
 func (etradeBroker Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
-	credentials, err := loadSecret[Credentials](ctx, etradeBroker.Secrets, etradeCredentialsKey)
+	data, err := etradeBroker.Secrets.Get(ctx, etradeCredentialsKey)
 	if errors.Is(err, secrets.ErrNotFound) {
 		return nil, models.ErrBrokerNotConfigured
 	}
 	if err != nil {
-		return nil, fmt.Errorf("%w: could not load ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
+		return nil, fmt.Errorf("could not load ETrade configuration: %w", err)
 	}
 
+	credentials, err := decodeSecret[Credentials](etradeCredentialsKey, data)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
+	}
 	credentials.APIBaseURL = strings.TrimRight(credentials.APIBaseURL, "/")
 	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
@@ -127,12 +131,8 @@ func promptForCredentials() (Credentials, error) {
 	}, nil
 }
 
-func loadSecret[T any](ctx context.Context, store secrets.Store, key string) (T, error) {
+func decodeSecret[T any](key string, data []byte) (T, error) {
 	var value T
-	data, err := store.Get(ctx, key)
-	if err != nil {
-		return value, err
-	}
 	if err := json.Unmarshal(data, &value); err != nil {
 		return value, fmt.Errorf("failed to decode %s: %w", key, err)
 	}
