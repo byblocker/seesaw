@@ -40,7 +40,3 @@ When _seesaw_ first authenticates for the day, _seesaw_ will open the browser to
 - Transaction history covers active accounts accessible through your ETRADE credentials. _seesaw_ cannot account for activity at other brokerages or in closed or inactive ETRADE accounts.
 - Portfolio requests follow the broker's pagination metadata to retrieve all holdings. Missing continuation metadata or repeated positions cause an error instead of returning an incomplete portfolio.
 - Responses missing fields _seesaw_ relies on, such as account keys, lot prices and quantities, acquisition dates, balances, or positive bid and ask prices, cause an error naming the field.
-
-## Library usage
-
-Supply a `broker.ETradeConfig` and connect via `broker.ConnectETrade(ctx, config)` from `seesaw/pkg/broker` to receive a `*broker.ETradeClient`, which implements `models.BrokerClient`. Populate the configuration from your own environment loader or secrets manager, as needed. _seesaw_ still uses OS keyring for OAuth token caching.

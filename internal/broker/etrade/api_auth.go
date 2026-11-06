@@ -54,7 +54,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 		},
 	}
 
-	// Bind tokens to the credentials and endpoint, including for explicit-config callers.
+	// Bind tokens to the credentials and endpoint.
 	configuration, err := json.Marshal([3]string{key, secret, baseURL})
 	if err != nil {
 		return nil, fmt.Errorf("could not identify ETrade configuration: %w", err)

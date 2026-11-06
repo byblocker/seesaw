@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-var ErrNotConfigured = models.ErrBrokerNotConfigured
-
 type Broker interface {
 	Setup(context.Context) error
 	Connect(context.Context) (models.BrokerClient, error)
@@ -22,4 +20,12 @@ func For(name string) (Broker, error) {
 	default:
 		return nil, fmt.Errorf("unsupported broker %q", name)
 	}
+}
+
+func Connect(ctx context.Context, name string) (models.BrokerClient, error) {
+	selectedBroker, err := For(name)
+	if err != nil {
+		return nil, err
+	}
+	return selectedBroker.Connect(ctx)
 }
