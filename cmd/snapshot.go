@@ -41,7 +41,11 @@ func snapshotAccount(cmd *cobra.Command, planName string) (*config.Plan, portfol
 		return nil, portfolio.Snapshot{}, err
 	}
 
-	client, err := broker.Connect(cmd.Context(), plan.Broker)
+	selectedBroker, err := broker.For(plan.Broker)
+	if err != nil {
+		return nil, portfolio.Snapshot{}, err
+	}
+	client, err := selectedBroker.Connect(cmd.Context())
 	if errors.Is(err, models.ErrBrokerNotConfigured) {
 		return nil, portfolio.Snapshot{}, fmt.Errorf("%w; run seesaw connect --broker %s", err, plan.Broker)
 	}
