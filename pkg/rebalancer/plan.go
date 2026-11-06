@@ -100,7 +100,11 @@ func rebalanceAsset(
 		return sellExcess(snapshot, asset, asset.ValueDrift), nil
 	}
 
-	toBuy, ok := selectBuy(snapshot, asset, sell, shortfall)
+	soldPositionIdx := -1
+	if !sell.IsEmpty() {
+		soldPositionIdx = sell.PositionIdx
+	}
+	buyPositionIdx, ok := replacement(snapshot, asset, soldPositionIdx)
 	if !ok {
 		// This should rarely happen, but if we cannot maintain an asset's allocation
 		// by purchasing its paired ticker, we should not harvest a ticker
@@ -111,11 +115,12 @@ func rebalanceAsset(
 	if !sell.IsEmpty() {
 		logProceeds(snapshot, sell)
 	}
-	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(toBuy.Amount), snapshot.Positions[toBuy.PositionIdx].Ticker)
+	log.Printf("Requesting to buy %s of %s . . .", utils.FormatMoney(shortfall), snapshot.Positions[buyPositionIdx].Ticker)
+	toBuy := []buyRequest{{PositionIdx: buyPositionIdx, Amount: shortfall}}
 	if sell.IsEmpty() {
-		return nil, []buyRequest{toBuy}
+		return nil, toBuy
 	}
-	return []portfolio.SellProposal{sell}, []buyRequest{toBuy}
+	return []portfolio.SellProposal{sell}, toBuy
 }
 
 // Unless forced, we should not liquidate unplanned positions while rebalancing,

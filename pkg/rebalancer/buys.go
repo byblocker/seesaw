@@ -15,15 +15,6 @@ type buyRequest struct {
 	Amount      decimal.Decimal
 }
 
-func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfolio.SellProposal, shortfall decimal.Decimal) (buyRequest, bool) {
-	soldPositionIdx := -1
-	if !sell.IsEmpty() {
-		soldPositionIdx = sell.PositionIdx
-	}
-	positionIdx, ok := replacement(snapshot, asset, soldPositionIdx)
-	return buyRequest{PositionIdx: positionIdx, Amount: shortfall}, ok
-}
-
 func sizeBuys(
 	snapshot portfolio.Snapshot,
 	settings config.Settings,
