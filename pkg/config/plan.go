@@ -123,7 +123,6 @@ func ParsePlan(reader io.Reader) (*Plan, error) {
 	return NewPlan(decoded.Broker, decoded.AccountId, *decoded.IsTaxable, settings, decoded.Assets)
 }
 
-// Reject any YAML document after the one the decoder already read.
 func requireSingleDocument(decoder *yaml.Decoder, description string) error {
 	var extraDocument any
 	err := decoder.Decode(&extraDocument)

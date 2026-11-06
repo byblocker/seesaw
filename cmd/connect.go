@@ -28,7 +28,6 @@ func init() {
 	rootCmd.AddCommand(connectCmd)
 }
 
-// Selects and configures a Broker before an authenticated BrokerClient exists.
 func connectBroker(cmd *cobra.Command, args []string) error {
 	selectedBroker, err := registry.FindBroker(brokerName, keyring.Store{})
 	if err != nil {

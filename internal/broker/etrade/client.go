@@ -74,7 +74,6 @@ func (client *Client) Portfolio(
 			return err
 		}
 
-		// Include any held tickers along with the planned tickers
 		heldTickers := slices.Collect(maps.Keys(positionsByTicker))
 		portfolioTickers = slices.Compact(slices.Sorted(slices.Values(slices.Concat(plannedTickers, heldTickers))))
 

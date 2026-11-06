@@ -7,7 +7,7 @@ import (
 
 var ErrNotFound = errors.New("secret not found")
 
-// Where brokers keep their configuration and tokens. The CLI uses the OS keyring;
+// Where brokers keep their credentials and tokens. The CLI uses the OS keyring;
 // other hosts, such as a Lambda function, can back it with a cloud secret manager.
 type Store interface {
 	// Get returns ErrNotFound when nothing is saved under key.

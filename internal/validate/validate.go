@@ -22,7 +22,6 @@ func newValidator() *validator.Validate {
 		return strings.Split(field.Tag.Get("json"), ",")[0]
 	})
 
-	// Compare decimals as floats
 	v.RegisterCustomTypeFunc(func(field reflect.Value) any {
 		value, _ := field.Interface().(decimal.Decimal).Float64()
 		return value

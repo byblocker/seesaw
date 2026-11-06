@@ -84,7 +84,6 @@ func (snapshot Snapshot) SortLotsForSale(lotIdxs []int) {
 	})
 }
 
-// A sort rank that puts holdings outside the plan before planned ones.
 func preferUnplanned(asset Asset) int {
 	if asset.Plan == nil {
 		return 0

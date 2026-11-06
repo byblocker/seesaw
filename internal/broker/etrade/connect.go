@@ -48,7 +48,7 @@ type Broker struct {
 	Secrets secrets.Store // Holds the credentials and access token
 }
 
-// Prompt for and save the configuration. Saved is false when the user keeps the existing one.
+// Prompt for and save the credentials. Saved is false when the user keeps the existing one.
 func (etradeBroker Broker) Setup(ctx context.Context) (saved bool, err error) {
 	exists, err := secrets.Exists(ctx, etradeBroker.Secrets, etradeCredentialsKey)
 	if err != nil {
