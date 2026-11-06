@@ -34,10 +34,6 @@ type listAccountsAPIResponse struct {
 }
 
 func (client *Client) fetchAccounts(ctx context.Context) ([]Account, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	endpoint := fmt.Sprintf("%s/accounts/list", client.apiBaseURL)
 	stop := utils.StartTimer("Fetching brokerage accounts")
 	response, err := utils.FetchJSON[listAccountsAPIResponse](

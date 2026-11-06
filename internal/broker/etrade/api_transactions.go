@@ -55,10 +55,6 @@ func (client *Client) fetchTransactionsFor(
 	account Account,
 	start, end time.Time,
 ) ([]transactionRow, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	pageURL := client.endpointFor(account, "transactions")
 	query := url.Values{
 		"startDate": {start.Format(dateFormat)},

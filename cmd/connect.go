@@ -37,9 +37,7 @@ func connectBroker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx := cmd.Context()
-
-	if err := selectedBroker.Setup(ctx); err != nil {
+	if err := selectedBroker.Setup(); err != nil {
 		if errors.Is(err, context.Canceled) {
 			fmt.Fprintln(cmd.ErrOrStderr(), "Connection setup canceled; configuration unchanged.")
 			return nil
@@ -47,7 +45,7 @@ func connectBroker(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if _, err := selectedBroker.Connect(ctx); err != nil {
+	if _, err := selectedBroker.Connect(cmd.Context()); err != nil {
 		return fmt.Errorf("configuration saved, but authentication failed: %w\n"+
 			"To retry sign-in, run: seesaw snapshot <portfolio>\n"+
 			"To replace the configuration, run: seesaw connect --broker %s", err, strings.ToUpper(strings.TrimSpace(brokerName)))

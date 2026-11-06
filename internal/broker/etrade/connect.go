@@ -45,11 +45,7 @@ func (config Config) Validate() error {
 
 type Broker struct{}
 
-func (Broker) Setup(ctx context.Context) error {
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-
+func (Broker) Setup() error {
 	exists, err := keyring.Exists(etradeConfigKey)
 	if err != nil {
 		return fmt.Errorf("could not check saved ETrade configuration; check OS keyring access: %w", err)
@@ -72,9 +68,6 @@ func (Broker) Setup(ctx context.Context) error {
 	if err := config.Validate(); err != nil {
 		return err
 	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
 
 	if err := keyring.Set(etradeConfigKey, config); err != nil {
 		return fmt.Errorf("could not save ETrade configuration; check OS keyring access: %w", err)
@@ -83,10 +76,6 @@ func (Broker) Setup(ctx context.Context) error {
 }
 
 func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
 	config, err := keyring.Get[Config](etradeConfigKey)
 	if errors.Is(err, keyring.ErrNotFound) {
 		return nil, fmt.Errorf("%w: run seesaw connect --broker ETRADE", models.ErrBrokerNotConfigured)
