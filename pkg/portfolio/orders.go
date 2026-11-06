@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"cmp"
 	"slices"
 
 	"github.com/shopspring/decimal"
@@ -67,4 +68,26 @@ func SharesAtMost(amount, price decimal.Decimal) int64 {
 type LotSale struct {
 	LotIdx   int
 	Quantity decimal.Decimal
+}
+
+// Order lots to sell: holdings outside the plan first, then the lowest tax per dollar raised,
+// then the most overweight asset. Remaining ties keep the given order, so plans repeat exactly.
+func (snapshot Snapshot) SortLotsForSale(lotIdxs []int) {
+	slices.SortStableFunc(lotIdxs, func(leftIdx, rightIdx int) int {
+		left, right := snapshot.Lots[leftIdx], snapshot.Lots[rightIdx]
+		leftAsset, rightAsset := snapshot.Assets[left.AssetIdx], snapshot.Assets[right.AssetIdx]
+		return cmp.Or(
+			cmp.Compare(preferUnplanned(leftAsset), preferUnplanned(rightAsset)),
+			left.Snapshot.TaxPerDollar.Cmp(right.Snapshot.TaxPerDollar),
+			rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
+		)
+	})
+}
+
+// A sort rank that puts holdings outside the plan before planned ones.
+func preferUnplanned(asset Asset) int {
+	if asset.Plan == nil {
+		return 0
+	}
+	return 1
 }

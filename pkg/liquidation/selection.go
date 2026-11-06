@@ -1,9 +1,7 @@
 package liquidation
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 
 	"seesaw/pkg/portfolio"
 
@@ -16,10 +14,7 @@ func selectLots(
 	valueAboveMin []decimal.Decimal,
 	amountNeeded decimal.Decimal,
 ) ([]portfolio.LotSale, error) {
-	// Remaining ties keep plan order, then lot ID order, from sellableLots, so plans repeat exactly.
-	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
-		return compareLots(snapshot, leftLotIdx, rightLotIdx)
-	})
+	snapshot.SortLotsForSale(lotIdxs)
 	var sales []portfolio.LotSale
 	proceeds := decimal.Zero
 	proceedsByAsset := make([]decimal.Decimal, len(snapshot.Assets))
@@ -59,25 +54,6 @@ func selectLots(
 	}
 
 	return sales, nil
-}
-
-func compareLots(snapshot portfolio.Snapshot, leftLotIdx, rightLotIdx int) int {
-	leftLot, rightLot := snapshot.Lots[leftLotIdx], snapshot.Lots[rightLotIdx]
-	leftAsset, rightAsset := snapshot.Assets[leftLot.AssetIdx], snapshot.Assets[rightLot.AssetIdx]
-
-	// Sell holdings outside the plan before any planned lot
-	if leftIsPlanned, rightIsPlanned := leftAsset.Plan != nil, rightAsset.Plan != nil; leftIsPlanned != rightIsPlanned {
-		if leftIsPlanned {
-			return 1
-		}
-		return -1
-	}
-
-	return cmp.Or(
-		leftLot.Snapshot.TaxPerDollar.Cmp(rightLot.Snapshot.TaxPerDollar),
-		// Ties go to the most overweight asset
-		rightAsset.AllocDrift.Cmp(leftAsset.AllocDrift),
-	)
 }
 
 // Whole shares at price that raise at least amount.

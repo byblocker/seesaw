@@ -111,7 +111,7 @@ func logLot(lot portfolio.Lot, harvestable bool) {
 		action, lot.Quantity, lot.TimeAcquired.Format(time.DateOnly), utils.FormatPercent(lot.Snapshot.GainPct.Neg()))
 }
 
-// Sell whole shares of an asset worth at most excess, lowest tax per dollar first.
+// Sell whole shares of an asset worth at most excess, in sale order.
 func sellExcess(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
@@ -121,11 +121,7 @@ func sellExcess(
 	for _, positionIdx := range asset.PositionIdxs {
 		lotIdxs = append(lotIdxs, snapshot.Positions[positionIdx].LotIdxs...)
 	}
-	// Ties keep plan order, then lot ID order, so plans repeat exactly.
-	slices.SortStableFunc(lotIdxs, func(leftLotIdx, rightLotIdx int) int {
-		left, right := snapshot.Lots[leftLotIdx].Snapshot, snapshot.Lots[rightLotIdx].Snapshot
-		return left.TaxPerDollar.Cmp(right.TaxPerDollar)
-	})
+	snapshot.SortLotsForSale(lotIdxs)
 
 	var sales []portfolio.LotSale
 	remaining := excess
