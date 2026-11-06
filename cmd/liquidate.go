@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"regexp"
-	"seesaw/internal/broker"
 	"seesaw/internal/utils"
+	"seesaw/pkg/config"
 	"seesaw/pkg/liquidation"
 	"seesaw/pkg/portfolio"
 	"strings"
@@ -21,7 +21,17 @@ var liquidateCmd = &cobra.Command{
 	Short:   "Plan whole-share sales to fund a withdrawal",
 	Example: "  seesaw liquidate growth --amount 1000\n  seesaw liquidate growth -a '$1,000.50'",
 	Args:    requirePlanName,
-	RunE:    liquidate,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		amount, err := parseAmount(liquidationAmount)
+		if err != nil {
+			return err
+		}
+		log.Printf("Requested withdrawal of %s", utils.FormatMoney(amount))
+
+		return proposeFor(cmd, args[0], func(plan *config.Plan, snapshot portfolio.Snapshot) (portfolio.Proposal, error) {
+			return liquidation.PlanSales(snapshot, plan.Settings, amount)
+		})
+	},
 }
 
 func init() {
@@ -30,43 +40,6 @@ func init() {
 	if err := liquidateCmd.MarkFlagRequired("amount"); err != nil {
 		panic(err)
 	}
-}
-
-func liquidate(cmd *cobra.Command, args []string) error {
-	amount, err := parseAmount(liquidationAmount)
-	if err != nil {
-		return err
-	}
-
-	plan, err := loadPlan(args[0])
-	if err != nil {
-		return err
-	}
-	log.Printf("Requested liquidation of %s for %s", plan.AccountLabel(), utils.FormatMoney(amount))
-	taxRates, err := loadTaxRates(plan)
-	if err != nil {
-		return err
-	}
-
-	client, err := broker.Connect(cmd.Context(), plan.Broker)
-	if err != nil {
-		return err
-	}
-
-	snapshot, err := portfolio.TakeSnapshot(cmd.Context(), client, plan, taxRates)
-	if err != nil {
-		return err
-	}
-	if err := writeSnapshot(cmd, snapshot); err != nil {
-		return err
-	}
-
-	proposal, err := liquidation.PlanSales(snapshot, plan.Settings, amount)
-	if err != nil {
-		return err
-	}
-
-	return writeProposal(cmd, snapshot, proposal)
 }
 
 var amountPattern = regexp.MustCompile(`^\$?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$`)
