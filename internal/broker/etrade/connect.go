@@ -78,14 +78,14 @@ func (Broker) Setup() error {
 func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
 	config, err := keyring.Get[Config](etradeConfigKey)
 	if errors.Is(err, keyring.ErrNotFound) {
-		return nil, fmt.Errorf("%w: run seesaw connect --broker ETRADE", models.ErrBrokerNotConfigured)
+		return nil, models.ErrBrokerNotConfigured
 	}
 	if err != nil {
-		return nil, fmt.Errorf("could not load ETrade configuration; check OS keyring access or run seesaw connect --broker ETRADE: %w", err)
+		return nil, fmt.Errorf("%w: could not load ETrade configuration; check OS keyring access: %w", models.ErrBrokerNotConfigured, err)
 	}
 
 	if err := config.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid saved ETrade configuration; run seesaw connect --broker ETRADE: %w", err)
+		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
 	}
 
 	httpClient, err := authenticate(ctx, config.APIKey, config.APISecret, config.APIBaseURL)

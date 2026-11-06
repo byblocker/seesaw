@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"seesaw/internal/broker"
 	"seesaw/internal/report"
 	"seesaw/pkg/config"
+	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/spf13/cobra"
@@ -40,6 +42,9 @@ func snapshotAccount(cmd *cobra.Command, planName string) (*config.Plan, portfol
 	}
 
 	client, err := broker.Connect(cmd.Context(), plan.Broker)
+	if errors.Is(err, models.ErrBrokerNotConfigured) {
+		return nil, portfolio.Snapshot{}, fmt.Errorf("%w; run seesaw connect --broker %s", err, plan.Broker)
+	}
 	if err != nil {
 		return nil, portfolio.Snapshot{}, err
 	}
