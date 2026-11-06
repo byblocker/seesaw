@@ -43,20 +43,6 @@ func (config Config) Validate() error {
 	return nil
 }
 
-func NewClient(ctx context.Context, config Config) (*Client, error) {
-	if err := config.Validate(); err != nil {
-		return nil, err
-	}
-
-	baseURL := strings.TrimRight(config.APIBaseURL, "/")
-	httpClient, err := authenticate(ctx, config.APIKey, config.APISecret, baseURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to %s: %w", Name, err)
-	}
-
-	return &Client{httpClient: httpClient, apiBaseURL: baseURL}, nil
-}
-
 type Broker struct{}
 
 func (Broker) Setup(ctx context.Context) error {
@@ -113,7 +99,11 @@ func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
 		return nil, fmt.Errorf("invalid saved ETrade configuration; run seesaw connect --broker ETRADE: %w", err)
 	}
 
-	return NewClient(ctx, *config)
+	httpClient, err := authenticate(ctx, config.APIKey, config.APISecret, config.APIBaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to %s: %w", Name, err)
+	}
+	return &Client{httpClient: httpClient, apiBaseURL: config.APIBaseURL}, nil
 }
 
 func promptForConfig() (Config, error) {
