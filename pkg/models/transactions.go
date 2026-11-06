@@ -1,17 +1,11 @@
 package models
 
-import (
-	"time"
-
-	"github.com/shopspring/decimal"
-)
+import "time"
 
 type Transaction struct {
-	Ticker   string
-	Type     TransactionType
-	Date     time.Time
-	Quantity decimal.Decimal
-	Price    decimal.Decimal
+	Ticker string
+	Type   TransactionType
+	Date   time.Time
 }
 
 type TransactionType string

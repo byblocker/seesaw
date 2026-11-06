@@ -11,8 +11,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/shopspring/decimal"
 )
 
 const dateFormat = "01022006"
@@ -22,9 +20,7 @@ type transactionRow struct {
 	Type      string `json:"transactionType"`
 	Date      int64  `json:"transactionDate" validate:"gt=0"`
 	Brokerage struct {
-		Ticker   string          `json:"displaySymbol"`
-		Quantity decimal.Decimal `json:"quantity"`
-		Price    decimal.Decimal `json:"price"`
+		Ticker string `json:"displaySymbol"`
 	} `json:"brokerage"`
 }
 
@@ -127,11 +123,9 @@ func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transa
 		}
 
 		transactions = append(transactions, models.Transaction{
-			Ticker:   tx.Brokerage.Ticker,
-			Type:     models.TransactionType(tx.Type),
-			Date:     time.UnixMilli(tx.Date),
-			Quantity: tx.Brokerage.Quantity,
-			Price:    tx.Brokerage.Price,
+			Ticker: tx.Brokerage.Ticker,
+			Type:   models.TransactionType(tx.Type),
+			Date:   time.UnixMilli(tx.Date),
 		})
 	}
 	return transactions, nil
