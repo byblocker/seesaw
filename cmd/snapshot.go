@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"seesaw/internal/broker"
 	"seesaw/internal/report"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
@@ -41,7 +40,7 @@ func snapshotAccount(cmd *cobra.Command, planName string) (*config.Plan, portfol
 		return nil, portfolio.Snapshot{}, err
 	}
 
-	selectedBroker, err := broker.For(plan.Broker)
+	selectedBroker, err := findBroker(plan.Broker)
 	if err != nil {
 		return nil, portfolio.Snapshot{}, err
 	}

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"seesaw/internal/broker"
 
 	"github.com/spf13/cobra"
 )
@@ -29,7 +28,7 @@ func init() {
 
 // Selects and configures a Broker before an authenticated BrokerClient exists.
 func connectBroker(cmd *cobra.Command, args []string) error {
-	selectedBroker, err := broker.For(brokerName)
+	selectedBroker, err := findBroker(brokerName)
 	if err != nil {
 		return err
 	}

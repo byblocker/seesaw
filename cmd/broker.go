@@ -1,4 +1,4 @@
-package broker
+package cmd
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"strings"
 )
 
-type Broker interface {
+type broker interface {
 	Setup() (saved bool, err error)
 	Connect(context.Context) (models.BrokerClient, error)
 }
 
-func For(name string) (Broker, error) {
+func findBroker(name string) (broker, error) {
 	switch strings.ToUpper(strings.TrimSpace(name)) {
 	case etrade.Name:
 		return etrade.Broker{}, nil
