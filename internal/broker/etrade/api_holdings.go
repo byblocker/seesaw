@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"seesaw/internal/broker"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 	"strconv"
 	"strings"
@@ -128,7 +128,7 @@ func (page portfolioPageResponse) pagination() (nextPage, totalPages int, err er
 
 func addPosition(positionsByTicker map[string]positionResponse, position positionResponse) error {
 	position.Ticker = strings.TrimSpace(position.Ticker)
-	if err := utils.ValidateFields(position, "position."); err != nil {
+	if err := validate.Fields(position, "position."); err != nil {
 		return err
 	}
 	if _, exists := positionsByTicker[position.Ticker]; exists {
@@ -160,7 +160,7 @@ func (client *Client) fetchLots(
 
 	lots := make([]models.TaxLot, 0, len(response.PositionLotsResponse.PositionLots))
 	for _, lot := range response.PositionLotsResponse.PositionLots {
-		if err := utils.ValidateFields(lot, "lot."); err != nil {
+		if err := validate.Fields(lot, "lot."); err != nil {
 			return nil, fmt.Errorf("lots for position %d (%s): %w", position.Id, position.Ticker, err)
 		}
 		lots = append(lots, models.TaxLot{

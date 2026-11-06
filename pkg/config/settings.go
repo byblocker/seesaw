@@ -1,7 +1,7 @@
 package config
 
 import (
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 
 	"github.com/shopspring/decimal"
 )
@@ -37,7 +37,7 @@ type settingsYAML struct {
 }
 
 func (raw settingsYAML) build() (Settings, error) {
-	if err := utils.ValidateFields(raw, "settings."); err != nil {
+	if err := validate.Fields(raw, "settings."); err != nil {
 		return Settings{}, err
 	}
 	return Settings{

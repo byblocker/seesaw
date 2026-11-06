@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"seesaw/internal/broker"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 	"strings"
 
@@ -43,7 +43,7 @@ func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quo
 
 	for _, quote := range response.QuoteResponse.QuoteData {
 		if strings.EqualFold(quote.Product.Symbol, ticker) {
-			if err := utils.ValidateFields(quote.All, ""); err != nil {
+			if err := validate.Fields(quote.All, ""); err != nil {
 				return models.Quote{}, fmt.Errorf("quote %s: %w", ticker, err)
 			}
 

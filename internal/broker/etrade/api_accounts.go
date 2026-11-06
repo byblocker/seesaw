@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"seesaw/internal/broker"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 )
 
 const (
@@ -50,7 +50,7 @@ func (client *Client) fetchAccounts(ctx context.Context) ([]Account, error) {
 		if account.Type != brokerageAccountType || account.Status != activeAccountStatus {
 			continue
 		}
-		if err := utils.ValidateFields(account, "account."); err != nil {
+		if err := validate.Fields(account, "account."); err != nil {
 			return nil, err
 		}
 		accounts = append(accounts, Account{id: account.Id, key: account.Key})

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"seesaw/internal/broker"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 
 	"github.com/shopspring/decimal"
@@ -33,7 +33,7 @@ func (client *Client) fetchBalances(ctx context.Context, account Account) (model
 	}
 
 	computed := response.BalanceResponse.Computed
-	if err := utils.ValidateFields(computed, "balance."); err != nil {
+	if err := validate.Fields(computed, "balance."); err != nil {
 		return models.Balances{}, err
 	}
 

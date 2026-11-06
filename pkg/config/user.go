@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 
 	"github.com/shopspring/decimal"
 	"gopkg.in/yaml.v3"
@@ -31,7 +31,7 @@ type taxYAML struct {
 }
 
 func (raw taxYAML) build() (TaxSettings, error) {
-	if err := utils.ValidateFields(raw, "tax."); err != nil {
+	if err := validate.Fields(raw, "tax."); err != nil {
 		return TaxSettings{}, err
 	}
 	return TaxSettings{

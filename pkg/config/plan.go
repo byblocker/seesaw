@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 	"slices"
 	"strings"
 
@@ -69,7 +70,7 @@ func NewPlan(broker, accountId string, isTaxable bool, settings Settings, assets
 		asset := &assets[i]
 		asset.PrimaryTicker = strings.TrimSpace(asset.PrimaryTicker)
 		asset.AltTicker = strings.TrimSpace(asset.AltTicker)
-		if err := utils.ValidateFields(*asset, fmt.Sprintf("assets[%d].", i)); err != nil {
+		if err := validate.Fields(*asset, fmt.Sprintf("assets[%d].", i)); err != nil {
 			return nil, err
 		}
 	}

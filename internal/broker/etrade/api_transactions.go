@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"seesaw/internal/async"
 	"seesaw/internal/broker"
-	"seesaw/internal/utils"
+	"seesaw/internal/validate"
 	"seesaw/pkg/models"
 	"slices"
 	"strings"
@@ -119,7 +119,7 @@ func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transa
 		if !slices.Contains(tickers, tx.Brokerage.Ticker) {
 			continue
 		}
-		if err := utils.ValidateFields(tx, "transaction."); err != nil {
+		if err := validate.Fields(tx, "transaction."); err != nil {
 			return nil, fmt.Errorf("%s transaction for %s in account %s: %w", tx.Type, tx.Brokerage.Ticker, tx.AccountID, err)
 		}
 
