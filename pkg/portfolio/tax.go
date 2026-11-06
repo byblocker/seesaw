@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	washSaleWindowDays     = 30
-	transactionHistoryDays = washSaleWindowDays + 1
+	WashSaleWindowDays     = 30
+	transactionHistoryDays = WashSaleWindowDays + 1
 )
 
 func isLongTerm(timeAcquired, saleDate time.Time) bool {

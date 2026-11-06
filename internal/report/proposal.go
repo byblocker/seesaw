@@ -1,6 +1,7 @@
 package report
 
 import (
+	"fmt"
 	"seesaw/pkg/portfolio"
 	"strings"
 )
@@ -21,7 +22,8 @@ func Proposal(proposal portfolio.Proposal, estimated portfolio.Snapshot) string 
 	writePortfolio(&output, estimated)
 
 	if summary.washSale {
-		output.WriteString("[WS] Wash sale: a purchase of this ticker in the last 30 days disallows the loss, so it counts no tax relief.\n")
+		fmt.Fprintf(&output, "[WS] Wash sale: a purchase of this ticker in the last %d days disallows the loss, so it counts no tax relief.\n",
+			portfolio.WashSaleWindowDays)
 	}
 	return output.String()
 }
