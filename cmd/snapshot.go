@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"seesaw/internal/format"
 	"seesaw/internal/report"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 	"seesaw/pkg/registry"
 	"seesaw/pkg/secrets/keyring"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -36,7 +38,8 @@ func snapshotAccount(cmd *cobra.Command, planName string) (*config.Plan, portfol
 	if err != nil {
 		return nil, portfolio.Snapshot{}, err
 	}
-	log.Printf("Running %s for %s with %s portfolio", cmd.Name(), plan.AccountLabel(), planName)
+	log.Printf("Running %s for %s #%s with %s portfolio",
+		cmd.Name(), strings.ToUpper(plan.Broker), format.AccountSuffix(plan.AccountId), planName)
 	taxRates, err := loadTaxRates(plan)
 	if err != nil {
 		return nil, portfolio.Snapshot{}, err

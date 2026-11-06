@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"seesaw/internal/format"
 	"seesaw/internal/validate"
 	"slices"
 	"strings"
@@ -27,10 +26,6 @@ type planYAML struct {
 	IsTaxable *bool        `yaml:"is_taxable"`
 	Settings  settingsYAML `yaml:"settings"`
 	Assets    []AssetPlan  `yaml:"assets"`
-}
-
-func (plan *Plan) AccountLabel() string {
-	return fmt.Sprintf("%s #%s", strings.ToUpper(plan.Broker), format.AccountSuffix(plan.AccountId))
 }
 
 func (plan *Plan) Tickers() []string {
