@@ -11,25 +11,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Request struct {
-	Amount   decimal.Decimal
-	Settings config.Settings
-}
-
-func (request Request) Validate() error {
-	return request.Settings.Validate()
-}
-
 func PlanSales(
 	snapshot portfolio.Snapshot,
-	request Request,
+	settings config.Settings,
+	amount decimal.Decimal,
 ) ([]portfolio.SellProposal, error) {
-	if err := request.Validate(); err != nil {
-		return nil, err
-	}
-
 	// Use existing cash first, and sell only for the rest of the withdrawal.
-	amountNeeded := utils.ClampNonNegative(request.Amount.Sub(snapshot.Balances.CashBalance))
+	amountNeeded := utils.ClampNonNegative(amount.Sub(snapshot.Balances.CashBalance))
 	if amountNeeded.IsZero() {
 		log.Print("Liquidation planning complete: 0 sell(s)")
 		return nil, nil
@@ -50,7 +38,7 @@ func PlanSales(
 		)
 	}
 
-	valueAboveMin := valueAboveMinAllowed(snapshot, request.Settings.AllocationLowerLimit, amountNeeded)
+	valueAboveMin := valueAboveMinAllowed(snapshot, settings.AllocationLowerLimit, amountNeeded)
 	sales, err := selectLots(snapshot, lotIdxs, valueAboveMin, amountNeeded)
 	if err != nil {
 		return nil, err

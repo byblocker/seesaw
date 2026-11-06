@@ -11,30 +11,19 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Request struct {
-	Settings config.Settings
-	Force    bool
-}
-
-func (request Request) Validate() error {
-	return request.Settings.Validate()
-}
-
 func Plan(
 	snapshot portfolio.Snapshot,
-	request Request,
+	settings config.Settings,
+	force bool,
 	brokerSettings models.BrokerSettings,
 ) ([]portfolio.SellProposal, []portfolio.Buy, error) {
-	if err := request.Validate(); err != nil {
-		return nil, nil, err
-	}
 	if !snapshot.TotalValue.IsPositive() {
 		return nil, nil, fmt.Errorf("empty or negative portfolio")
 	}
 
-	request.Settings.Log(snapshot.TotalValue, brokerSettings.AllowFractionalShares)
-	maxValueDeviation := snapshot.TotalValue.Mul(request.Settings.AllocationUpperLimit)
-	if request.Force {
+	settings.Log(snapshot.TotalValue, brokerSettings.AllowFractionalShares)
+	maxValueDeviation := snapshot.TotalValue.Mul(settings.AllocationUpperLimit)
+	if force {
 		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
 	}
 	if snapshot.TaxRates == nil {
@@ -45,12 +34,12 @@ func Plan(
 	var sells []portfolio.SellProposal
 	var buyRequests []buyRequest
 	for _, asset := range snapshot.Assets {
-		assetSells, assetBuyRequests := rebalanceAsset(snapshot, asset, request, maxValueDeviation)
+		assetSells, assetBuyRequests := rebalanceAsset(snapshot, asset, settings, force, maxValueDeviation)
 		sells = append(sells, assetSells...)
 		buyRequests = append(buyRequests, assetBuyRequests...)
 	}
 
-	buys := sizeBuys(snapshot, request.Settings, brokerSettings, sells, buyRequests, maxValueDeviation)
+	buys := sizeBuys(snapshot, settings, brokerSettings, sells, buyRequests, maxValueDeviation)
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
 	return sells, buys, nil
 }
@@ -58,11 +47,12 @@ func Plan(
 func rebalanceAsset(
 	snapshot portfolio.Snapshot,
 	asset portfolio.Asset,
-	request Request,
+	settings config.Settings,
+	force bool,
 	maxValueDeviation decimal.Decimal,
 ) ([]portfolio.SellProposal, []buyRequest) {
 	if asset.Plan == nil {
-		if request.Force {
+		if force {
 			log.Printf("Rebalancing %s: sell all", asset.Label)
 			return sellExcess(snapshot, asset, asset.Value), nil
 		}
@@ -71,7 +61,7 @@ func rebalanceAsset(
 			return nil, nil
 		}
 		log.Printf("Rebalancing %s: harvest only", asset.Label)
-		return harvestUnplanned(snapshot, asset, request.Settings), nil
+		return harvestUnplanned(snapshot, asset, settings), nil
 	}
 
 	log.Printf("Rebalancing %s: %s --> %s",
@@ -85,13 +75,13 @@ func rebalanceAsset(
 	// Harvesting does nothing for an account that is not taxable, and its buys could wash a taxable account's loss.
 	var sell portfolio.SellProposal
 	if snapshot.TaxRates != nil {
-		sell = harvestAsset(snapshot, asset, request.Settings)
+		sell = harvestAsset(snapshot, asset, settings)
 	}
 	shortfall := sell.Proceeds.Sub(asset.ValueDrift)
 	if !shortfall.IsPositive() {
 		// We should not buy into an overweight asset, so its sale cannot be replaced either.
 		log.Printf("CANNOT buy %s: position is overweight", asset.Label)
-		if !request.Force {
+		if !force {
 			return nil, nil
 		}
 		if asset.ValueDrift.LessThanOrEqual(maxValueDeviation) {

@@ -37,15 +37,6 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	request := rebalancer.Request{
-		Settings: plan.Settings,
-		Force:    forceRebalance,
-	}
-	// Reject a bad request before the broker login, not after.
-	if err := request.Validate(); err != nil {
-		return err
-	}
-
 	client, err := broker.Connect(cmd.Context(), plan.Broker)
 	if err != nil {
 		return err
@@ -59,7 +50,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	sells, buys, err := rebalancer.Plan(snapshot, request, client.Settings())
+	sells, buys, err := rebalancer.Plan(snapshot, plan.Settings, forceRebalance, client.Settings())
 	if err != nil {
 		return err
 	}
