@@ -109,9 +109,8 @@ func rebalanceAsset(
 	}
 	buyPositionIdx, ok := replacement(snapshot, asset, soldPositionIdx)
 	if !ok {
-		// This should rarely happen, but if we cannot maintain an asset's allocation
-		// by purchasing its paired ticker, we should not harvest a ticker
-		log.Printf("CANNOT buy %s: all tickers sold within wash-sale window", asset.Label)
+		// This can happen when all positions are recently sold and cannot be replaced.
+		log.Printf("CANNOT buy %s: replacement ticker(s) sold within wash-sale window", asset.Label)
 		return nil, nil
 	}
 
