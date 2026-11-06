@@ -9,7 +9,7 @@ import (
 )
 
 type Broker interface {
-	Setup() error
+	Setup() (saved bool, err error)
 	Connect(context.Context) (models.BrokerClient, error)
 }
 

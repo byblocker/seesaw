@@ -45,34 +45,35 @@ func (config Config) Validate() error {
 
 type Broker struct{}
 
-func (Broker) Setup() error {
+// Prompt for and save the configuration. Saved is false when the user keeps the existing one.
+func (Broker) Setup() (saved bool, err error) {
 	exists, err := keyring.Exists(etradeConfigKey)
 	if err != nil {
-		return fmt.Errorf("could not check saved ETrade configuration; check OS keyring access: %w", err)
+		return false, fmt.Errorf("could not check saved ETrade configuration; check OS keyring access: %w", err)
 	}
 	if exists {
 		answer, err := utils.AskForInput("ETrade configuration already exists. Overwrite it? [y/N]: ")
 		if err != nil {
-			return err
+			return false, err
 		}
 		if !strings.EqualFold(answer, "y") && !strings.EqualFold(answer, "yes") {
-			return context.Canceled
+			return false, nil
 		}
 	}
 
 	config, err := promptForConfig()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if err := config.Validate(); err != nil {
-		return err
+		return false, err
 	}
 
 	if err := keyring.Set(etradeConfigKey, config); err != nil {
-		return fmt.Errorf("could not save ETrade configuration; check OS keyring access: %w", err)
+		return false, fmt.Errorf("could not save ETrade configuration; check OS keyring access: %w", err)
 	}
-	return nil
+	return true, nil
 }
 
 func (Broker) Connect(ctx context.Context) (models.BrokerClient, error) {
