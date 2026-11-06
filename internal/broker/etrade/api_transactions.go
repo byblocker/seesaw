@@ -14,6 +14,12 @@ import (
 
 const dateFormat = "01022006"
 
+// ETrade's transactionType values for the trades the snapshot tracks; others are skipped.
+var transactionTypes = map[string]models.TransactionType{
+	"Bought": models.TxBuy,
+	"Sold":   models.TxSell,
+}
+
 type transactionRow struct {
 	AccountID string `json:"accountId"`
 	Type      string `json:"transactionType"`
@@ -85,7 +91,7 @@ func (client *Client) fetchTransactionsFor(
 		}
 
 		for _, tx := range response.Page.Transactions {
-			if models.TransactionType(tx.Type).IsSupported() {
+			if _, tracked := transactionTypes[tx.Type]; tracked {
 				rows = append(rows, tx)
 			}
 		}
@@ -118,7 +124,7 @@ func parseTransactions(rows []transactionRow, tickers []string) ([]models.Transa
 
 		transactions = append(transactions, models.Transaction{
 			Ticker: tx.Brokerage.Ticker,
-			Type:   models.TransactionType(tx.Type),
+			Type:   transactionTypes[tx.Type],
 			Date:   time.UnixMilli(tx.Date),
 		})
 	}

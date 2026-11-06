@@ -11,10 +11,6 @@ type Transaction struct {
 type TransactionType string
 
 const (
-	TxBuy  TransactionType = "Bought"
-	TxSell TransactionType = "Sold"
+	TxBuy  TransactionType = "buy"
+	TxSell TransactionType = "sell"
 )
-
-func (t TransactionType) IsSupported() bool {
-	return t == TxBuy || t == TxSell
-}
