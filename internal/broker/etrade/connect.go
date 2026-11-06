@@ -88,6 +88,7 @@ func (etradeBroker Broker) Connect(ctx context.Context) (models.BrokerClient, er
 		return nil, fmt.Errorf("%w: could not load ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
 	}
 
+	credentials.APIBaseURL = strings.TrimRight(credentials.APIBaseURL, "/")
 	if err := credentials.Validate(); err != nil {
 		return nil, fmt.Errorf("%w: invalid saved ETrade configuration: %w", models.ErrBrokerNotConfigured, err)
 	}
@@ -120,7 +121,7 @@ func promptForCredentials() (Credentials, error) {
 	}
 
 	return Credentials{
-		APIBaseURL: strings.TrimRight(baseURL, "/"),
+		APIBaseURL: baseURL,
 		APIKey:     apiKey,
 		APISecret:  apiSecret,
 	}, nil
