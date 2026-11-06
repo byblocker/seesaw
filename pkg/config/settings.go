@@ -12,18 +12,6 @@ type TaxSettings struct {
 	LongTermGainRate  decimal.Decimal
 }
 
-// Nil rates, as for an account that is not taxable, are valid.
-func (settings *TaxSettings) Validate() error {
-	if settings == nil {
-		return nil
-	}
-	_, err := taxYAML{
-		ShortTermGainRate: &settings.ShortTermGainRate,
-		LongTermGainRate:  &settings.LongTermGainRate,
-	}.build()
-	return err
-}
-
 // Settings as written in YAML or held in a struct, before they are checked.
 // Pointers tell a missing key from an explicit zero, and the tags hold every rule.
 type taxYAML struct {

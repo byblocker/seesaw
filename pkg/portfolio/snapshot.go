@@ -72,9 +72,6 @@ func TakeSnapshot(
 	plan *config.Plan,
 	taxRates *config.TaxSettings,
 ) (Snapshot, error) {
-	if err := taxRates.Validate(); err != nil {
-		return Snapshot{}, err
-	}
 	portfolio, err := client.Portfolio(
 		ctx,
 		plan.AccountId,
