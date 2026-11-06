@@ -5,16 +5,12 @@ import (
 	"strings"
 )
 
-func Proposal(
-	sells []portfolio.SellProposal,
-	buys []portfolio.Buy,
-	estimated portfolio.Snapshot,
-) string {
+func Proposal(proposal portfolio.Proposal, estimated portfolio.Snapshot) string {
 	var output strings.Builder
 	output.WriteString("\nSuggested Orders\n\n")
 
-	summary := formatSells(sells, estimated)
-	buyRows := formatBuys(buys, estimated)
+	summary := formatSells(proposal.Sells, estimated)
+	buyRows := formatBuys(proposal.Buys, estimated)
 	if len(summary.rows) == 0 && len(buyRows) == 0 {
 		output.WriteString("No trades suggested.\n\n")
 	} else {

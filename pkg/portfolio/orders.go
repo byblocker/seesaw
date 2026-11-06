@@ -6,6 +6,13 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// The orders a planner proposes, and the cash it plans to withdraw.
+type Proposal struct {
+	Sells      []SellProposal
+	Buys       []Buy
+	Withdrawal decimal.Decimal
+}
+
 type Buy struct {
 	PositionIdx   int
 	Price         decimal.Decimal

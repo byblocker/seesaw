@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/spf13/cobra"
 	"io"
 	"seesaw/internal/broker"
 	"seesaw/internal/report"
 	"seesaw/pkg/portfolio"
-
-	"github.com/shopspring/decimal"
-	"github.com/spf13/cobra"
 )
 
 var snapshotCmd = &cobra.Command{
@@ -52,17 +50,10 @@ func writeSnapshot(cmd *cobra.Command, snapshot portfolio.Snapshot) error {
 	return nil
 }
 
-// Write the orders and the portfolio they would leave after the withdrawal.
-func writeProposal(
-	cmd *cobra.Command,
-	snapshot portfolio.Snapshot,
-	sells []portfolio.SellProposal,
-	buys []portfolio.Buy,
-	withdrawal decimal.Decimal,
-) error {
-	estimated := snapshot.Simulate(sells, buys, withdrawal)
-	proposal := report.Proposal(sells, buys, estimated)
-	if _, err := io.WriteString(cmd.OutOrStdout(), proposal); err != nil {
+// Write the orders and the portfolio the proposal would leave.
+func writeProposal(cmd *cobra.Command, snapshot portfolio.Snapshot, proposal portfolio.Proposal) error {
+	text := report.Proposal(proposal, snapshot.Simulate(proposal))
+	if _, err := io.WriteString(cmd.OutOrStdout(), text); err != nil {
 		return fmt.Errorf("write proposed orders: %w", err)
 	}
 	return nil

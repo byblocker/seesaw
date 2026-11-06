@@ -258,17 +258,17 @@ func allocate(assets []Asset, cash decimal.Decimal) decimal.Decimal {
 	return totalValue
 }
 
-// The snapshot after the orders and the withdrawal. Its positions and lots are the snapshot's own, unchanged.
-func (snapshot Snapshot) Simulate(sells []SellProposal, buys []Buy, withdrawal decimal.Decimal) Snapshot {
+// The snapshot after the proposal. Its positions and lots are the snapshot's own, unchanged.
+func (snapshot Snapshot) Simulate(proposal Proposal) Snapshot {
 	simulated := snapshot
 	simulated.Assets = slices.Clone(snapshot.Assets)
-	cash := snapshot.Balances.CashBalance.Sub(withdrawal)
-	for _, sell := range sells {
+	cash := snapshot.Balances.CashBalance.Sub(proposal.Withdrawal)
+	for _, sell := range proposal.Sells {
 		asset := &simulated.Assets[snapshot.Positions[sell.PositionIdx].AssetIdx]
 		asset.Value = asset.Value.Sub(sell.Proceeds)
 		cash = cash.Add(sell.Proceeds)
 	}
-	for _, buy := range buys {
+	for _, buy := range proposal.Buys {
 		asset := &simulated.Assets[snapshot.Positions[buy.PositionIdx].AssetIdx]
 		asset.Value = asset.Value.Add(buy.EstimatedCost)
 		cash = cash.Sub(buy.EstimatedCost)

@@ -66,7 +66,7 @@ func liquidate(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return writeProposal(cmd, snapshot, sells, nil, amount)
+	return writeProposal(cmd, snapshot, portfolio.Proposal{Sells: sells, Withdrawal: amount})
 }
 
 var amountPattern = regexp.MustCompile(`^\$?(\d+|\d{1,3}(,\d{3})+)(\.\d+)?$`)

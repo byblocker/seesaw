@@ -6,7 +6,6 @@ import (
 	"seesaw/pkg/portfolio"
 	"seesaw/pkg/rebalancer"
 
-	"github.com/shopspring/decimal"
 	"github.com/spf13/cobra"
 )
 
@@ -55,5 +54,5 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return writeProposal(cmd, snapshot, sells, buys, decimal.Zero)
+	return writeProposal(cmd, snapshot, portfolio.Proposal{Sells: sells, Buys: buys})
 }
