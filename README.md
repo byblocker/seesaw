@@ -13,9 +13,9 @@ _seesaw_ displays portfolio allocations and suggested orders in tables. It does 
 go mod download
 ```
 
-4. Secrets and OAuth token caching relies upon your OS keyring. Verify access: [go-keyring platform support and requirements](https://github.com/zalando/go-keyring#readme).
+3. Secrets and OAuth token caching relies upon your OS keyring. Verify access: [go-keyring platform support and requirements](https://github.com/zalando/go-keyring#readme).
 
-5. Broker authorization requires an internet connection and the ability to open a browser from your terminal. To check browser access, run the command for your OS:
+4. Broker authorization requires an internet connection and the ability to open a browser from your terminal. To check browser access, run the command for your OS:
 
 ```sh
 # macOS
@@ -28,7 +28,7 @@ xdg-open https://example.com
 Start-Process https://example.com
 ```
 
-6. Connect your broker using its setup guide:
+5. Connect your broker using its setup guide:
 - [ETRADE setup](docs/brokers/etrade.md)
 
 ## Creating your portfolio plan
@@ -79,7 +79,7 @@ All fields below are required except `assets[].alternate_ticker`. None have defa
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
 | `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `(0, 1]` |
 
-_seesaw_ rejects unknown fields and multiple documents
+_seesaw_ rejects unknown fields and multiple documents.
 
 **WARNING:** _seesaw_ does not ensure ticker pairs are suitable for wash-sale avoidance. Please review this yourself.
 
@@ -102,7 +102,7 @@ These rates apply to every portfolio. They are used only for taxable portfolios,
 
 `snapshot`, `rebalance`, and `liquidate` load `data/user.yaml` before connecting to the broker.
 
-Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
+Each proposed sale will show its estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
 _seesaw_ rejects unknown fields and multiple documents.
 
@@ -128,7 +128,7 @@ go run . rebalance < name of your portfolio >
 
 2. Review the account snapshot: asset values at the bid, current and target allocations, cash balance, and portfolio total.
 
-3. Review the suggested orders. For example, with a starting cash balance of $1,000:
+3. Review the suggested orders. For example, with $1,000 of buying power:
 
 ```text
 Suggested Orders
@@ -153,7 +153,7 @@ Add `--verbose` (`-v`) to any command to see its progress logs. For `rebalance`,
 `rebalance` fetches a snapshot of your account and then . . .
 1. Assigns positions to `Assets` according to the provided portfolio plan;
 2. Identifies lots with tax loss and simulates sales, if any, in taxable portfolios only;
-3. Sizes purchases using available cash balance and proceeds from suggested sells
+3. Sizes purchases using available buying power and proceeds from suggested sells
 
 By default, _seesaw_ only harvests tax losses from holdings outside the plan, and it does not sell overweight assets to reduce their allocation. Use `--force` to sell both.
 
