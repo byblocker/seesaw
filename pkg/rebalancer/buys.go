@@ -36,14 +36,7 @@ func sizeBuys(
 		}
 
 		ticker := snapshot.Positions[request.PositionIdx].Ticker
-		buy := proposeBuy(
-			snapshot,
-			request,
-			balance,
-			maxValueDeviation,
-			settings.MinFractionalShareToRound,
-			snapshot.Broker.AllowFractionalShares,
-		)
+		buy := proposeBuy(snapshot, settings, request, balance, maxValueDeviation)
 		if buy.Quantity.IsZero() {
 			log.Printf("CANNOT buy %s: not enough for one share", ticker)
 			continue
@@ -60,11 +53,10 @@ func sizeBuys(
 
 func proposeBuy(
 	snapshot portfolio.Snapshot,
+	settings config.Settings,
 	request buyRequest,
 	balance,
-	maxValueDeviation,
-	minFractionalShareToRound decimal.Decimal,
-	allowFractionalShares bool,
+	maxValueDeviation decimal.Decimal,
 ) portfolio.Buy {
 	position := snapshot.Positions[request.PositionIdx]
 	ask := position.Quote.Ask
@@ -79,7 +71,7 @@ func proposeBuy(
 
 	valueToCover := decimal.Min(request.Amount, balance)
 	exactShares, _ := valueToCover.QuoRem(ask, portfolio.DivisionDecimalPlaces)
-	if allowFractionalShares {
+	if snapshot.Broker.AllowFractionalShares {
 		return buy(exactShares)
 	}
 
@@ -91,7 +83,7 @@ func proposeBuy(
 
 	// Truncate so the shown count never rounds up to the whole share it falls short of.
 	cannotRound := fmt.Sprintf("CANNOT round up %s from %s share(s)", position.Ticker, exactShares.Truncate(2))
-	if fraction.LessThan(minFractionalShareToRound) {
+	if fraction.LessThan(settings.MinFractionalShareToRound) {
 		log.Printf("%s: below rounding threshold", cannotRound)
 		return buy(wholeShares)
 	}
