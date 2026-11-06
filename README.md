@@ -198,6 +198,37 @@ The planner stops with an error if your whole-share holdings cannot raise the am
 
 Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
 
+## Library Usage
+
+The commands are one way to run _seesaw_; the packages under `seesaw/pkg` let another host, such as a scheduled job, run the same steps:
+
+```go
+ctx := context.Background()
+
+plan, err := config.ParsePlan(planReader) // or config.LoadPlan(path)
+user, err := config.ParseUser(userReader) // or config.LoadUser(path)
+rates, err := user.TaxRates(plan.IsTaxable)
+
+selected, err := registry.FindBroker(plan.Broker, store)
+client, err := selected.Connect(ctx)
+snapshot, err := portfolio.TakeSnapshot(ctx, client, plan, rates)
+
+proposal, err := rebalancer.Plan(snapshot, plan.Settings, false) // or liquidation.PlanSales(snapshot, plan.Settings, amount)
+estimated := snapshot.Simulate(proposal)
+```
+
+Check each `err` before continuing. The planners return a `portfolio.Proposal` of sells, buys, and the withdrawal, and `Simulate` returns the portfolio after it; render them however your host needs. Progress goes to the standard `log` package.
+
+### Secrets
+
+Brokers keep their credentials and tokens in a `secrets.Store` from `seesaw/pkg/secrets`: anything that can `Get` and `Set` bytes by key, returning `secrets.ErrNotFound` for a missing key. The commands use `keyring.Store{}` from `seesaw/pkg/secrets/keyring`; another host can back it with its own secret manager. `Connect` returns `models.ErrBrokerNotConfigured` when the store holds no credentials.
+
+ETRADE signs in through a browser and expires tokens at midnight Eastern, so a host that cannot prompt can only reuse a token signed in that day and saved to its store.
+
+### Building plans in code
+
+`config.NewPlan(broker, accountId, isTaxable, settings, assets)` applies the same rules as a plan file: it trims tickers, rejects duplicates, and requires targets that sum to `1.0`. Set every `config.Settings` field; a field left out is zero, which is valid for each of them. `portfolio.TakeSnapshot` checks the tax rates, and the planners check their settings and amount, so values built in code get the same errors as the files. `ParsePlan` and `ParseUser` reject unknown fields and multiple documents.
+
 ## Development Choices
 
 We use `shopspring/decimal` for decimal arithmetic and JSON numbers such as `2.0E-4`. We keep prices and quantities as decimals throughout the calculations and truncate division to 19 decimal places.
