@@ -62,7 +62,7 @@ type LotSnapshot struct {
 	GainPerShare decimal.Decimal
 	GainPct      decimal.Decimal // Fraction of the price paid
 	LongTerm     bool
-	IsWashSale   bool
+	IsWashSale   bool            // A taxable loss that a recent purchase disallows
 	TaxPerShare  decimal.Decimal // Zero for non-taxable accounts and wash sales
 	// Truncating the quotient never reorders lots, so sorting by it matches the exact ratio up to ties below its precision.
 	TaxPerDollar decimal.Decimal
@@ -219,7 +219,7 @@ func newLotSnapshot(lot models.TaxLot, position Position, createdAt time.Time, t
 		GainPerShare: gainPerShare,
 		GainPct:      gainPct,
 		LongTerm:     isLongTerm(lot.TimeAcquired, createdAt),
-		IsWashSale:   position.RecentlyBought && gainPerShare.IsNegative(),
+		IsWashSale:   taxRates != nil && position.RecentlyBought && gainPerShare.IsNegative(),
 	}
 	snapshot.TaxPerShare = snapshot.taxPerShare(taxRates)
 	snapshot.TaxPerDollar, _ = snapshot.TaxPerShare.QuoRem(bid, utils.DivisionDecimalPlaces)

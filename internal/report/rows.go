@@ -56,7 +56,7 @@ func formatSells(sells []portfolio.SellProposal, snapshot portfolio.Snapshot) se
 				summary.shortTermPL = summary.shortTermPL.Add(realizedPL)
 			}
 			action := string(models.TxSell)
-			if taxable && lot.Snapshot.IsWashSale {
+			if lot.Snapshot.IsWashSale {
 				action += " [WS]"
 				summary.washSale = true
 			}
