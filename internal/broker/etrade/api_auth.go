@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"seesaw/internal/broker"
-	"seesaw/internal/calendar"
 	"seesaw/internal/keyring"
 	"time"
 
@@ -77,7 +76,7 @@ func authenticate(ctx context.Context, key, secret, baseURL string) (*resty.Clie
 }
 
 func saveOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHash [32]byte) error {
-	expiresAt, err := calendar.EndOfDay(refreshedAt, timezone)
+	expiresAt, err := endOfDay(refreshedAt)
 	if err != nil {
 		return err
 	}
@@ -88,6 +87,15 @@ func saveOAuthToken(token *oauth1.Token, refreshedAt time.Time, configurationHas
 		LastRefreshed:     refreshedAt,
 		ExpiresAt:         expiresAt,
 	})
+}
+
+func endOfDay(moment time.Time) (time.Time, error) {
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid timezone %q: %w", timezone, err)
+	}
+	year, month, day := moment.In(location).Date()
+	return time.Date(year, month, day, 23, 59, 59, 0, location), nil
 }
 
 func refreshETradeClient(ctx context.Context, oauth *oauth1.Config, configurationHash [32]byte) (*resty.Client, error) {

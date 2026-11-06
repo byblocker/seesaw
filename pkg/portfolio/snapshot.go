@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"seesaw/internal/calendar"
 	"seesaw/pkg/config"
 	"seesaw/pkg/models"
 	"slices"
@@ -162,7 +161,7 @@ func setQuotes(positions []Position, positionIdxByTicker map[string]int, quotes 
 func flagRecentTrades(positions []Position, positionIdxByTicker map[string]int, transactions []models.Transaction, createdAt time.Time) {
 	for _, tx := range transactions {
 		positionIdx, ok := positionIdxByTicker[tx.Ticker]
-		if !ok || calendar.DaysBetween(tx.Date, createdAt) > WashSaleWindowDays {
+		if !ok || daysBetween(tx.Date, createdAt) > WashSaleWindowDays {
 			continue
 		}
 		switch tx.Type {
