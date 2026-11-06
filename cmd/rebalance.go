@@ -49,7 +49,7 @@ func rebalance(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	proposal, err := rebalancer.Plan(snapshot, plan.Settings, forceRebalance, client.Settings())
+	proposal, err := rebalancer.Plan(snapshot, plan.Settings, forceRebalance)
 	if err != nil {
 		return err
 	}

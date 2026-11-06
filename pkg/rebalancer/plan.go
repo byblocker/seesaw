@@ -5,7 +5,6 @@ import (
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -15,13 +14,12 @@ func Plan(
 	snapshot portfolio.Snapshot,
 	settings config.Settings,
 	force bool,
-	brokerSettings models.BrokerSettings,
 ) (portfolio.Proposal, error) {
 	if !snapshot.TotalValue.IsPositive() {
 		return portfolio.Proposal{}, fmt.Errorf("empty or negative portfolio")
 	}
 
-	settings.Log(snapshot.TotalValue, brokerSettings.AllowFractionalShares)
+	settings.Log(snapshot.TotalValue, snapshot.Broker.AllowFractionalShares)
 	maxValueDeviation := snapshot.TotalValue.Mul(settings.AllocationUpperLimit)
 	if force {
 		log.Printf("  - Sell assets more than %s above target down to target", utils.FormatMoney(maxValueDeviation))
@@ -39,7 +37,7 @@ func Plan(
 		buyRequests = append(buyRequests, assetBuyRequests...)
 	}
 
-	buys := sizeBuys(snapshot, settings, brokerSettings, sells, buyRequests, maxValueDeviation)
+	buys := sizeBuys(snapshot, settings, sells, buyRequests, maxValueDeviation)
 	log.Printf("Rebalance complete: %d buy(s), %d sell(s)", len(buys), len(sells))
 	return portfolio.Proposal{Sells: sells, Buys: buys}, nil
 }

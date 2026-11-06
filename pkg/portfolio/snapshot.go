@@ -23,7 +23,9 @@ type Snapshot struct {
 	Positions  []Position
 	Lots       []Lot
 	TotalValue decimal.Decimal
-	TaxRates   *config.TaxSettings // Nil for non-taxable accounts
+
+	TaxRates *config.TaxSettings // Nil for non-taxable accounts
+	Broker   models.BrokerSettings
 }
 
 type Asset struct {
@@ -101,6 +103,7 @@ func TakeSnapshot(
 		Lots:       lots,
 		TotalValue: totalValue,
 		TaxRates:   taxRates,
+		Broker:     client.Settings(),
 	}, nil
 }
 

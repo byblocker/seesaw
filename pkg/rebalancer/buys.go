@@ -5,7 +5,6 @@ import (
 	"log"
 	"seesaw/internal/utils"
 	"seesaw/pkg/config"
-	"seesaw/pkg/models"
 	"seesaw/pkg/portfolio"
 
 	"github.com/shopspring/decimal"
@@ -28,7 +27,6 @@ func selectBuy(snapshot portfolio.Snapshot, asset portfolio.Asset, sell portfoli
 func sizeBuys(
 	snapshot portfolio.Snapshot,
 	settings config.Settings,
-	brokerSettings models.BrokerSettings,
 	sells []portfolio.SellProposal,
 	buyRequests []buyRequest,
 	maxValueDeviation decimal.Decimal,
@@ -53,7 +51,7 @@ func sizeBuys(
 			balance,
 			maxValueDeviation,
 			settings.MinFractionalShareToRound,
-			brokerSettings.AllowFractionalShares,
+			snapshot.Broker.AllowFractionalShares,
 		)
 		if buy.Quantity.IsZero() {
 			log.Printf("CANNOT buy %s: not enough for one share", ticker)
