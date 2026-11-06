@@ -77,7 +77,7 @@ All fields below are required except `assets[].alternate_ticker`. None have defa
 | `settings.allocation_lower_limit` | How far `liquidate` may sell an asset below its target, measured against the portfolio after the withdrawal. For example, `0.02` lets a `0.25` target fall to `0.23`. | `[0, 1]` |
 | `assets[].primary_ticker` | Preferred ticker for purchases. Its holdings and the alternate's holdings count towards the same asset allocation. | Uppercase and unique across all asset tickers. |
 | `assets[].alternate_ticker` | A suitable partner for tax-loss harvesting. When harvesting one ticker, _seesaw_ can purchase the other to maintain the asset's allocation. Without an alternate, it can propose buys without paired tax-loss harvesting. | Optional; uppercase and unique across all asset tickers. |
-| `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `[0, 1]` |
+| `assets[].target_allocation` | The target fraction of the portfolio dedicated to the primary and alternate securities together. _seesaw_ ensures all target allocations sum to `1.0`. | `(0, 1]` |
 
 _seesaw_ rejects unknown fields and multiple documents
 
