@@ -77,15 +77,11 @@ func planNameArg(cmd *cobra.Command, args []string) error {
 func planChoiceError(name, problem string) error {
 	names := planNames()
 	if len(names) == 0 {
-		return noPlansError(name)
+		return fmt.Errorf("no portfolio plans in %s. To create one:\n"+
+			"  1. Run: seesaw init %s\n"+
+			"  2. Edit %s and %s", portfolioDir, name, planPath(name), userConfigPath)
 	}
 	return fmt.Errorf("%s: %s", problem, strings.Join(names, ", "))
-}
-
-func noPlansError(name string) error {
-	return fmt.Errorf("no portfolio plans in %s. To create one:\n"+
-		"  1. Run: seesaw init %s\n"+
-		"  2. Edit %s and %s", portfolioDir, name, planPath(name), userConfigPath)
 }
 
 func planPath(name string) string {
