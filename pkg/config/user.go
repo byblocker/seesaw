@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"seesaw/internal/utils"
 
+	"github.com/shopspring/decimal"
 	"gopkg.in/yaml.v3"
 )
 
@@ -15,6 +17,27 @@ type User struct {
 
 type userYAML struct {
 	Tax *taxYAML `yaml:"tax"`
+}
+
+type TaxSettings struct {
+	ShortTermGainRate decimal.Decimal
+	LongTermGainRate  decimal.Decimal
+}
+
+// Tax rates as written in YAML, before they are checked. Pointers tell a missing key from an explicit zero.
+type taxYAML struct {
+	ShortTermGainRate *decimal.Decimal `yaml:"short_term_gain_rate" validate:"required,gte=0,lte=1"`
+	LongTermGainRate  *decimal.Decimal `yaml:"long_term_gain_rate" validate:"required,gte=0,lte=1"`
+}
+
+func (raw taxYAML) build() (TaxSettings, error) {
+	if err := utils.ValidateFields(raw, "tax."); err != nil {
+		return TaxSettings{}, err
+	}
+	return TaxSettings{
+		ShortTermGainRate: *raw.ShortTermGainRate,
+		LongTermGainRate:  *raw.LongTermGainRate,
+	}, nil
 }
 
 func (user *User) TaxRates(isTaxable bool) (*TaxSettings, error) {

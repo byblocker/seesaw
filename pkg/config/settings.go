@@ -6,28 +6,6 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type TaxSettings struct {
-	ShortTermGainRate decimal.Decimal
-	LongTermGainRate  decimal.Decimal
-}
-
-// Settings as written in YAML or held in a struct, before they are checked.
-// Pointers tell a missing key from an explicit zero, and the tags hold every rule.
-type taxYAML struct {
-	ShortTermGainRate *decimal.Decimal `yaml:"short_term_gain_rate" validate:"required,gte=0,lte=1"`
-	LongTermGainRate  *decimal.Decimal `yaml:"long_term_gain_rate" validate:"required,gte=0,lte=1"`
-}
-
-func (raw taxYAML) build() (TaxSettings, error) {
-	if err := utils.ValidateFields(raw, "tax."); err != nil {
-		return TaxSettings{}, err
-	}
-	return TaxSettings{
-		ShortTermGainRate: *raw.ShortTermGainRate,
-		LongTermGainRate:  *raw.LongTermGainRate,
-	}, nil
-}
-
 type Settings struct {
 	// Minimum remainder to round a whole-share purchase up.
 	MinFractionalShareToRound decimal.Decimal
@@ -49,6 +27,8 @@ func (settings Settings) Validate() error {
 	return err
 }
 
+// Settings as written in YAML or held in a struct, before they are checked.
+// Pointers tell a missing key from an explicit zero, and the tags hold every rule.
 type settingsYAML struct {
 	MinFractionalShareToRound *decimal.Decimal `yaml:"min_fractional_share_to_round" validate:"required,gte=0,lte=1"`
 	MinPctLossToHarvest       *decimal.Decimal `yaml:"min_pct_loss_to_harvest" validate:"required,gte=-1,lte=0"`
