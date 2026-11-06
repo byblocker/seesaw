@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -18,7 +17,7 @@ var initCmd = &cobra.Command{
 	Use:     "init <portfolio>",
 	Short:   "Create the user config and a portfolio plan from the examples",
 	Example: "  seesaw init growth",
-	Args:    cobra.ExactArgs(1),
+	Args:    planNameArg,
 	RunE:    initFiles,
 }
 
@@ -27,12 +26,7 @@ func init() {
 }
 
 func initFiles(cmd *cobra.Command, args []string) error {
-	name := args[0]
-	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("portfolio name must not be empty")
-	}
-
-	path := planPath(name)
+	path := planPath(args[0])
 	if _, err := os.Stat(path); err == nil {
 		return fmt.Errorf("portfolio plan %s already exists", path)
 	}

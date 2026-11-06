@@ -48,10 +48,6 @@ func Execute() {
 }
 
 func loadPlan(name string) (*config.Plan, error) {
-	if strings.TrimSpace(name) == "" {
-		return nil, fmt.Errorf("portfolio name must not be empty")
-	}
-
 	plan, err := config.LoadPlan(planPath(name))
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, planChoiceError(name, fmt.Sprintf("no portfolio plan named %q", name))
@@ -61,10 +57,20 @@ func loadPlan(name string) (*config.Plan, error) {
 
 // Requires the portfolio argument, listing the plans to choose from when it is absent.
 func requirePlanName(cmd *cobra.Command, args []string) error {
-	if len(args) > 0 {
-		return cobra.ExactArgs(1)(cmd, args)
+	if len(args) == 0 {
+		return planChoiceError("<name>", "must specify a supported portfolio")
 	}
-	return planChoiceError("<name>", "must specify a supported portfolio")
+	return planNameArg(cmd, args)
+}
+
+func planNameArg(cmd *cobra.Command, args []string) error {
+	if err := cobra.ExactArgs(1)(cmd, args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(args[0]) == "" {
+		return fmt.Errorf("portfolio name must not be empty")
+	}
+	return nil
 }
 
 // The problem followed by the plans to choose from, or how to create one when there are none.
