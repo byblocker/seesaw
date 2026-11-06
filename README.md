@@ -104,7 +104,7 @@ These rates apply to every portfolio. They are used only for taxable portfolios,
 
 Each proposed sale will show it's estimated tax impact. Negative impact represents tax relief, assuming losses offset gains of the same holding period. These estimates do not account for annual netting, carryovers, or wash-sale adjustments. These are not a calculation of tax due.
 
-Use `config.ParseUser(reader)` from `seesaw/pkg/config` to parse and validate. It rejects unknown fields and additional YAML documents.
+_seesaw_ rejects unknown fields and multiple documents.
 
 ## Snapshot
 
@@ -197,42 +197,6 @@ Review the proposed lots; for taxable portfolios, the table ends with the realiz
 The planner stops with an error if your whole-share holdings cannot raise the amount needed, or if allocation minimums leave too little to sell; raise `settings.allocation_lower_limit` to allow more. It does not return an unfinished proposal.
 
 Like `rebalance`, this command only displays suggestions; it does not submit orders or withdraw cash.
-
-## Library Usage
-
-Use `broker.Connect(ctx, name)` from with a saved configuration in your OS keyring, or see specific usage for a given broker:
-- [ETRADE guide](docs/brokers/etrade.md#library-use)
-
-### Plans and user settings
-
-Load the YAML files with `config.LoadPlan(path)` and `config.LoadUser(path)` from `seesaw/pkg/config`, or parse any reader with `config.ParsePlan` and `config.ParseUser`.
-
-To build them in code, use the plan constructors and fill in the settings structs. The constructors and `Validate()` apply the same rules as the files and return the same error messages:
-
-```go
-d := decimal.RequireFromString
-
-// Check each err before continuing.
-settings := config.Settings{
-	MinFractionalShareToRound: d("0.7"),
-	MinPctLossToHarvest:       d("-0.005"),
-	AllocationUpperLimit:      d("0.02"),
-	AllocationLowerLimit:      d("0.02"),
-}
-stocks, err := config.NewAssetPlan("VTI", "ITOT", d("0.6"))
-bonds, err := config.NewAssetPlan("BND", "", d("0.4"))
-plan, err := config.NewPlan("ETRADE", "YOUR_ACCOUNT_ID", true, settings, []config.AssetPlan{stocks, bonds})
-
-tax := config.TaxSettings{
-	ShortTermGainRate: d("0.35"),
-	LongTermGainRate:  d("0.20"),
-}
-user, err := config.NewUser(&tax) // nil tax: no taxable portfolios
-```
-
-`NewAssetPlan` trims ticker whitespace, and `NewPlan` rejects duplicate tickers and targets that do not sum to `1.0`. `user.TaxRates(plan.IsTaxable)` returns the rates to use for a plan: nil when it is not taxable, or an error when it is taxable and `user.Tax` is nil. Pass them to `portfolio.TakeSnapshot`, which checks them before fetching the account; the planners and the report read them from the snapshot.
-
-Fields are exported, so you can read or change them directly; the constructors only check values when they build them. Set every settings field: a field you leave out is zero, which is a valid value for each of them. `NewPlan` and `NewUser` validate them, or call `Validate()` yourself. `rebalancer.Plan` and `liquidation.PlanSales` check the settings they receive again, but not the rest of the plan their snapshot was taken from.
 
 ## Development Choices
 
