@@ -28,11 +28,6 @@ type quoteResponse struct {
 }
 
 func (client *Client) fetchQuote(ctx context.Context, ticker string) (models.Quote, error) {
-	ticker = strings.TrimSpace(ticker)
-	if ticker == "" {
-		return models.Quote{}, fmt.Errorf("invalid ticker: %s", ticker)
-	}
-
 	endpoint := fmt.Sprintf("%s/market/quote/%s", client.apiBaseURL, url.PathEscape(ticker))
 	endpoint += "?" + url.Values{"detailFlag": {"ALL"}}.Encode()
 

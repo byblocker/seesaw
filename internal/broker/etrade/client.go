@@ -37,10 +37,6 @@ func (client *Client) Portfolio(
 	daysBack int,
 	plannedTickers []string,
 ) (models.Portfolio, error) {
-	if daysBack <= 0 {
-		return models.Portfolio{}, fmt.Errorf("transaction lookback must be positive")
-	}
-
 	// We grab all accounts since different accounts may include transactions
 	// that could be relevant for tax-loss harvesting and wash-sale avoidance.
 	accounts, err := client.fetchAccounts(ctx)
